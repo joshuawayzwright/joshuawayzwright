@@ -1,11 +1,13 @@
 <div align="center">
 
 # Joshua Wright
-### Founder of WrightWayz · Builder · Systems Thinker
+### Founder · Builder · Systems Thinker
 
 **Out of Darkness → Into the Sudo**
 
-Building systems, community and technology so that no Australian family has to face mental health challenges, addiction, trauma or hardship alone.
+Building technology, systems and community so no Australian family has to face mental health challenges, addiction, trauma or hardship alone.
+
+<br>
 
 [![Website](https://img.shields.io/badge/Website-wrightwayz.site-0A66C2?style=for-the-badge&logo=google-chrome&logoColor=white)](https://wrightwayz.site)
 [![X](https://img.shields.io/badge/X-@wrightwayzJosh-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/wrightwayzJosh)
@@ -17,43 +19,38 @@ Building systems, community and technology so that no Australian family has to f
 
 ### About
 
-I'm Joshua — founder of **WrightWayz**.
+I'm Joshua, founder of **WrightWayz**.
 
-I build at the intersection of:
-- Mission-driven non-profit work
-- Practical systems & automation
-- Technology that actually serves people
-
-My north star is simple:
+I operate at the intersection of mission-driven work and practical systems. My focus is simple:
 
 > **No one should have to face the hardest parts of life alone.**
 
-Everything I create — whether code, community infrastructure, or digital tools — is in service of that belief.
+Everything I build — digital infrastructure, tools, or community systems — exists to serve that belief.
 
 ---
 
 ### Currently Building
 
-- The full digital foundation for WrightWayz (website, internal systems, community platforms)
+- **WrightWayz digital foundation** — website, internal systems and community platforms
 - Practical tools that reduce friction for non-profits and community organisations
-- Personal experiments in systems thinking, automation and local-first software
+- Systems and automation that scale care without losing the human element
 
 ---
 
-### Tech & Approach
+### Approach
 
-I care about tools that give people more agency — clean systems, reproducible environments, privacy-respecting software, and technology that scales compassion instead of complexity.
+I care about clean systems, local-first software, privacy, and technology that increases agency rather than complexity. Tools should serve people — not the other way around.
 
 ---
 
 ### Let's Connect
 
-I'm always open to conversations about:
+Open to conversations about:
 - Building better systems for mission-driven organisations
-- Mental health + technology done with care
-- Collaboration on tools that serve real communities
+- Mental health + technology done with genuine care
+- Collaboration on tools that actually serve communities
 
-**Find me:**  
+**Find me**  
 X → [@wrightwayzJosh](https://x.com/wrightwayzJosh)  
 Instagram → [@wrightwayz_nonprofit](https://www.instagram.com/wrightwayz_nonprofit)  
 Website → [wrightwayz.site](https://wrightwayz.site)

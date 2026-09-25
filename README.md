@@ -1,92 +1,121 @@
 <div align="center">
 
-# Joshua Wright
-### Founder, WrightWayz
+# JOSHUA WRIGHT
 
-**Out of Darkness → Into the Sudo**
+### Founder & CEO · WrightWayz
+### AI · Automation · Open Source · Social Impact
 
-I build people-first systems and technology so no Australian family faces mental health challenges, addiction, trauma, or hardship alone.
+**Broken Systems. Unbreakable Bonds.**
 
-<br>
+Building practical technology and community infrastructure around mental health, addiction, trauma and recovery.
 
-[![Website](https://img.shields.io/badge/Website-wrightwayz.site-0A66C2?style=for-the-badge&logo=google-chrome&logoColor=white)](https://wrightwayz.site)
-[![X](https://img.shields.io/badge/X-@wrightwayzJosh-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/wrightwayzwJosh)
-[![Instagram](https://img.shields.io/badge/Instagram-wrightwayz__nonprofit-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/wrightwayz_nonprofit)
+[![WrightWayz](https://img.shields.io/badge/WrightWayz-wrightwayz.com-C6A15B?style=for-the-badge&logo=googlechrome&logoColor=white)](https://wrightwayz.com)
+[![GitHub](https://img.shields.io/badge/GitHub-joshuawayzwright-181717?style=for-the-badge&logo=github)](https://github.com/joshuawayzwright)
 
 </div>
 
 ---
 
-## About me
+## Mission
 
-I'm Joshua — I create mission-driven systems that scale care without losing the human element. My work focuses on practical tools, local-first software, privacy, and building systems that help communities get the support they need sooner.
+I founded **WrightWayz** to build people-first pathways where technology supports human connection rather than replacing it.
 
-Core belief:
-> No one should have to face the hardest parts of life alone.
+My work sits at the intersection of **AI, automation, open-source technology, digital infrastructure and non-profit operations**. The goal is practical: reduce friction, improve access to useful information and give mission-driven organisations better systems for doing more with limited resources.
 
----
-
-## What I'm building
-
-- WrightWayz digital foundation — website, internal systems, and community platforms that support service delivery and volunteer coordination.
-- Practical tools to reduce friction for non-profits (admin automation, secure communication, intake flows).
-- Systems that scale compassionate care while preserving privacy and dignity.
+> **People before platforms. Mission before hype.**
 
 ---
 
-## Philosophy & approach
+## What I'm Building
 
-- People-first: technology must increase agency, not complexity.
-- Privacy-focused: minimal data collection, secure by default.
-- Local-first: solutions that strengthen community capacity and integrate with local services.
-- Design for real users: build, test, iterate with those who will actually use the tools.
-
----
-
-## Featured work
-
-- WrightWayz digital foundation — central platform for volunteers, staff, and clients (website & internal tooling).
-- Operational playbooks for non-profit intake and triage workflows.
-- Small tools to automate recurring admin tasks so staff can spend more time helping people.
-
-(If you'd like, I can add project links or short demos here.)
+| Project | Focus | Status |
+|---|---|---|
+| **[WrightWayz Website](https://github.com/joshuawayzwright/wrightwayz-website)** | Public digital foundation for WrightWayz | Active |
+| **WrightWayz Cognition** | Interactive clarity and self-reflection tooling | In development |
+| **AI Bridge** | Responsible AI-assisted information and navigation concepts | In development |
+| **Non-Profit Automation** | Practical workflows that reduce repetitive administration | Roadmap |
 
 ---
 
-## Tech & skills
+## WrightWayz
 
-- Systems thinking, product design for social impact
-- Web: modern JavaScript, static-first tools, privacy-preserving integrations
-- Infrastructure: lightweight automation, secure hosting, pragmatic architecture
-- Nonprofit operations: intake flows, volunteer management, fundraising systems
+**Broken Systems. Unbreakable Bonds.**  
+**#WeWalkAsOne**
+
+WrightWayz is being developed as an Australian mission-driven organisation focused on community, lived experience, recovery, mental health, addiction and practical digital support.
+
+The public website and source are being built openly where doing so creates useful public value.
+
+**[Explore the website →](https://wrightwayz.com)** · **[View the source →](https://github.com/joshuawayzwright/wrightwayz-website)**
 
 ---
+
+## Technology
+
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=github,git,python,js,ts,nodejs,html,css,docker,gcp,firebase,vercel,vscode,linux&perline=7" alt="Technology stack" />
+</p>
+
+**Current focus:** GitHub · GitHub Actions · Vercel · Google Cloud · Firebase · n8n · Docker · Python · JavaScript · TypeScript · APIs · AI systems
+
+---
+
+## Engineering Principles
+
+```text
+01  People before platforms.
+02  Mission before hype.
+03  Privacy and security by design.
+04  Automate repetitive work — not human compassion.
+05  Build openly where openness creates public value.
+06  Ship practical systems people can actually use.
+07  Document the work so others can build on it.
+```
+
+---
+
+## 2026 Build Roadmap
+
+- [x] Establish the Joshua Wright GitHub identity
+- [x] Publish the WrightWayz website source
+- [x] Connect production deployment through Vercel
+- [ ] Expand WrightWayz public documentation
+- [ ] Publish reusable non-profit automation workflows
+- [ ] Release responsible AI prototypes and technical notes
+- [ ] Add contribution, security and governance documentation
+- [ ] Build a stronger open-source contributor pathway
+
+---
+
+## GitHub Activity
 
 <div align="center">
-  <img src="https://github-readme-stats.vercel.app/api?username=joshuawayzwright&show_icons=true&theme=tokyonight&hide_border=true&bg_color=0D1117&title_color=58A6FF&icon_color=58A6FF&text_color=C9D1D9" />
-  <img src="https://github-readme-streak-stats.herokuapp.com/?user=joshuawayzwright&theme=tokyonight&hide_border=true&background=0D1117&ring=58A6FF&fire=58A6FF&currStreakLabel=58A6FF" height="165"/>
-  <img src="https://github-readme-stats.vercel.app/api/top-langs/?username=joshuawayzwright&layout=compact&theme=tokyonight&hide_border=true&bg_color=0D1117&title_color=58A6FF&text_color=C9D1D9" />
+
+<img src="https://github-readme-stats.vercel.app/api?username=joshuawayzwright&show_icons=true&hide_border=true&theme=transparent&rank_icon=github" height="165" alt="Joshua Wright GitHub stats" />
+<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=joshuawayzwright&layout=compact&hide_border=true&theme=transparent" height="165" alt="Most used languages" />
+
 </div>
 
 ---
 
-## Get involved / Contact
+## Collaboration
 
-I’m open to conversations about building better systems for mission-driven organisations, mental health technology done with care, and practical tools that actually serve communities.
+I'm interested in working with developers, designers, AI and automation specialists, non-profit technology partners, community organisations, ethical sponsors and open-source contributors who want technology to create measurable real-world value.
 
-- Website — https://wrightwayz.site  
-- X — [@wrightwayzJosh](https://x.com/wrightwayzwJosh)  
-- Instagram — [@wrightwayz_nonprofit](https://www.instagram.com/wrightwayz_nonprofit)  
-
-If you want to collaborate, share feedback, or suggest a partnership, reach out via X or message through the website.
+**Founder & CEO:** Joshua Wright  
+**Organisation:** WrightWayz  
+**Web:** [wrightwayz.com](https://wrightwayz.com)  
+**Email:** [joshfounder@wrightwayz.com](mailto:joshfounder@wrightwayz.com)  
+**Location:** Gold Coast, Queensland, Australia
 
 ---
 
 <div align="center">
-**“Out of darkness into the sudo.”**  
-Elevating access. Building what matters. Leaving no one behind.
 
-<br>
+### OUT OF DARKNESS → INTO THE SUDO
 
-![Profile Views](https://komarev.com/ghpvc/?username=joshuawayzwright&color=0D1117&style=for-the-badge&label=Profile+Views)
+**Technology with purpose. Human connection at the centre.**
+
+![Profile Views](https://komarev.com/ghpvc/?username=joshuawayzwright&style=flat-square&label=PROFILE+VIEWS)
+
 </div>

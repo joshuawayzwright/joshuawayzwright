@@ -35,6 +35,8 @@ My work sits at the intersection of **AI, automation, open-source technology, di
 | **AI Bridge** | Responsible AI-assisted information and navigation concepts | In development |
 | **Non-Profit Automation** | Practical workflows that reduce repetitive administration | Roadmap |
 
+**[Explore the WrightWayz technical roadmap →](https://github.com/joshuawayzwright/wrightwayz-website/blob/main/docs/ROADMAP.md)**
+
 ---
 
 ## WrightWayz
@@ -79,7 +81,7 @@ The public website and source are being built openly where doing so creates usef
 - [x] Establish the Joshua Wright GitHub identity
 - [x] Publish the WrightWayz website source
 - [x] Connect production deployment through Vercel
-- [ ] Expand WrightWayz public documentation
+- [x] Establish architecture, security and contribution documentation
 - [ ] Publish reusable non-profit automation workflows
 - [ ] Release responsible AI prototypes and technical notes
 - [ ] Add contribution, security and governance documentation

@@ -2,121 +2,111 @@
 
 # JOSHUA WRIGHT
 
-### Founder & CEO · WrightWayz
-### AI · Automation · Open Source · Social Impact
+### AI Tools · Automation · Digital Products · Solo Service Provider Systems
 
-**Broken Systems. Unbreakable Bonds.**
+I build practical AI workflow tools and digital systems for solo service businesses.
 
-Building practical technology and community infrastructure around mental health, addiction, trauma and recovery.
+[![The Solo Service Provider](https://img.shields.io/badge/START_HERE-The_Solo_Service_Provider-C6A15B?style=for-the-badge&logo=googlechrome&logoColor=white)](https://thesoloserviceprovider.com.au)
 
-[![WrightWayz](https://img.shields.io/badge/WrightWayz-wrightwayz.com-C6A15B?style=for-the-badge&logo=googlechrome&logoColor=white)](https://wrightwayz.com)
-[![GitHub](https://img.shields.io/badge/GitHub-joshuawayzwright-181717?style=for-the-badge&logo=github)](https://github.com/joshuawayzwright)
+**[Visit The Solo Service Provider →](https://thesoloserviceprovider.com.au)**
 
 </div>
 
 ---
 
-## Mission
+## Build faster. Market smarter. Stay solo.
 
-I founded **WrightWayz** to build people-first pathways where technology supports human connection rather than replacing it.
+My primary commercial work is **The Solo Service Provider**: practical AI-assisted marketing resources, workflow tools and digital products built for people running service businesses without a large marketing team.
 
-My work sits at the intersection of **AI, automation, open-source technology, digital infrastructure and non-profit operations**. The goal is practical: reduce friction, improve access to useful information and give mission-driven organisations better systems for doing more with limited resources.
+GitHub is where I publish and document the technical side of that work. The website is where you can explore the commercial products and implementation resources.
 
-> **People before platforms. Mission before hype.**
-
----
-
-## What I'm Building
-
-| Project | Focus | Status |
-|---|---|---|
-| **[WrightWayz Website](https://github.com/joshuawayzwright/wrightwayz-website)** | Public digital foundation for WrightWayz | Active |
-| **WrightWayz Cognition** | Interactive clarity and self-reflection tooling | In development |
-| **AI Bridge** | Responsible AI-assisted information and navigation concepts | In development |
-| **Non-Profit Automation** | Practical workflows that reduce repetitive administration | Roadmap |
-
-**[Explore the WrightWayz technical roadmap →](https://github.com/joshuawayzwright/wrightwayz-website/blob/main/docs/ROADMAP.md)**
+### → [The Solo Service Provider](https://thesoloserviceprovider.com.au)
 
 ---
 
-## WrightWayz
+## Solo AI Labs
 
-**Broken Systems. Unbreakable Bonds.**  
-**#WeWalkAsOne**
+I am building a growing collection of small, inspectable AI workflow utilities for solo operators.
 
-WrightWayz is being developed as an Australian mission-driven organisation focused on community, lived experience, recovery, mental health, addiction and practical digital support.
+The current collection includes **20 new AI-focused projects** covering:
 
-The public website and source are being built openly where doing so creates useful public value.
+- offer and value-proposition development;
+- ideal-client mapping;
+- content calendars, hooks and captions;
+- email nurture sequences;
+- FAQ and review-response planning;
+- SOPs and meeting briefs;
+- lead magnets and proposals;
+- keyword/content clustering;
+- content repurposing;
+- consultative sales scripts;
+- calls to action;
+- brand voice systems; and
+- prompt auditing.
 
-**[Explore the website →](https://wrightwayz.com)** · **[View the source →](https://github.com/joshuawayzwright/wrightwayz-website)**
+**[Explore all 20 Solo AI Labs projects →](https://github.com/joshuawayzwright/wrightwayz-website/tree/main/solo-ai-labs)**
+
+Each project documents what it actually does, how to run/download it, its privacy boundary, audit notes and current Android/APK status.
+
+---
+
+## What I build
+
+```text
+AI workflow utilities
+AI-assisted marketing systems
+Prompt engineering tools
+Automation workflows
+Digital products
+Static browser applications
+GitHub Actions / quality automation
+Business process tooling
+```
+
+My engineering preference is simple: useful software, understandable code, clear privacy boundaries and no fake capability claims.
+
+---
+
+## Featured work
+
+| Project | Focus |
+|---|---|
+| **[The Solo Service Provider](https://thesoloserviceprovider.com.au)** | AI-assisted marketing products and systems for solo service businesses |
+| **[Solo AI Labs](https://github.com/joshuawayzwright/wrightwayz-website/tree/main/solo-ai-labs)** | 20 practical AI workflow projects |
+| **[WrightWayz Labs](https://github.com/joshuawayzwright/wrightwayz-website/tree/main/tools)** | Local-first browser utilities and technical experiments |
+| **[WrightWayz](https://wrightwayz.com)** | Separate mission-driven community and responsible-technology work |
 
 ---
 
 ## Technology
 
-<p align="center">
-  <img src="https://skillicons.dev/icons?i=github,git,python,js,ts,nodejs,html,css,docker,gcp,firebase,vercel,vscode,linux&perline=7" alt="Technology stack" />
-</p>
-
-**Current focus:** GitHub · GitHub Actions · Vercel · Google Cloud · Firebase · n8n · Docker · Python · JavaScript · TypeScript · APIs · AI systems
+**Current focus:** AI workflows · JavaScript · Python · HTML/CSS · GitHub · GitHub Actions · Vercel · APIs · automation
 
 ---
 
-## Engineering Principles
+## For solo service providers
 
-```text
-01  People before platforms.
-02  Mission before hype.
-03  Privacy and security by design.
-04  Automate repetitive work — not human compassion.
-05  Build openly where openness creates public value.
-06  Ship practical systems people can actually use.
-07  Document the work so others can build on it.
-```
+If you found one of my free GitHub tools useful, the next step is the commercial resource hub:
+
+### **[Visit The Solo Service Provider →](https://thesoloserviceprovider.com.au)**
+
+Use the free projects to test the workflow. Use The Solo Service Provider for the broader marketing system, templates and implementation resources.
 
 ---
 
-## 2026 Build Roadmap
+## About
 
-- [x] Establish the Joshua Wright GitHub identity
-- [x] Publish the WrightWayz website source
-- [x] Connect production deployment through Vercel
-- [x] Establish architecture, security and contribution documentation
-- [ ] Publish reusable non-profit automation workflows
-- [ ] Release responsible AI prototypes and technical notes
-- [ ] Add contribution, security and governance documentation
-- [ ] Build a stronger open-source contributor pathway
+I'm **Joshua Wright**, based on the Gold Coast, Queensland, Australia. I build practical AI, automation and digital-product systems with a focus on making useful technology accessible to solo operators and mission-driven projects.
 
----
-
-## GitHub Activity
-
-<div align="center">
-
-<img src="https://github-readme-stats.vercel.app/api?username=joshuawayzwright&show_icons=true&hide_border=true&theme=transparent&rank_icon=github" height="165" alt="Joshua Wright GitHub stats" />
-<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=joshuawayzwright&layout=compact&hide_border=true&theme=transparent" height="165" alt="Most used languages" />
-
-</div>
-
----
-
-## Collaboration
-
-I'm interested in working with developers, designers, AI and automation specialists, non-profit technology partners, community organisations, ethical sponsors and open-source contributors who want technology to create measurable real-world value.
-
-**Founder & CEO:** Joshua Wright  
-**Organisation:** WrightWayz  
-**Web:** [wrightwayz.com](https://wrightwayz.com)  
-**Email:** [joshfounder@wrightwayz.com](mailto:joshfounder@wrightwayz.com)  
-**Location:** Gold Coast, Queensland, Australia
+WrightWayz remains an important separate project, but this GitHub profile now primarily showcases my **AI, automation and Solo Service Provider work**.
 
 ---
 
 <div align="center">
 
-### OUT OF DARKNESS → INTO THE SUDO
+### AI TOOLS THAT DO A JOB — NOT JUST A DEMO.
 
-**Technology with purpose. Human connection at the centre.**
+**[thesoloserviceprovider.com.au](https://thesoloserviceprovider.com.au)**
 
 ![Profile Views](https://komarev.com/ghpvc/?username=joshuawayzwright&style=flat-square&label=PROFILE+VIEWS)
 

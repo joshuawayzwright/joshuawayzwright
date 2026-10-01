@@ -34,6 +34,7 @@ GitHub is where I publish and document the technical side of that work. The webs
 
 - **Use it:** [Open the live AI directory](https://joshuawayzwright.github.io/ai-download-center/)
 - **Download/access tools:** each listing links to its official provider, repository or release source
+- **Download the directory source:** [ZIP of the current public release](https://github.com/joshuawayzwright/ai-download-center/archive/refs/heads/main.zip)
 - **Submit a tool:** [Free public listing](https://github.com/joshuawayzwright/ai-download-center/issues/new?template=submit-tool.yml)
 - **Promote a tool:** [Featured listing — 7-day free trial, then $99 USD/month](https://joshuawayzwright.github.io/ai-download-center/#list-your-tool)
 - **Manage billing:** handled securely through Stripe's customer portal

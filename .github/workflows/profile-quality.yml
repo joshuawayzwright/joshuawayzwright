@@ -1,0 +1,66 @@
+name: Profile repository quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: profile-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Verify required files
+        shell: bash
+        run: |
+          test -f README.md
+          test -f SECURITY.md
+          test -f AI-REPOSITORY-MIGRATION.md
+          test -f scripts/bootstrap-independent-repos.ps1
+          test -f scripts/migrate-independent-repos.ps1
+          test -f scripts/protect-independent-repos.ps1
+          test -f scripts/README.md
+
+      - name: Parse PowerShell automation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $failed = $false
+          Get-ChildItem scripts -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              Write-Error "$($_.Name): $($errors | Out-String)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Check for unresolved merge markers
+        shell: bash
+        run: |
+          if grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' --exclude-dir=.git .; then
+            echo "Unresolved merge markers found."
+            exit 1
+          fi
+
+      - name: Detect common committed secret patterns
+        shell: bash
+        run: |
+          if grep -R -n -E '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|sk_(live|test)_[A-Za-z0-9]{16,})' --exclude-dir=.git .; then
+            echo "Potential committed secret detected."
+            exit 1
+          fi

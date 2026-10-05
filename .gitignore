@@ -1,0 +1,15 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets and local configuration
+.env
+.env.*
+*.pem
+*.key
+
+# Logs/temp
+*.log
+*.tmp

@@ -44,29 +44,16 @@ The directory is public, searchable and deployed through GitHub Pages. Paid plac
 
 ---
 
-## Solo AI Labs
+## Independent AI projects
 
-I am building a growing collection of small, inspectable AI workflow utilities for solo operators.
+The commercial AI utilities are being separated into dedicated repositories so each product can have its own source, releases, security policy and development history.
 
-The current collection includes **20 new AI-focused projects** covering:
+Until those repositories are published, use the **AI Download Center** for public AI discovery and **The Solo Service Provider** for commercial AI marketing resources.
 
-- offer and value-proposition development;
-- ideal-client mapping;
-- content calendars, hooks and captions;
-- email nurture sequences;
-- FAQ and review-response planning;
-- SOPs and meeting briefs;
-- lead magnets and proposals;
-- keyword/content clustering;
-- content repurposing;
-- consultative sales scripts;
-- calls to action;
-- brand voice systems; and
-- prompt auditing.
+- **[Open AI Download Center](https://joshuawayzwright.github.io/ai-download-center/)**
+- **[Visit The Solo Service Provider](https://thesoloserviceprovider.com.au)**
 
-**[Explore all 20 Solo AI Labs projects →](https://github.com/joshuawayzwright/wrightwayz-website/tree/main/solo-ai-labs)**
-
-Each project documents what it actually does, how to run/download it, its privacy boundary, audit notes and current Android/APK status.
+No commercial project is treated here as part of the WrightWayz nonprofit repository.
 
 ---
 
@@ -93,8 +80,6 @@ My engineering preference is simple: useful software, understandable code, clear
 |---|---|
 | **[The Solo Service Provider](https://thesoloserviceprovider.com.au)** | AI-assisted marketing products and systems for solo service businesses |
 | **[AI Download Center](https://joshuawayzwright.github.io/ai-download-center/)** | Public AI directory, official download sources, free submissions and paid featured listings |
-| **[Solo AI Labs](https://github.com/joshuawayzwright/wrightwayz-website/tree/main/solo-ai-labs)** | 20 practical AI workflow projects |
-| **[WrightWayz Labs](https://github.com/joshuawayzwright/wrightwayz-website/tree/main/tools)** | Local-first browser utilities and technical experiments |
 | **[WrightWayz](https://wrightwayz.com)** | Separate mission-driven community and responsible-technology work |
 
 ---

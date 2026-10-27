@@ -1,5 +1,7 @@
 # Independent AI Repository Migration Plan
 
+> **Status reviewed 27 October 2026:** this is a historical migration plan, not a completed repository split. The account inventory contains seven accessible repositories; the 25 destination repositories listed below have not been verified as created. Current commercial SOLO development is tracked in [AI Download Center issue #31](https://github.com/joshuawayzwright/ai-download-center/issues/31). Preserve existing source and deployments; do not run bulk creation or migration scripts as part of a profile update.
+
 This document defines the repository split from the WrightWayz nonprofit website. Commercial/general-purpose tools must live independently and must not be added back to the nonprofit repository.
 
 ## Commercial destination

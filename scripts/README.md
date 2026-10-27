@@ -1,5 +1,7 @@
 # Repository Migration Automation
 
+> **Current status — 27 October 2026:** these are historical administration scripts. Their presence does not mean the repository migration has run or the proposed apps are released. Read [the migration status](../AI-REPOSITORY-MIGRATION.md) before use. The current GitHub information/profile refresh does not authorise running bulk migration, repository-creation or protection scripts.
+
 Professional migration tooling for separating commercial/general-purpose software from the WrightWayz nonprofit website.
 
 ## Required tools

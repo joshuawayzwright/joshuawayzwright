@@ -1,5 +1,7 @@
 # New Downloadable App Portfolio
 
+> **Status reviewed 27 October 2026:** these 15 entries are ideas from an earlier expansion plan, not 15 released apps or an active build order. Current work prioritises completing SOLO customer access and release checks in [the master checklist](https://github.com/joshuawayzwright/ai-download-center/issues/31). [ProjectForge AI](https://joshuawayzwright.github.io/projectforge-ai/) is the existing public planning app with eight browser tools. No Google Play publication is claimed.
+
 A quality-first expansion plan for Joshua Wright's independent GitHub software portfolio.
 
 ## Build next

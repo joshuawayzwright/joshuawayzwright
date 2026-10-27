@@ -25,9 +25,17 @@ The old 25-repository migration and 15-app expansion documents now identify thei
 - [x] Inspect original artwork and preserve its bytes and aspect ratios.
 - [x] Replace stale profile sales claims with dated project status.
 - [x] Identify historical plans and preserve upstream fork attribution.
-- [ ] Publish and re-read the profile files from GitHub.
-- [ ] Verify the rendered profile, images and contact links.
+- [x] Publish and re-read the profile files from GitHub; README matches the prepared content exactly.
+- [x] Verify the rendered profile, working email destination, correct displayed phone and fully loaded banner images.
 - [ ] Update account sidebar bio, public email selection and profile presentation settings through an authenticated GitHub session.
+
+## Verification evidence
+
+- [Published branding/contact commit](https://github.com/joshuawayzwright/joshuawayzwright/commit/44341a4cbc7f05753ddd2bb3c310cf23e9d0708a).
+- [Profile repository quality run 40514804288](https://github.com/joshuawayzwright/joshuawayzwright/actions/runs/40514804288): successful.
+- Live GitHub profile inspected in a browser. SOLO banner loaded at its native 798 × 170 dimensions; WrightWayz banner loaded at 1536 × 614 and displayed at 798 px wide.
+- The email links resolve to the supplied mailto address. GitHub displays the phone as text; no email or telephone contact was initiated.
+- Local Markdown references and original artwork hashes verified. A full Samsung-device rendering test was not performed.
 
 ## Scope
 

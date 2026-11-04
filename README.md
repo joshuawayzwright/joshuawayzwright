@@ -1,8 +1,6 @@
 <div align="center">
 
-<a href="https://thesoloserviceprovider.com.au/"><img src="assets/solo-banner.png" width="798" alt="SOLO Service Provider — Work smarter. Go further. Original gold and steel emblem with the hooded SOLO AI guardian." /></a>
-
-# Joshua Wright · Sudo
+<img src="assets/profile-header.svg" width="798" alt="Joshua Wright · Sudo — Practical tools. Community technology." />
 
 **Founder · Practical AI tools · Automation · Community technology**
 
@@ -16,11 +14,13 @@ I build practical digital tools for people running their own businesses, and dev
 
 ## The Solo Service Provider
 
+<a href="https://thesoloserviceprovider.com.au/"><img src="assets/solo-banner.png" width="798" alt="SOLO Service Provider — Work smarter. Go further. Original gold and steel emblem with the hooded SOLO AI guardian." /></a>
+
 **WORK SMARTER. GO FURTHER.**
 
 My commercial work brings together AI tools, business workflows and digital resources for solo operators. **SOLO AI** is the assistant product within that work.
 
-**Current status — 27 October 2026:** the commercial website is under upgrade and new orders are paused. SOLO AI is in private testing; customer access and public release checks are still being completed. The former A$79 AI Marketing Kit has been withdrawn. New product concepts and Android builds remain in development.
+**Public availability checked — 4 November 2026:** SOLO AI is in private testing and public chat is not yet available. Digital products are listed as coming soon. See the website for current availability and release updates.
 
 **[Website and service notice](https://thesoloserviceprovider.com.au/) · [SOLO development checklist](https://github.com/joshuawayzwright/ai-download-center/issues/31)**
 
@@ -46,7 +46,7 @@ ProjectForge uses local browser storage and templates. The GitHub hub reads publ
 
 **Broken Systems. Unbreakable Bonds. · #WeWalkAsOne**
 
-WrightWayz is my separate Gold Coast community initiative, focused on lived experience, recovery, connection and responsible technology. The information website is live; structured peer support, the AI Bridge and a physical community hub remain in development or planning.
+WrightWayz is my separate Gold Coast community initiative, focused on lived experience, recovery, connection and responsible technology. Its website provides information about peer and community support and a support enquiry form. The AI Bridge and a physical community hub remain in development or planning.
 
 Commercial products and WrightWayz retain distinct identities, governance, funds and data. WrightWayz is not an emergency or clinical service.
 
@@ -74,6 +74,6 @@ For enquiries, please identify **The Solo Service Provider**, **SOLO AI**, **AI 
 
 **REAL TOOLS. REAL RESULTS.**
 
-Profile reviewed **27 October 2026 (Brisbane)** · [Profile audit and current status](PROFILE-AUDIT.md) · [Original artwork sources](assets/README.md)
+Brand styling and service wording updated **4 November 2026** · Previous full profile review **27 October 2026 (Brisbane)** · [Profile audit and current status](PROFILE-AUDIT.md) · [Original artwork sources](assets/README.md)
 
 </div>

@@ -1,8 +1,6 @@
 <div align="center">
 
-<a href="https://thesoloserviceprovider.com.au/"><img src="assets/solo-banner.png" width="798" alt="SOLO Service Provider — Work smarter. Go further. Original gold and steel emblem with the hooded SOLO AI guardian." /></a>
-
-# Joshua Wright · Sudo
+<img src="assets/profile-header.svg" width="798" alt="Joshua Wright · Sudo — Practical tools. Community technology." />
 
 **Founder · Practical AI tools · Automation · Community technology**
 
@@ -15,6 +13,8 @@ Gold Coast, Queensland, Australia
 I build practical digital tools for people running their own businesses, and develop community resources through **WrightWayz**. My focus is useful software, accessible design and clear information about what each product can do today.
 
 ## The Solo Service Provider
+
+<a href="https://thesoloserviceprovider.com.au/"><img src="assets/solo-banner.png" width="798" alt="SOLO Service Provider — Work smarter. Go further. Original gold and steel emblem with the hooded SOLO AI guardian." /></a>
 
 **WORK SMARTER. GO FURTHER.**
 
@@ -74,6 +74,6 @@ For enquiries, please identify **The Solo Service Provider**, **SOLO AI**, **AI 
 
 **REAL TOOLS. REAL RESULTS.**
 
-Profile reviewed **27 October 2026 (Brisbane)** · [Profile audit and current status](PROFILE-AUDIT.md) · [Original artwork sources](assets/README.md)
+Brand styling updated **4 November 2026** · Content reviewed **27 October 2026 (Brisbane)** · [Profile audit and current status](PROFILE-AUDIT.md) · [Original artwork sources](assets/README.md)
 
 </div>

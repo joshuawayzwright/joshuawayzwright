@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="798" height="168" viewBox="0 0 798 168" role="img" aria-labelledby="title desc">
+<title id="title">Joshua Wright · Sudo</title>
+<desc id="desc">Practical tools. Community technology. Charcoal, weathered steel, burnished gold and electric blue.</desc>
+<rect width="798" height="168" rx="12" fill="#0A0A0A"/>
+<path d="M20 1H778" stroke="#8A8F98" stroke-opacity=".5"/>
+<path d="M32 34V130" stroke="#D4AF37" stroke-width="4"/>
+<text x="56" y="78" fill="#D4AF37" font-family="Arial, sans-serif" font-size="44" font-weight="700">Joshua Wright · Sudo</text>
+<text x="58" y="118" fill="#8A8F98" font-family="Arial, sans-serif" font-size="23">Practical tools. Community technology.</text>
+<path d="M58 144H422" stroke="#D4AF37" stroke-width="3"/>
+<path d="M422 144H646" stroke="#8A8F98" stroke-width="3"/>
+<path d="M646 144H766" stroke="#0087FF" stroke-width="3"/>
+</svg>

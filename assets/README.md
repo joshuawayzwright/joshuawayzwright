@@ -22,3 +22,7 @@ The gold/steel SOLO business emblem and hooded gold/blue SOLO AI guardian remain
 The [SOLO brand lock](https://github.com/joshuawayzwright/ai-download-center/blob/main/docs/SOLO-BRAND-LOCK.md) remains the source of truth for commercial identity. Small source crops and enlarged launcher-icon variants are not high-resolution master artwork and must not be presented as such.
 
 Existing copyright and brand rights remain with their respective owners. This profile update does not grant a new licence for the artwork.
+
+## Profile framing — 4 November 2026
+
+`profile-header.svg` is a text-only personal masthead, not a replacement logo. It uses the shared palette recorded in the SOLO brand lock: charcoal `#0A0A0A`, weathered steel `#8A8F98`, burnished gold `#D4AF37`, electric blue `#0087FF`. The two original banners remain byte-for-byte unchanged in their separate project sections. The masthead has a fixed aspect ratio, accessible text alternatives and no remote fonts, scripts or tracking dependencies. GitHub controls its surrounding interface and link colours.

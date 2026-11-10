@@ -28,7 +28,8 @@ The overall style is polished Australian industrial, with a raw Gold Coast chara
 
 ## The Solo Service Provider (commercial business)
 
-- Use the existing approved angular-S identity and business assets.
+- Use the round gold **THE SOLO SERVICE PROVIDER** badge as the primary business logo (approved by the owner on 10 November 2026). It is used on the Facebook and Instagram profiles.
+- The angular-S emblem is the previous business mark. Existing website and app uses remain until they are deliberately replaced.
 - Present the full product range fairly. Don't make the AI Marketing Kit appear to be the flagship.
 - SOLO AI must use its own approved symbol, not a Gemini-like icon.
 - Keep the business mark and the SOLO AI mark distinct.
@@ -60,12 +61,12 @@ The overall style is polished Australian industrial, with a raw Gold Coast chara
 | Asset | Source |
 | --- | --- |
 | Commercial brand lock (marks, palette, type, taglines) | [`ai-download-center/docs/SOLO-BRAND-LOCK.md`](https://github.com/joshuawayzwright/ai-download-center/blob/main/docs/SOLO-BRAND-LOCK.md) |
-| Business angular-S emblem, SOLO AI emblem, icons, favicons, social glyphs, banner | [`ai-download-center/powerhouse-website/assets/approved-stage/`](https://github.com/joshuawayzwright/ai-download-center/tree/main/powerhouse-website/assets/approved-stage) |
+| Business badge logo (`business-badge-logo.png`, 1254 × 1254), angular-S emblem, SOLO AI emblem, icons, favicons, social glyphs, banner | [`ai-download-center/powerhouse-website/assets/approved-stage/`](https://github.com/joshuawayzwright/ai-download-center/tree/main/powerhouse-website/assets/approved-stage) |
 | WrightWayz emblem, banner and brand board | [`wrightwayz-website/`](https://github.com/joshuawayzwright/wrightwayz-website) (`wrightwayz-emblem.png`, `wrightwayz-banner.png`, `wrightwayz-brand-board.png`) |
 | Profile artwork and masthead | [`assets/README.md`](assets/README.md) |
 
 ## Known gaps (checked 9 November 2026)
 
 - **Brand fonts:** the brand lock names Montra Bold, Rajdhani Semibold and Inter Regular. No font files are in the repositories, so sites fall back to system fonts.
-- **High-resolution masters:** the approved emblems exist only as small crops. The business emblem is 285 × 282 and the SOLO AI emblem is 349 × 306. Don't enlarge them for large-format use; obtain the original masters.
+- **High-resolution masters:** the business badge logo has a 1254 × 1254 master. The older emblems exist only as small crops: the angular-S emblem is 285 × 282 and the SOLO AI emblem is 349 × 306. Don't enlarge them for large-format use; obtain the original masters.
 - **WrightWayz phoenix:** there is no separate phoenix/bird asset, only the full emblem and brand board. Don't crop one without approval.

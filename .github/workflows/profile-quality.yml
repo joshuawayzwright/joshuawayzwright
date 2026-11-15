@@ -64,3 +64,18 @@ jobs:
             echo "Potential committed secret detected."
             exit 1
           fi
+
+  jarvis-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Run Jarvis offline tests
+        shell: bash
+        working-directory: jarvis
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet ".[dev]"
+          .venv/bin/python -m pytest -q

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,7 +13,7 @@ from pathlib import Path
 import anthropic
 
 from . import voice, wake
-from .agent import DEFAULT_MODEL, Jarvis
+from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
 from .tools import ToolContext
 
 DIM, CYAN, RED, RESET = "\033[2m", "\033[36m", "\033[31m", "\033[0m"
@@ -30,6 +31,33 @@ def make_approver(auto_yes: bool):
         return answer in ("y", "yes")
 
     return approve
+
+
+class RunLog:
+    """Markdown record of an autonomous run: the goal, every tool call and result, and the outcome."""
+
+    def __init__(self, directory: Path) -> None:
+        directory.mkdir(parents=True, exist_ok=True)
+        self.path = directory / time.strftime("%Y%m%d-%H%M%S.md")
+        self._write(f"# Jarvis run {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+    def _write(self, text: str) -> None:
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(text + "\n")
+
+    def goal(self, text: str) -> None:
+        self._write(f"## Goal\n\n{text}\n\n## Steps\n")
+
+    def text(self, text: str) -> None:
+        self._write(f"\n**Jarvis:** {text}\n")
+
+    def tool(self, line: str) -> None:
+        self._write(f"- `{line}`")
+
+    def result(self, name: str, content: str, is_error: bool) -> None:
+        head = content.strip().splitlines()[:6]
+        marker = "ERROR " if is_error else ""
+        self._write("  ```\n  " + marker + "\n  ".join(line[:200] for line in head) + "\n  ```")
 
 
 def run_turn(jarvis: Jarvis, prompt: str) -> str | None:
@@ -211,6 +239,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default=os.environ.get("JARVIS_MODEL", DEFAULT_MODEL))
     parser.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
+    parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
+    parser.add_argument("--max-steps", type=int, default=None, help=f"Max agent steps per request (default {DEFAULT_MAX_STEPS}, or {AUTO_MAX_STEPS} with --auto).")
     group = parser.add_argument_group("voice")
     group.add_argument("--voice", action="store_true", help="Talk to Jarvis: push-to-talk input and spoken replies.")
     group.add_argument("--wake", action="store_true", help='Hands-free: say "Hey Jarvis" instead of pressing Enter. Implies --voice.')
@@ -235,17 +265,39 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     args.workspace.mkdir(parents=True, exist_ok=True)
+    log = RunLog(args.workspace.parent / "runs") if args.auto else None
+
+    def show_text(text: str) -> None:
+        print(f"\n{text}\n")
+        if log:
+            log.text(text)
+
+    def show_tool(line: str) -> None:
+        print(f"{DIM}  ⚙ {line}{RESET}")
+        if log:
+            log.tool(line)
+
     jarvis = Jarvis(
-        ctx=ToolContext(workspace=args.workspace.resolve(), approve=make_approver(args.yes)),
+        ctx=ToolContext(workspace=args.workspace.resolve(), approve=make_approver(args.yes or args.auto)),
         model=args.model,
         effort=args.effort,
         voice_mode=io is not None,
-        on_text=lambda text: print(f"\n{text}\n"),
-        on_tool=lambda line: print(f"{DIM}  ⚙ {line}{RESET}"),
+        autonomous=args.auto,
+        max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
+        on_text=show_text,
+        on_tool=show_tool,
+        on_result=log.result if log else (lambda name, content, is_error: None),
     )
+    if args.auto:
+        print(f"{RED}Autonomous mode:{RESET} Jarvis will edit, run commands, commit and open draft PRs without asking. "
+              f"Destructive commands are blocked, and it never pushes the default branch or merges. Ctrl+C stops it.")
+        print(f"{DIM}Run log: {log.path}{RESET}" if log else "")
 
     if args.prompt:
-        reply = run_turn(jarvis, " ".join(args.prompt))
+        goal = " ".join(args.prompt)
+        if log:
+            log.goal(goal)
+        reply = run_turn(jarvis, goal)
         if io and reply:
             speak(io, reply)
         return 0 if reply is not None else 1

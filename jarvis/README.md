@@ -1,6 +1,6 @@
 # Jarvis
 
-An AI engineering assistant for your terminal. Jarvis pulls code from GitHub, reads and searches it, and answers questions about it. It can also edit files and run commands, but only after you approve each one. It runs on the Claude API (`claude-opus-5-5` by default), and you can talk to it by voice.
+An AI engineering agent for your terminal. Jarvis searches the code of every public repository on GitHub, pulls projects from GitHub, GitLab, Codeberg and Bitbucket, and answers questions about them. It can also build features: it researches how other projects solve the problem, makes the change, runs the tests, commits to a feature branch and opens a draft pull request. It asks before each change, or works through a goal end to end in autonomous mode. It runs on the Claude API (`claude-opus-5-5` by default), and you can talk to it by voice.
 
 Example session (the tool calls are what Jarvis prints; the answer text depends on the model):
 
@@ -14,18 +14,34 @@ you › pull octocat/Hello-World and summarise it
 
 ## What it can do
 
+**Research across GitHub**
+
 | Tool | What it does | Needs approval |
 |---|---|---|
-| `search_github_repos` | Searches GitHub (supports `user:`, `org:`, `language:` and other qualifiers) | No |
+| `search_github_code` | Searches source code across **all public GitHub repositories** (`language:`, `repo:`, `org:`, `path:`, `filename:` qualifiers). Needs `GITHUB_TOKEN` | No |
+| `search_github_repos` | Searches for repositories | No |
 | `list_user_repos` | Lists a user's or organisation's repositories | No |
-| `pull_repo` | Clones a repository into the workspace, or fetches and fast-forwards an existing clone. Can check out a branch, tag or commit | No |
-| `list_local_repos` | Lists repositories already cloned | No |
-| `list_files` | Lists tracked files, filtered by directory or glob | No |
-| `read_file` | Reads a file with line numbers, by line range | No |
-| `search_code` | Searches with a regex (`git grep`) | No |
-| `git_log` | Shows recent commits for a repository or path | No |
-| `write_file` | Creates or overwrites a file in a cloned repository | **Yes** |
-| `run_command` | Runs a shell command in a repository, such as tests or a build (120 s timeout) | **Yes** |
+| `get_repo_info` | Description, stars, **license**, topics and default branch of any repository | No |
+| `get_repo_tree` | Lists every file in any GitHub repository, without cloning it | No |
+| `read_remote_file` | Reads a file or directory from any GitHub repository, without cloning it | No |
+
+**Work locally**
+
+| Tool | What it does | Needs approval |
+|---|---|---|
+| `pull_repo` | Clones or updates a repository: `owner/name` for GitHub, `host/owner/name` for gitlab.com, codeberg.org and bitbucket.org | No |
+| `list_local_repos`, `list_files`, `read_file`, `search_code`, `git_log` | Explore cloned code | No |
+| `edit_file` | Replaces an exact snippet in a file | **Yes** |
+| `write_file` | Creates or overwrites a file | **Yes** |
+| `run_command` | Installs, tests, builds (120 s timeout by default, up to 900 s). Dangerous commands are always blocked | **Yes** |
+| `git_diff` | Shows the branch, status and uncommitted changes | No |
+
+**Ship**
+
+| Tool | What it does | Needs approval |
+|---|---|---|
+| `commit_changes` | Commits on a feature branch. On the default branch it creates `jarvis/<summary>`; it never commits to `main` or `master` | **Yes** |
+| `push_and_open_pr` | Pushes the feature branch and opens a **draft** pull request. Never pushes the default branch, never force-pushes, never merges | **Yes** |
 
 ## Setup
 
@@ -37,10 +53,45 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install .
 
 export ANTHROPIC_API_KEY=...   # or run `ant auth login`
-export GITHUB_TOKEN=...        # optional: private repos and higher API rate limits
+export GITHUB_TOKEN=...        # code search, private repos, pushes and pull requests
 ```
 
-Use a fine-grained GitHub token with **read-only Contents** access to the repositories you want Jarvis to reach. Jarvis sends the token as a header on each git command and never writes it to `.git/config`.
+GitHub token permissions:
+
+- **Research only:** any token works for code search and public repositories. A fine-grained token with no repository access is enough.
+- **Shipping changes:** a fine-grained token limited to *your* repositories, with **Contents: read and write** and **Pull requests: read and write**.
+
+Jarvis sends the token as a header on each GitHub request and git command, never to other hosts, and never writes it to `.git/config`.
+
+## Autonomous mode
+
+Give Jarvis a goal and it works through it without asking:
+
+```bash
+jarvis --auto "Add a dark mode toggle to joshuawayzwright/wrightwayz-website"
+jarvis --auto "Find how popular projects implement rate limiting for GitHub API clients and add it to acme/api"
+jarvis --auto --max-steps 400 "Upgrade acme/api to the latest FastAPI and fix what breaks"
+```
+
+What it does:
+
+1. **Understands** the target repository: README, structure, conventions, tests.
+2. **Researches** prior art by searching code across GitHub, reading the best implementations and checking their licenses.
+3. **Builds** the change in the codebase's style, with tests.
+4. **Verifies** by installing dependencies and running tests and linters, and fixes failures.
+5. **Ships** by committing to a feature branch and opening a draft pull request that lists what changed, how it was tested, its assumptions, and credits for adapted code.
+6. **Reports** the PR link and anything left undone.
+
+Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call and result, and Jarvis's messages. Long runs keep going past the context limit because the API summarises earlier context automatically (compaction).
+
+**Guardrails stay on in autonomous mode:**
+
+- Changes reach GitHub only as **draft pull requests on feature branches**. Jarvis never pushes or commits to the default branch, never force-pushes and never merges. You review and merge.
+- Always blocked: `sudo`, deleting `/` or `~`, disk and power commands, piping downloads into a shell, `git push` outside `push_and_open_pr`, `git reset --hard origin`, `gh pr merge` and `gh repo delete`.
+- **Licenses:** Jarvis checks licenses and credits sources. It won't copy GPL code into a project with a different license, or code with no license at all.
+- `--max-steps` caps the run (default 250 in auto mode, 60 otherwise). Ctrl+C stops it at any time.
+
+> **Run it somewhere disposable.** Autonomous mode runs commands from repositories it pulls, including their install scripts and tests, without asking. Use a container, VM or cloud dev box rather than your main machine, and a GitHub token limited to the repositories you want it to change.
 
 ## Usage
 
@@ -56,7 +107,9 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--workspace`, `JARVIS_HOME` | `~/.jarvis/repos` | Where repositories are cloned |
 | `--model`, `JARVIS_MODEL` | `claude-opus-5-5` | Claude model |
 | `--effort` | `high` | Reasoning depth: `low` to `max` |
-| `-y`, `--yes` | off | Approve `write_file` and `run_command` without asking |
+| `-y`, `--yes` | off | Approve edits, commands, commits and pushes without asking |
+| `--auto` | off | Autonomous mode (implies `--yes`) |
+| `--max-steps` | 60, or 250 with `--auto` | Agent steps per request |
 
 When stdin is not a terminal (in scripts or CI, for example), writes and commands are **denied** unless you pass `--yes`.
 
@@ -128,7 +181,7 @@ Each spoken reply is capped at about 1,500 characters, which also limits ElevenL
 ## Safety notes
 
 - `run_command` runs a real shell in the cloned repository. Code you pull from GitHub is untrusted: read a repository's scripts before approving commands such as `npm install` or `make`.
-- Jarvis never pushes. Writes stay in your local clone until you commit and push them yourself.
+- Jarvis pushes only feature branches and opens only draft pull requests. It never pushes or merges your default branch.
 
 ## Tests
 
@@ -137,4 +190,4 @@ pip install ".[dev]"
 pytest -q
 ```
 
-The tests run offline and need no voice packages. They exercise every tool against a temporary git repository, and drive the agent loop and the voice loop with a fake Claude client, microphone and speaker.
+The tests run offline and need no voice packages. They exercise every tool against temporary git repositories (including commit, push and pull request against a local remote), the safety guard, and the agent, voice and wake-word loops with a fake Claude client, microphone and speaker.

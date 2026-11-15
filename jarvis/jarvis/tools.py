@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import re
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -40,7 +41,7 @@ def _int(description: str) -> dict[str, object]:
     return {"type": "integer", "description": description}
 
 
-REPO = _str("Repository as owner/name, e.g. octocat/Hello-World.")
+REPO = _str("Repository as owner/name (GitHub), or host/owner/name for gitlab.com, codeberg.org or bitbucket.org.")
 
 TOOL_SCHEMAS: list[dict[str, object]] = [
     {
@@ -64,8 +65,43 @@ TOOL_SCHEMAS: list[dict[str, object]] = [
         },
     },
     {
+        "name": "search_github_code",
+        "description": "Search source code across ALL public GitHub repositories. Use it to find prior art, working implementations, library usage and examples to learn from. Supports GitHub code search qualifiers: language:, repo:, org:, user:, path:, extension:, filename:. Example: 'openwakeword Model language:python'. Rate-limited to about 10 searches a minute.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"query": _str("Code search query with optional qualifiers."), "limit": _int("Max results, 1-50. Default 15.")},
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_repo_info",
+        "description": "Get a GitHub repository's description, stars, license, topics, default branch and activity. Check the license before reusing code from another project.",
+        "input_schema": {"type": "object", "properties": {"repo": REPO}, "required": ["repo"], "additionalProperties": False},
+    },
+    {
+        "name": "get_repo_tree",
+        "description": "List every file path in any GitHub repository without cloning it. Good for quickly exploring another project's structure.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"repo": REPO, "ref": _str("Optional branch, tag or commit. Default: the default branch."), "path_prefix": _str("Optional directory to limit the listing, e.g. 'src/'.")},
+            "required": ["repo"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "read_remote_file",
+        "description": "Read a file (or list a directory) from any GitHub repository without cloning it. Use for files found with search_github_code or get_repo_tree.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"repo": REPO, "path": _str("File or directory path in the repository."), "ref": _str("Optional branch, tag or commit.")},
+            "required": ["repo", "path"],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "pull_repo",
-        "description": "Clone a GitHub repository into the local workspace, or fetch and fast-forward it if already cloned. Call this before reading or searching a repository's code.",
+        "description": "Clone a repository into the local workspace, or fetch and fast-forward it if already cloned. Call this before reading, searching, editing or testing a repository locally. GitHub repos are owner/name; GitLab, Codeberg and Bitbucket repos are host/owner/name (e.g. gitlab.com/owner/name).",
         "input_schema": {
             "type": "object",
             "properties": {"repo": REPO, "ref": _str("Optional branch, tag or commit to check out.")},
@@ -143,11 +179,59 @@ TOOL_SCHEMAS: list[dict[str, object]] = [
         },
     },
     {
-        "name": "run_command",
-        "description": "Run a shell command inside a cloned repository (tests, builds, linters). The user must approve each command. Times out after 120 seconds.",
+        "name": "edit_file",
+        "description": "Replace an exact snippet in a file in a cloned repository. old_text must appear exactly once (include surrounding lines to make it unique). Prefer this over write_file for changes to existing files.",
         "input_schema": {
             "type": "object",
-            "properties": {"repo": REPO, "command": _str("Shell command to run from the repository root.")},
+            "properties": {
+                "repo": REPO,
+                "path": _str("File path inside the repository."),
+                "old_text": _str("Exact text to replace, copied from read_file output without line numbers."),
+                "new_text": _str("Replacement text."),
+            },
+            "required": ["repo", "path", "old_text", "new_text"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "git_diff",
+        "description": "Show the current branch, uncommitted changes (git status and diff) in a cloned repository. Review it before committing.",
+        "input_schema": {"type": "object", "properties": {"repo": REPO}, "required": ["repo"], "additionalProperties": False},
+    },
+    {
+        "name": "commit_changes",
+        "description": "Commit all changes in a cloned repository on a feature branch. If the repo is on its default branch, a branch named jarvis/<message> is created. Never commits to main/master.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo": REPO,
+                "message": _str("Commit message: a short summary line, then optional detail."),
+                "branch": _str("Optional feature branch name, e.g. feature/voice-commands."),
+            },
+            "required": ["repo", "message"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "push_and_open_pr",
+        "description": "Push the current feature branch of a cloned GitHub repository and open a DRAFT pull request against its default branch. Never pushes the default branch and never force-pushes. Requires GITHUB_TOKEN with write access to the repository.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo": REPO,
+                "title": _str("Pull request title."),
+                "body": _str("Pull request description: what changed, why, how it was tested, and credit for any code adapted from other projects (repo, path, license)."),
+            },
+            "required": ["repo", "title", "body"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "run_command",
+        "description": "Run a shell command inside a cloned repository: install dependencies, run tests, builds and linters. Use commit_changes and push_and_open_pr for git commits and pushes. Times out after 120 seconds unless timeout_seconds is set (max 900).",
+        "input_schema": {
+            "type": "object",
+            "properties": {"repo": REPO, "command": _str("Shell command to run from the repository root."), "timeout_seconds": _int("Timeout, 10-900 seconds. Default 120.")},
             "required": ["repo", "command"],
             "additionalProperties": False,
         },
@@ -226,10 +310,34 @@ def pull_repo(ctx: ToolContext, repo: str, ref: str | None = None) -> str:
 def list_local_repos(ctx: ToolContext) -> str:
     if not ctx.workspace.is_dir():
         return "No repositories cloned yet."
-    repos = sorted(
-        f"{git_dir.parent.parent.name}/{git_dir.parent.name}" for git_dir in ctx.workspace.glob("*/*/.git")
-    )
+    git_dirs = [*ctx.workspace.glob("*/*/.git"), *ctx.workspace.glob("*/*/*/.git")]
+    repos = sorted(str(d.parent.relative_to(ctx.workspace)) for d in git_dirs)
     return "\n".join(repos) if repos else "No repositories cloned yet."
+
+
+def search_github_code(ctx: ToolContext, query: str, limit: int = 15) -> str:
+    return json.dumps(github.search_code(query, limit), indent=2)
+
+
+def get_repo_info(ctx: ToolContext, repo: str) -> str:
+    return json.dumps(github.repo_info(repo), indent=2)
+
+
+def get_repo_tree(ctx: ToolContext, repo: str, ref: str | None = None, path_prefix: str = "") -> str:
+    paths = [p for p in github.repo_tree(repo, ref) if p.startswith(path_prefix)]
+    shown = paths[:MAX_LIST_ENTRIES * 2]
+    footer = f"\n... {len(paths) - len(shown)} more (narrow with path_prefix)" if len(paths) > len(shown) else ""
+    return f"{len(paths)} files\n" + "\n".join(shown) + footer if paths else "No matching files."
+
+
+def read_remote_file(ctx: ToolContext, repo: str, path: str, ref: str | None = None) -> str:
+    text = github.read_remote_file(repo, path, ref)
+    if text.endswith("is a directory:") or " is a directory:\n" in text[:300]:
+        return text
+    lines = text.splitlines()[:MAX_READ_LINES]
+    body = "\n".join(f"{n:>6}\t{line}" for n, line in enumerate(lines, 1))
+    more = f"\n... file continues ({len(text.splitlines())} lines); clone with pull_repo to read the rest" if len(text.splitlines()) > MAX_READ_LINES else ""
+    return f"{repo}:{path}\n" + _truncate(body, MAX_READ_BYTES) + more
 
 
 def list_files(ctx: ToolContext, repo: str, path: str = "", glob: str | None = None) -> str:
@@ -307,14 +415,77 @@ def write_file(ctx: ToolContext, repo: str, path: str, content: str) -> str:
     return f"Wrote {len(content)} characters to {path}."
 
 
-def run_command(ctx: ToolContext, repo: str, command: str) -> str:
+def edit_file(ctx: ToolContext, repo: str, path: str, old_text: str, new_text: str) -> str:
     root = repo_dir(ctx, repo)
+    target = safe_path(root, path)
+    if ".git" in target.relative_to(root.resolve()).parts:
+        raise ToolError("Editing inside .git is not allowed.")
+    if not target.is_file():
+        raise ToolError(f"File not found: {path}. Use write_file to create it.")
+    content = target.read_text(encoding="utf-8")
+    count = content.count(old_text)
+    if count != 1:
+        raise ToolError(f"old_text appears {count} times in {path}; it must appear exactly once. Include more surrounding lines.")
+    if not ctx.approve(f"Edit {repo}/{path} (-{len(old_text.splitlines())} +{len(new_text.splitlines())} lines)?"):
+        return "The user declined this edit."
+    target.write_text(content.replace(old_text, new_text, 1), encoding="utf-8")
+    return f"Edited {path}."
+
+
+def git_diff(ctx: ToolContext, repo: str) -> str:
+    root = repo_dir(ctx, repo)
+    branch = _git(root, ["rev-parse", "--abbrev-ref", "HEAD"]).strip()
+    _git(root, ["add", "-A", "-N"])  # intent-to-add, so new files appear in the diff
+    status = _git(root, ["status", "--short"]) or "(clean)"
+    diff = _git(root, ["diff"])
+    return _truncate(f"Branch: {branch}\n{status}\n{diff}")
+
+
+def commit_changes(ctx: ToolContext, repo: str, message: str, branch: str | None = None) -> str:
+    root = repo_dir(ctx, repo)
+    if not ctx.approve(f"Commit in {repo}: {message.splitlines()[0]}"):
+        return "The user declined this commit."
+    return github.commit_changes(root, message, branch)
+
+
+def push_and_open_pr(ctx: ToolContext, repo: str, title: str, body: str) -> str:
+    root = repo_dir(ctx, repo)
+    if not ctx.approve(f"Push {repo} and open a draft PR: {title}"):
+        return "The user declined the push."
+    return github.push_and_open_pr(root, github.validate_repo(repo), title, body)
+
+
+BLOCKED_COMMANDS = [
+    (re.compile(r"\bsudo\b|\bsu\s+-|\bdoas\b"), "commands that need root"),
+    (re.compile(r"\brm\s+(-\w*\s+)*(/|~|\$HOME|/\*)(\s|$)"), "deleting the root or home directory"),
+    (re.compile(r"\b(mkfs|fdisk|diskpart|shutdown|reboot|halt|poweroff)\b|\bdd\s+if="), "disk or system commands"),
+    (re.compile(r":\(\)\s*\{"), "fork bombs"),
+    (re.compile(r"\b(curl|wget)\b[^|]*\|\s*(sudo\s+)?(ba|z)?sh\b"), "piping downloads into a shell"),
+    (re.compile(r"\bgit\s+push\b"), "git push (use push_and_open_pr, which never pushes the default branch)"),
+    (re.compile(r"\bgit\s+(reset\s+--hard\s+origin|clean\s+-\w*f\w*d)"), "destructive git resets"),
+    (re.compile(r"\bgh\s+(repo\s+delete|pr\s+merge|release\s+delete)\b"), "deleting repos, merging or deleting releases"),
+]
+
+
+def blocked_reason(command: str) -> str | None:
+    for pattern, reason in BLOCKED_COMMANDS:
+        if pattern.search(command):
+            return reason
+    return None
+
+
+def run_command(ctx: ToolContext, repo: str, command: str, timeout_seconds: int = 120) -> str:
+    root = repo_dir(ctx, repo)
+    reason = blocked_reason(command)
+    if reason:
+        raise ToolError(f"Blocked for safety: {reason}. Find another way to do this.")
+    timeout = max(10, min(timeout_seconds, 900))
     if not ctx.approve(f"Run in {repo}: {command}"):
         return "The user declined this command."
     try:
-        result = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return "Command timed out after 120 seconds."
+        return f"Command timed out after {timeout} seconds."
     output = f"exit code {result.returncode}\n--- stdout ---\n{result.stdout}\n--- stderr ---\n{result.stderr}"
     return _truncate(output)
 
@@ -329,7 +500,15 @@ HANDLERS: dict[str, Callable[..., str]] = {
     "search_code": search_code,
     "git_log": git_log,
     "write_file": write_file,
+    "edit_file": edit_file,
+    "git_diff": git_diff,
+    "commit_changes": commit_changes,
+    "push_and_open_pr": push_and_open_pr,
     "run_command": run_command,
+    "search_github_code": search_github_code,
+    "get_repo_info": get_repo_info,
+    "get_repo_tree": get_repo_tree,
+    "read_remote_file": read_remote_file,
 }
 
 

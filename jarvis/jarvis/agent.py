@@ -30,6 +30,8 @@ How you work:
 - To build a feature, look for prior art: search GitHub for how good projects solve the same problem, read their implementations, then adapt the best approach to the target codebase's conventions. Prefer well-maintained, permissively licensed sources.
 - Reusing code from another project: check its license with get_repo_info. Copy or closely adapt code only when the license allows it in the target project (MIT, BSD, Apache-2.0 and ISC are generally fine; GPL code must not go into a project under a different license without the user's say-so; no license means all rights reserved, so learn from it but don't copy it). Credit every adapted source (repo, path, license) in the commit message and the pull request.
 - Match the existing code style, and add or update tests. Run the project's tests before committing, and say honestly if they fail or don't exist.
+- Memory: use remember to save durable facts (the user's preferences, their repositories, decisions and conventions, what you shipped) and forget to remove wrong ones. Don't store secrets.
+- MCP tools (named mcp__<server>__<tool>) come from extra tool servers the user has plugged in, such as a browser or documentation lookup. Use them when they fit the task.
 - Writes, commands, commits and pushes may need the user's approval. If the user declines, accept that and continue without it.
 - Say plainly when something is unknown, a tool failed, or you did not verify a claim.
 
@@ -67,24 +69,29 @@ class Jarvis:
     on_text: Printer = print
     on_tool: Printer = print
     on_result: Callable[[str, str, bool], None] = lambda name, content, is_error: None
+    mcp: Any = None  # an MCPManager, when MCP servers are configured
     messages: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.client is None:
             self.client = anthropic.Anthropic()
+        # Fixed for the session, so the cached prompt prefix stays valid; new notes appear next session.
+        self._memory_section = self.ctx.memory.prompt_section() if self.ctx.memory else ""
+        self._tools = TOOL_SCHEMAS + (self.mcp.schemas() if self.mcp else [])
 
     def reset(self) -> None:
         self.messages.clear()
 
     def system_prompt(self) -> str:
-        return SYSTEM_PROMPT + (AUTO_PROMPT if self.autonomous else "") + (VOICE_PROMPT if self.voice_mode else "")
+        return (SYSTEM_PROMPT + (AUTO_PROMPT if self.autonomous else "")
+                + (VOICE_PROMPT if self.voice_mode else "") + self._memory_section)
 
     def _request(self) -> Any:
         return self.client.beta.messages.create(
             model=self.model,
             max_tokens=16000,
             system=self.system_prompt(),
-            tools=TOOL_SCHEMAS,
+            tools=self._tools,
             messages=self.messages,
             thinking={"type": "adaptive"},
             output_config={"effort": self.effort},
@@ -129,7 +136,7 @@ class Jarvis:
                 if block.type != "tool_use":
                     continue
                 self.on_tool(f"{block.name} {_preview(block.input)}")
-                content, is_error = execute(self.ctx, block.name, block.input)
+                content, is_error = self._dispatch(block.name, block.input)
                 self.on_result(block.name, content, is_error)
                 results.append(
                     {"type": "tool_result", "tool_use_id": block.id, "content": content, "is_error": is_error}
@@ -139,6 +146,17 @@ class Jarvis:
 
         self.on_text(f"[Stopped after {self.max_steps} steps. Ask me to continue if needed.]")
         return final_text
+
+
+    def _dispatch(self, name: str, tool_input: Any) -> tuple[str, bool]:
+        if self.mcp is not None and self.mcp.handles(name):
+            if not isinstance(tool_input, dict):
+                return "Error: tool input must be a JSON object.", True
+            # Tools marked read-only by their server run freely; others need approval like run_command.
+            if not self.mcp.is_read_only(name) and not self.ctx.approve(f"Use {name} {_preview(tool_input)}"):
+                return "The user declined this tool call.", False
+            return self.mcp.call(name, tool_input)
+        return execute(self.ctx, name, tool_input)
 
 
 def _preview(data: object, limit: int = 120) -> str:

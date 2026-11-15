@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import github
 from .github import GitHubError
+from .memory import Memory
 
 MAX_READ_BYTES = 200_000
 MAX_READ_LINES = 2_000
@@ -31,6 +32,7 @@ Approver = Callable[[str], bool]
 class ToolContext:
     workspace: Path
     approve: Approver
+    memory: Memory | None = None
 
 
 def _str(description: str) -> dict[str, object]:
@@ -225,6 +227,16 @@ TOOL_SCHEMAS: list[dict[str, object]] = [
             "required": ["repo", "title", "body"],
             "additionalProperties": False,
         },
+    },
+    {
+        "name": "remember",
+        "description": "Save a note to long-term memory that persists across sessions: the user's preferences, their projects and repositories, decisions, conventions, and what you worked on. Keep each note to one specific fact.",
+        "input_schema": {"type": "object", "properties": {"note": _str("One fact worth remembering next time.")}, "required": ["note"], "additionalProperties": False},
+    },
+    {
+        "name": "forget",
+        "description": "Remove a note from long-term memory, for example when it is wrong or the user asks you to forget something.",
+        "input_schema": {"type": "object", "properties": {"text": _str("Text contained in the note to remove.")}, "required": ["text"], "additionalProperties": False},
     },
     {
         "name": "run_command",
@@ -455,6 +467,18 @@ def push_and_open_pr(ctx: ToolContext, repo: str, title: str, body: str) -> str:
     return github.push_and_open_pr(root, github.validate_repo(repo), title, body)
 
 
+def remember(ctx: ToolContext, note: str) -> str:
+    if ctx.memory is None:
+        raise ToolError("Memory is turned off for this session.")
+    return ctx.memory.remember(note)
+
+
+def forget(ctx: ToolContext, text: str) -> str:
+    if ctx.memory is None:
+        raise ToolError("Memory is turned off for this session.")
+    return ctx.memory.forget(text)
+
+
 BLOCKED_COMMANDS = [
     (re.compile(r"\bsudo\b|\bsu\s+-|\bdoas\b"), "commands that need root"),
     (re.compile(r"\brm\s+(-\w*\s+)*(/|~|\$HOME|/\*)(\s|$)"), "deleting the root or home directory"),
@@ -509,6 +533,8 @@ HANDLERS: dict[str, Callable[..., str]] = {
     "get_repo_info": get_repo_info,
     "get_repo_tree": get_repo_tree,
     "read_remote_file": read_remote_file,
+    "remember": remember,
+    "forget": forget,
 }
 
 

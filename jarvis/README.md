@@ -93,10 +93,44 @@ Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call
 
 > **Run it somewhere disposable.** Autonomous mode runs commands from repositories it pulls, including their install scripts and tests, without asking. Use a container, VM or cloud dev box rather than your main machine, and a GitHub token limited to the repositories you want it to change.
 
+## Plug in tools from GitHub (MCP)
+
+Jarvis can use any [Model Context Protocol](https://modelcontextprotocol.io) server: the open-source tool ecosystem on GitHub. That includes browsers, documentation lookup, databases, Slack, Sentry, Figma, cloud consoles and thousands more. It reads the standard `mcpServers` config used by Claude Desktop, Cursor and most server READMEs, so you can paste a server's documented config in as-is.
+
+```bash
+pip install ".[mcp]"
+cp mcp.example.json ~/.jarvis/mcp.json     # then edit to taste
+jarvis                                     # starts the servers; /tools lists them
+```
+
+The starter config ([`mcp.example.json`](mcp.example.json)) includes these widely used servers:
+
+| Server | What Jarvis gains | Runs with |
+|---|---|---|
+| [Playwright MCP](https://github.com/microsoft/playwright-mcp) | A real browser: open your site, click through it, check the UI after a change | `npx @playwright/mcp@latest` |
+| [Context7](https://github.com/upstash/context7) | Up-to-date documentation for thousands of libraries, so code matches the current API | `npx -y @upstash/context7-mcp` |
+| [Fetch](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch) | Reads any web page as Markdown | `uvx mcp-server-fetch` |
+| [Filesystem](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem) | Read and write access to folders you choose (disabled in the example) | `npx -y @modelcontextprotocol/server-filesystem <folder>` |
+
+How it works:
+
+- Each server's tools appear to Claude as `mcp__<server>__<tool>`.
+- Tools that their server marks **read-only** run freely. Every other MCP tool needs your approval, like `run_command`, unless you use `--yes` or `--auto`.
+- Server output and errors go to `~/.jarvis/logs/mcp-<server>.log`. A server that fails to start is reported and skipped; the rest keep working.
+- Only local (`command`) servers are supported for now. Entries with a `url` are skipped with a warning.
+- `--mcp-config <file>` uses a different config; `--no-mcp` starts none.
+- Each server adds tool descriptions to every request, so enable the servers you use rather than dozens.
+
+MCP servers are third-party programs that run on your machine with your permissions. Only add servers you trust, from their official repositories.
+
+## Memory
+
+Jarvis keeps long-term notes in `~/.jarvis/memory.md`: your preferences, your repositories, conventions and what it shipped. It saves them with its `remember` tool, removes them with `forget`, and reads them at the start of each session. The file is plain Markdown, so you can edit it by hand. `/memory` shows it, and `--no-memory` turns it off. Jarvis is told not to store secrets.
+
 ## Usage
 
 ```bash
-jarvis                                   # interactive session (/reset clears history, /exit quits)
+jarvis                                   # interactive (/reset, /memory, /tools, /exit)
 jarvis "what changed in octocat/Hello-World this month?"   # one question, then exit
 jarvis --yes "pull acme/api and run its tests"             # auto-approve writes and commands
 jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
@@ -109,6 +143,8 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--effort` | `high` | Reasoning depth: `low` to `max` |
 | `-y`, `--yes` | off | Approve edits, commands, commits and pushes without asking |
 | `--auto` | off | Autonomous mode (implies `--yes`) |
+| `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
+| `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--max-steps` | 60, or 250 with `--auto` | Agent steps per request |
 
 When stdin is not a terminal (in scripts or CI, for example), writes and commands are **denied** unless you pass `--yes`.

@@ -12,8 +12,9 @@ from pathlib import Path
 
 import anthropic
 
-from . import voice, wake
+from . import mcp_bridge, voice, wake
 from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
+from .memory import Memory
 from .tools import ToolContext
 
 DIM, CYAN, RED, RESET = "\033[2m", "\033[36m", "\033[31m", "\033[0m"
@@ -133,7 +134,7 @@ def listen(io: VoiceIO) -> str:
 
 
 def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callable[[str], str] = input) -> int:
-    commands = "/reset, /exit" + (", /mute, /unmute" if io else "")
+    commands = "/reset, /memory, /tools, /exit" + (", /mute, /unmute" if io else "")
     print(f"{CYAN}Jarvis online.{RESET} Workspace: {workspace}. Commands: {commands}")
     if io:
         print("Voice mode: press Enter to talk, press Enter again to stop. You can still type messages.")
@@ -159,6 +160,15 @@ def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callabl
             continue
         if prompt in ("/exit", "/quit"):
             return 0
+        if prompt == "/memory":
+            notes = jarvis.ctx.memory.notes() if jarvis.ctx.memory else []
+            print("\n".join(f"- {n}" for n in notes) if notes else "Memory is empty.")
+            if jarvis.ctx.memory:
+                print(f"{DIM}Stored in {jarvis.ctx.memory.path}{RESET}")
+            continue
+        if prompt == "/tools":
+            print(f"{len(jarvis._tools)} tools. MCP servers: {jarvis.mcp.summary() if jarvis.mcp else 'none'}")
+            continue
         if prompt == "/reset":
             jarvis.reset()
             print("Conversation cleared.")
@@ -235,7 +245,11 @@ def wake_loop(jarvis: Jarvis, io: VoiceIO, listener: wake.WakeWordListener) -> i
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="jarvis", description="AI engineering assistant that pulls and works with code from GitHub.")
     parser.add_argument("prompt", nargs="*", help="Ask one question and exit. Omit for interactive mode.")
-    parser.add_argument("--workspace", type=Path, default=Path(os.environ.get("JARVIS_HOME", Path.home() / ".jarvis")) / "repos", help="Where repositories are cloned (default ~/.jarvis/repos).")
+    home = Path(os.environ.get("JARVIS_HOME", Path.home() / ".jarvis"))
+    parser.add_argument("--workspace", type=Path, default=home / "repos", help="Where repositories are cloned (default ~/.jarvis/repos).")
+    parser.add_argument("--mcp-config", type=Path, default=home / "mcp.json", help="MCP servers config in the standard mcpServers format (default ~/.jarvis/mcp.json).")
+    parser.add_argument("--no-mcp", action="store_true", help="Don't start MCP servers.")
+    parser.add_argument("--no-memory", action="store_true", help="Don't load or save long-term memory (~/.jarvis/memory.md).")
     parser.add_argument("--model", default=os.environ.get("JARVIS_MODEL", DEFAULT_MODEL))
     parser.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
@@ -265,6 +279,39 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     args.workspace.mkdir(parents=True, exist_ok=True)
+    mcp = None if args.no_mcp else start_mcp(args.mcp_config, args.workspace.parent / "logs")
+    try:
+        return run(args, io, listener, mcp)
+    finally:
+        if mcp:
+            mcp.close()
+
+
+def start_mcp(config: Path, log_dir: Path) -> mcp_bridge.MCPManager | None:
+    try:
+        servers, warnings = mcp_bridge.load_config(config)
+    except mcp_bridge.MCPUnavailable as err:
+        print(f"{DIM}{err}{RESET}", file=sys.stderr)
+        return None
+    for warning in warnings:
+        print(f"{DIM}{warning}{RESET}", file=sys.stderr)
+    if not servers:
+        return None
+    try:
+        manager = mcp_bridge.MCPManager(servers, log_dir=log_dir)
+    except mcp_bridge.MCPUnavailable as err:
+        print(f"{DIM}{err}{RESET}", file=sys.stderr)
+        return None
+    print(f"{DIM}Starting MCP servers: {', '.join(s.name for s in servers)}...{RESET}")
+    manager.start()
+    for error in manager.errors:
+        print(f"{DIM}{error} (log: {log_dir}){RESET}", file=sys.stderr)
+    print(f"{DIM}MCP tools: {manager.summary()}{RESET}")
+    return manager
+
+
+def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordListener | None,
+        mcp: mcp_bridge.MCPManager | None) -> int:
     log = RunLog(args.workspace.parent / "runs") if args.auto else None
 
     def show_text(text: str) -> None:
@@ -278,7 +325,12 @@ def main(argv: list[str] | None = None) -> int:
             log.tool(line)
 
     jarvis = Jarvis(
-        ctx=ToolContext(workspace=args.workspace.resolve(), approve=make_approver(args.yes or args.auto)),
+        ctx=ToolContext(
+            workspace=args.workspace.resolve(),
+            approve=make_approver(args.yes or args.auto),
+            memory=None if args.no_memory else Memory(args.workspace.parent / "memory.md"),
+        ),
+        mcp=mcp,
         model=args.model,
         effort=args.effort,
         voice_mode=io is not None,

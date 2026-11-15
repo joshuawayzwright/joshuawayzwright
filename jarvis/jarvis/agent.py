@@ -26,6 +26,10 @@ How you work:
 
 Style: lead with the answer, keep it concise, use Markdown and code blocks. A touch of dry wit is welcome; flattery is not."""
 
+VOICE_PROMPT = """
+
+Voice mode is on: the user is speaking to you, and your final reply is read aloud. Their words come from speech recognition, so read past small transcription errors (a repository name may be misheard; check with search_github_repos when unsure). Keep the spoken part short: two to four plain sentences, no tables or headings. Put code, file lists and long detail in code blocks: those are shown on screen, not spoken."""
+
 
 Printer = Callable[[str], None]
 
@@ -36,6 +40,7 @@ class Jarvis:
     client: Any = None
     model: str = field(default_factory=lambda: os.environ.get("JARVIS_MODEL", DEFAULT_MODEL))
     effort: str = "high"
+    voice_mode: bool = False
     on_text: Printer = print
     on_tool: Printer = print
     messages: list[dict[str, Any]] = field(default_factory=list)
@@ -51,7 +56,7 @@ class Jarvis:
         return self.client.beta.messages.create(
             model=self.model,
             max_tokens=16000,
-            system=SYSTEM_PROMPT,
+            system=SYSTEM_PROMPT + (VOICE_PROMPT if self.voice_mode else ""),
             tools=TOOL_SCHEMAS,
             messages=self.messages,
             thinking={"type": "adaptive"},

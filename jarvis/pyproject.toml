@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jarvis-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI engineering assistant that pulls and works with code from GitHub, built on the Claude API."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,6 +13,7 @@ dependencies = ["anthropic>=2.8.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+voice = ["faster-whisper>=1.0", "sounddevice>=0.4.6", "numpy>=1.24", "pyttsx3>=2.90"]
 
 [project.scripts]
 jarvis = "jarvis.cli:main"

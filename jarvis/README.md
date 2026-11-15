@@ -1,6 +1,6 @@
 # Jarvis
 
-An AI engineering assistant for your terminal. Jarvis pulls code from GitHub, reads and searches it, and answers questions about it. It can also edit files and run commands, but only after you approve each one. It runs on the Claude API (`claude-opus-5-5` by default).
+An AI engineering assistant for your terminal. Jarvis pulls code from GitHub, reads and searches it, and answers questions about it. It can also edit files and run commands, but only after you approve each one. It runs on the Claude API (`claude-opus-5-5` by default), and you can talk to it by voice.
 
 Example session (the tool calls are what Jarvis prints; the answer text depends on the model):
 
@@ -60,10 +60,52 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 
 When stdin is not a terminal (in scripts or CI, for example), writes and commands are **denied** unless you pass `--yes`.
 
+## Voice mode
+
+Talk to Jarvis and hear its replies.
+
+```bash
+pip install ".[voice]"
+jarvis --voice
+```
+
+Press **Enter** to start talking and **Enter** again to stop. Jarvis transcribes what you said, does the work, prints its full reply and reads a short spoken version aloud. Code blocks, tables and file lists stay on screen and are not read out. You can still type messages; `/mute` and `/unmute` turn spoken replies off and on. Press Ctrl+C while it is speaking to stop it.
+
+| Part | How it works | Cost and privacy |
+|---|---|---|
+| Speech to text | [faster-whisper](https://github.com/SYSTRAN/faster-whisper) running on your machine. The model (about 150 MB for `base.en`) downloads on first use. | Free. Audio never leaves your computer. |
+| Spoken replies: `system` | Your operating system's voice through pyttsx3 (Windows SAPI5, macOS NSSpeechSynthesizer, eSpeak on Linux) | Free and offline, but robotic |
+| Spoken replies: `elevenlabs` | The ElevenLabs API. The default voice is George, a British male premade voice | Natural voice. Uses ElevenLabs credits, and the reply text is sent to ElevenLabs |
+
+```bash
+export ELEVENLABS_API_KEY=...                  # picks ElevenLabs automatically
+jarvis --voice --voice-id <voice id>           # any voice from your ElevenLabs library
+jarvis --voice --tts system                    # force the free offline voice
+jarvis --voice --whisper-model small.en        # more accurate, slower
+jarvis --voice --whisper-model small --language es   # other languages
+jarvis --voice "pull octocat/Hello-World and summarise it"   # one question, spoken answer
+```
+
+| Option / variable | Default | Purpose |
+|---|---|---|
+| `--tts` | `auto` | `elevenlabs` if `ELEVENLABS_API_KEY` is set, otherwise `system`. Use `none` for text only |
+| `--voice-id`, `ELEVENLABS_VOICE_ID` | George (`JBFqnCBsd6RMkjVDRZzb`) | ElevenLabs voice |
+| `--whisper-model`, `JARVIS_WHISPER_MODEL` | `base.en` | `tiny.en` is fastest; `small.en` and `medium.en` are more accurate |
+| `--language` | auto-detect | Spoken language code for multilingual Whisper models |
+
+System requirements:
+
+- **Microphone access** for your terminal (macOS asks the first time).
+- **PortAudio:** bundled with the `sounddevice` package on Windows and macOS. On Debian or Ubuntu, run `sudo apt install libportaudio2`.
+- **eSpeak** for the `system` voice on Linux only: `sudo apt install espeak-ng`.
+
+Each spoken reply is capped at about 1,500 characters, which also limits ElevenLabs usage. Anything longer finishes with "The rest is on screen."
+
 ## How it works
 
 - **Agent loop** (`jarvis/agent.py`): a manual tool-use loop on the Messages API, with adaptive thinking, prompt caching of the conversation prefix, and server-side refusal fallbacks (`fallbacks: "default"`). All tool results for one turn go back in a single message. The loop stops after 40 steps.
 - **Tools** (`jarvis/tools.py`): every tool input is checked against its schema before it runs. File paths are resolved and confined to the repository, and writes into `.git` are refused. Output is capped so large files and searches don't flood the context.
+- **Voice** (`jarvis/voice.py`): push-to-talk recording with `sounddevice`, local transcription with faster-whisper, and speech output through pyttsx3 or ElevenLabs. In voice mode the system prompt asks Claude for short, speakable replies and to allow for transcription errors.
 - **GitHub** (`jarvis/github.py`): uses the REST API through the Python standard library and `git` for clones, with partial clones (`--filter=blob:none`) for speed. Repository names and refs are validated to block path traversal and git option injection.
 
 ## Safety notes
@@ -78,4 +120,4 @@ pip install ".[dev]"
 pytest -q
 ```
 
-The tests run offline. They exercise every tool against a temporary git repository and drive the agent loop with a fake Claude client.
+The tests run offline and need no voice packages. They exercise every tool against a temporary git repository, and drive the agent loop and the voice loop with a fake Claude client, microphone and speaker.

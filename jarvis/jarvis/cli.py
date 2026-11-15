@@ -5,14 +5,16 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 import anthropic
 
-from . import voice
-from .agent import DEFAULT_MODEL, Jarvis
+from . import github, mcp_bridge, voice, wake
+from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
+from .memory import Memory
 from .tools import ToolContext
 
 DIM, CYAN, RED, RESET = "\033[2m", "\033[36m", "\033[31m", "\033[0m"
@@ -30,6 +32,35 @@ def make_approver(auto_yes: bool):
         return answer in ("y", "yes")
 
     return approve
+
+
+class RunLog:
+    """Markdown record of an autonomous run: the goal, every tool call and result, and the outcome."""
+
+    def __init__(self, directory: Path) -> None:
+        directory.mkdir(parents=True, exist_ok=True)
+        self.path = directory / time.strftime("%Y%m%d-%H%M%S.md")
+        self._write(f"# Jarvis run {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+    def _write(self, text: str) -> None:
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(text + "\n")
+
+    def goal(self, text: str) -> None:
+        self._write(f"## Goal\n\n{text}\n\n## Steps\n")
+
+    def text(self, text: str) -> None:
+        self._write(f"\n**Jarvis:** {text}\n")
+
+    def tool(self, line: str) -> None:
+        self._write(f"- `{line}`")
+
+    def result(self, name: str, content: object, is_error: bool) -> None:
+        if not isinstance(content, str):
+            content = "[image and text content]"
+        head = content.strip().splitlines()[:6]
+        marker = "ERROR " if is_error else ""
+        self._write("  ```\n  " + marker + "\n  ".join(line[:200] for line in head) + "\n  ```")
 
 
 def run_turn(jarvis: Jarvis, prompt: str) -> str | None:
@@ -56,6 +87,13 @@ class VoiceIO:
     transcriber: voice.Transcriber
     speaker: voice.Speaker
     muted: bool = False
+    _speech: voice.SpeechQueue | None = None
+
+    @property
+    def speech(self) -> voice.SpeechQueue:
+        if self._speech is None:
+            self._speech = voice.SpeechQueue(self.speaker, on_error=lambda m: print(f"{DIM}  {m}{RESET}"))
+        return self._speech
 
 
 def build_voice(args: argparse.Namespace) -> VoiceIO:
@@ -97,6 +135,36 @@ def speak(io: VoiceIO, reply: str) -> None:
         print(f"{DIM}  (stopped speaking){RESET}")
 
 
+def talk_turn(jarvis: Jarvis, io: VoiceIO, prompt: str) -> str | None:
+    """Run a turn, speaking the reply sentence by sentence while it streams in."""
+    if io.muted:
+        return run_turn(jarvis, prompt)
+    segmenter = voice.SentenceSegmenter()
+    printer = jarvis.on_delta
+
+    def on_delta(chunk: str) -> None:
+        printer(chunk)
+        for sentence in segmenter.feed(chunk):
+            io.speech.say(sentence)
+
+    jarvis.on_delta = on_delta
+    try:
+        reply = run_turn(jarvis, prompt)
+    except KeyboardInterrupt:
+        io.speech.cancel()
+        raise
+    finally:
+        jarvis.on_delta = printer
+    try:
+        for sentence in segmenter.flush():
+            io.speech.say(sentence)
+        io.speech.wait()  # finish talking before listening again, so Jarvis never hears itself
+    except KeyboardInterrupt:
+        io.speech.cancel()
+        print(f"{DIM}  (stopped speaking){RESET}")
+    return reply
+
+
 def listen(io: VoiceIO) -> str:
     print(f"{RED}● Listening...{RESET} press Enter to stop.")
     audio = io.recorder.record()
@@ -105,7 +173,7 @@ def listen(io: VoiceIO) -> str:
 
 
 def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callable[[str], str] = input) -> int:
-    commands = "/reset, /exit" + (", /mute, /unmute" if io else "")
+    commands = "/reset, /memory, /tools, /exit" + (", /mute, /unmute" if io else "")
     print(f"{CYAN}Jarvis online.{RESET} Workspace: {workspace}. Commands: {commands}")
     if io:
         print("Voice mode: press Enter to talk, press Enter again to stop. You can still type messages.")
@@ -131,6 +199,15 @@ def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callabl
             continue
         if prompt in ("/exit", "/quit"):
             return 0
+        if prompt == "/memory":
+            notes = jarvis.ctx.memory.notes() if jarvis.ctx.memory else []
+            print("\n".join(f"- {n}" for n in notes) if notes else "Memory is empty.")
+            if jarvis.ctx.memory:
+                print(f"{DIM}Stored in {jarvis.ctx.memory.path}{RESET}")
+            continue
+        if prompt == "/tools":
+            print(f"{len(jarvis._tools)} tools. MCP servers: {jarvis.mcp.summary() if jarvis.mcp else 'none'}")
+            continue
         if prompt == "/reset":
             jarvis.reset()
             print("Conversation cleared.")
@@ -142,24 +219,82 @@ def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callabl
 
         checkpoint = len(jarvis.messages)
         try:
-            reply = run_turn(jarvis, prompt)
+            run_turn(jarvis, prompt) if io is None else talk_turn(jarvis, io, prompt)
         except KeyboardInterrupt:
             print("\nInterrupted. That turn was discarded.")
             del jarvis.messages[checkpoint:]
             continue
-        if io and reply:
-            speak(io, reply)
+
+
+def wake_loop(jarvis: Jarvis, io: VoiceIO, listener: wake.WakeWordListener) -> int:
+    """Hands-free conversation: "Hey Jarvis" wakes it; follow-ups within a few seconds need no wake word."""
+    print(f"{CYAN}Jarvis online, hands-free.{RESET} Say \"Hey Jarvis\" and then your request.")
+    print(f"{DIM}After each answer you have 5 seconds to ask a follow-up without the wake word. "
+          f"Say \"goodbye\" or press Ctrl+C to quit.{RESET}")
+
+    def woke() -> None:
+        print(f"{RED}● Listening...{RESET}")
+
+    follow_up = False
+    while True:
+        try:
+            if follow_up:
+                print(f"{DIM}  (listening for a follow-up...){RESET}")
+                audio = listener.listen_for_follow_up()
+                if len(audio) == 0:
+                    follow_up = False
+                    print(f"{DIM}Waiting for \"Hey Jarvis\"...{RESET}")
+                    continue
+            else:
+                audio = listener.wait_for_command(on_wake=woke)
+            print(f"{DIM}Transcribing...{RESET}")
+            prompt = wake.strip_wake_word(io.transcriber.transcribe(audio))
+        except KeyboardInterrupt:
+            print()
+            return 0
+
+        command = wake.normalise(prompt)
+        if not command:
+            print("I didn't catch that.")
+            follow_up = False
+            continue
+        print(f"{CYAN}you (voice) ›{RESET} {prompt}")
+        if command in wake.EXIT_PHRASES:
+            speak(io, "Goodbye.")
+            return 0
+        if command in wake.CANCEL_PHRASES:
+            follow_up = False
+            continue
+
+        checkpoint = len(jarvis.messages)
+        try:
+            reply = talk_turn(jarvis, io, prompt)
+        except KeyboardInterrupt:
+            print("\nInterrupted. That turn was discarded.")
+            del jarvis.messages[checkpoint:]
+            follow_up = False
+            continue
+        follow_up = reply is not None
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="jarvis", description="AI engineering assistant that pulls and works with code from GitHub.")
     parser.add_argument("prompt", nargs="*", help="Ask one question and exit. Omit for interactive mode.")
-    parser.add_argument("--workspace", type=Path, default=Path(os.environ.get("JARVIS_HOME", Path.home() / ".jarvis")) / "repos", help="Where repositories are cloned (default ~/.jarvis/repos).")
+    home = Path(os.environ.get("JARVIS_HOME", Path.home() / ".jarvis"))
+    parser.add_argument("--workspace", type=Path, default=home / "repos", help="Where repositories are cloned (default ~/.jarvis/repos).")
+    parser.add_argument("--mcp-config", type=Path, default=home / "mcp.json", help="MCP servers config in the standard mcpServers format (default ~/.jarvis/mcp.json).")
+    parser.add_argument("--no-mcp", action="store_true", help="Don't start MCP servers.")
+    parser.add_argument("--no-memory", action="store_true", help="Don't load or save long-term memory (~/.jarvis/memory.md).")
     parser.add_argument("--model", default=os.environ.get("JARVIS_MODEL", DEFAULT_MODEL))
     parser.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
+    parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
+    parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
+    parser.add_argument("--max-steps", type=int, default=None, help=f"Max agent steps per request (default {DEFAULT_MAX_STEPS}, or {AUTO_MAX_STEPS} with --auto).")
     group = parser.add_argument_group("voice")
     group.add_argument("--voice", action="store_true", help="Talk to Jarvis: push-to-talk input and spoken replies.")
+    group.add_argument("--wake", action="store_true", help='Hands-free: say "Hey Jarvis" instead of pressing Enter. Implies --voice.')
+    group.add_argument("--wake-threshold", type=float, default=0.5, help="Wake word sensitivity, 0-1. Lower hears you more easily but triggers falsely more often. Default 0.5.")
     group.add_argument("--tts", default="auto", choices=["auto", "system", "elevenlabs", "none"], help="Speech output. auto = ElevenLabs if ELEVENLABS_API_KEY is set, else the system voice.")
     group.add_argument("--voice-id", default=os.environ.get("ELEVENLABS_VOICE_ID", voice.ELEVENLABS_DEFAULT_VOICE), help="ElevenLabs voice ID (default: George).")
     group.add_argument("--whisper-model", default=os.environ.get("JARVIS_WHISPER_MODEL", "base.en"), help="Whisper model: tiny.en, base.en, small.en, medium.en, or a multilingual size such as small.")
@@ -167,29 +302,126 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     io: VoiceIO | None = None
+    listener: wake.WakeWordListener | None = None
+    if args.wake and not args.prompt:
+        args.voice = True
     if args.voice:
         try:
             io = build_voice(args)
+            if args.wake and not args.prompt:
+                listener = wake.WakeWordListener(threshold=args.wake_threshold)
         except voice.VoiceUnavailable as err:
             print(f"Voice mode unavailable: {err}", file=sys.stderr)
             return 2
 
     args.workspace.mkdir(parents=True, exist_ok=True)
+    mcp = None if args.no_mcp else start_mcp(args.mcp_config, args.workspace.parent / "logs")
+    try:
+        return run(args, io, listener, mcp)
+    finally:
+        if mcp:
+            mcp.close()
+
+
+def start_mcp(config: Path, log_dir: Path) -> mcp_bridge.MCPManager | None:
+    try:
+        servers, warnings = mcp_bridge.load_config(config)
+    except mcp_bridge.MCPUnavailable as err:
+        print(f"{DIM}{err}{RESET}", file=sys.stderr)
+        return None
+    for warning in warnings:
+        print(f"{DIM}{warning}{RESET}", file=sys.stderr)
+    if not servers:
+        return None
+    try:
+        manager = mcp_bridge.MCPManager(servers, log_dir=log_dir)
+    except mcp_bridge.MCPUnavailable as err:
+        print(f"{DIM}{err}{RESET}", file=sys.stderr)
+        return None
+    print(f"{DIM}Starting MCP servers: {', '.join(s.name for s in servers)}...{RESET}")
+    manager.start()
+    for error in manager.errors:
+        print(f"{DIM}{error} (log: {log_dir}){RESET}", file=sys.stderr)
+    print(f"{DIM}MCP tools: {manager.summary()}{RESET}")
+    return manager
+
+
+def briefing_prompt(owner: str) -> str:
+    today = time.strftime("%A %d %B %Y")
+    return (
+        f"Give me my briefing for {today}. List the repositories of {owner} with list_user_repos and focus on "
+        "those pushed in the last 7 days. For each, use github_activity. Lead with what needs action: failing CI "
+        "on a default branch (use get_ci_failure to say briefly why), pull requests waiting for review, and new "
+        "issues. Then give one line per other active repository. Be brief; skip repositories with nothing to report. "
+        "End by offering to fix the most urgent problem."
+    )
+
+
+def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordListener | None,
+        mcp: mcp_bridge.MCPManager | None) -> int:
+    log = RunLog(args.workspace.parent / "runs") if args.auto else None
+
+    streaming = {"active": False}
+
+    def show_delta(chunk: str) -> None:
+        if not streaming["active"]:
+            print()
+            streaming["active"] = True
+        print(chunk, end="", flush=True)
+
+    def show_text(text: str) -> None:
+        if streaming["active"]:
+            print("\n")  # the block has already streamed to the screen
+            streaming["active"] = False
+        else:
+            print(f"\n{text}\n")
+        if log:
+            log.text(text)
+
+    def show_tool(line: str) -> None:
+        print(f"{DIM}  ⚙ {line}{RESET}")
+        if log:
+            log.tool(line)
+
     jarvis = Jarvis(
-        ctx=ToolContext(workspace=args.workspace.resolve(), approve=make_approver(args.yes)),
+        ctx=ToolContext(
+            workspace=args.workspace.resolve(),
+            approve=make_approver(args.yes or args.auto),
+            memory=None if args.no_memory else Memory(args.workspace.parent / "memory.md"),
+            confirm_private=make_approver(False),  # screenshots always ask; refused when nobody can answer
+        ),
+        mcp=mcp,
         model=args.model,
         effort=args.effort,
         voice_mode=io is not None,
-        on_text=lambda text: print(f"\n{text}\n"),
-        on_tool=lambda line: print(f"{DIM}  ⚙ {line}{RESET}"),
+        autonomous=args.auto,
+        max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
+        on_text=show_text,
+        on_delta=show_delta,
+        on_tool=show_tool,
+        on_result=log.result if log else (lambda name, content, is_error: None),
     )
+    if args.auto:
+        print(f"{RED}Autonomous mode:{RESET} Jarvis will edit, run commands, commit and open draft PRs without asking. "
+              f"Destructive commands are blocked, and it never pushes the default branch or merges. Ctrl+C stops it.")
+        print(f"{DIM}Run log: {log.path}{RESET}" if log else "")
+
+    if args.brief is not None:
+        try:
+            args.prompt = [briefing_prompt(args.brief or github.authenticated_login())]
+        except github.GitHubError as err:
+            print(f"Briefing needs a GitHub account: pass --brief <owner> or set GITHUB_TOKEN. ({err})", file=sys.stderr)
+            return 1
 
     if args.prompt:
-        reply = run_turn(jarvis, " ".join(args.prompt))
-        if io and reply:
-            speak(io, reply)
+        goal = " ".join(args.prompt)
+        if log:
+            log.goal(goal)
+        reply = run_turn(jarvis, goal) if io is None else talk_turn(jarvis, io, goal)
         return 0 if reply is not None else 1
 
+    if io and listener:
+        return wake_loop(jarvis, io, listener)
     return chat_loop(jarvis, io, args.workspace)
 
 

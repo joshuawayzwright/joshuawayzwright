@@ -88,10 +88,26 @@ jarvis --voice "pull octocat/Hello-World and summarise it"   # one question, spo
 
 | Option / variable | Default | Purpose |
 |---|---|---|
+| `--wake` | off | Hands-free mode with the "Hey Jarvis" wake word (implies `--voice`) |
+| `--wake-threshold` | `0.5` | Wake-word sensitivity, 0 to 1 |
 | `--tts` | `auto` | `elevenlabs` if `ELEVENLABS_API_KEY` is set, otherwise `system`. Use `none` for text only |
 | `--voice-id`, `ELEVENLABS_VOICE_ID` | George (`JBFqnCBsd6RMkjVDRZzb`) | ElevenLabs voice |
 | `--whisper-model`, `JARVIS_WHISPER_MODEL` | `base.en` | `tiny.en` is fastest; `small.en` and `medium.en` are more accurate |
 | `--language` | auto-detect | Spoken language code for multilingual Whisper models |
+
+### Hands-free: "Hey Jarvis"
+
+```bash
+jarvis --wake
+```
+
+Say **"Hey Jarvis"**, then your request, in one breath or after the chime. Jarvis records until you stop talking (about 1.2 seconds of quiet), answers, then listens for **5 seconds for a follow-up** that needs no wake word. If you say nothing, it goes back to waiting for "Hey Jarvis".
+
+- Say **"never mind"** to cancel, or **"goodbye"** (or press Ctrl+C) to quit.
+- Wake-word detection uses [openWakeWord](https://github.com/dscripka/openWakeWord)'s `hey_jarvis` model. It runs on your computer and is included in the `voice` extra, so nothing extra downloads.
+- `--wake-threshold` sets the sensitivity (default `0.5`). Lower it to about `0.3` if Jarvis misses you; raise it to `0.7` if it wakes when nobody called it.
+- Jarvis stops listening while it works and speaks, so it never hears its own voice.
+- File writes and commands still need a keypress to approve. A misheard "yes" should never run a shell command.
 
 System requirements:
 
@@ -105,6 +121,7 @@ Each spoken reply is capped at about 1,500 characters, which also limits ElevenL
 
 - **Agent loop** (`jarvis/agent.py`): a manual tool-use loop on the Messages API, with adaptive thinking, prompt caching of the conversation prefix, and server-side refusal fallbacks (`fallbacks: "default"`). All tool results for one turn go back in a single message. The loop stops after 40 steps.
 - **Tools** (`jarvis/tools.py`): every tool input is checked against its schema before it runs. File paths are resolved and confined to the repository, and writes into `.git` are refused. Output is capped so large files and searches don't flood the context.
+- **Wake word** (`jarvis/wake.py`): openWakeWord scores each 80 ms microphone frame for "hey Jarvis". A loudness-based end-of-speech detector, calibrated to the room's background noise, decides when you have finished talking.
 - **Voice** (`jarvis/voice.py`): push-to-talk recording with `sounddevice`, local transcription with faster-whisper, and speech output through pyttsx3 or ElevenLabs. In voice mode the system prompt asks Claude for short, speakable replies and to allow for transcription errors.
 - **GitHub** (`jarvis/github.py`): uses the REST API through the Python standard library and `git` for clones, with partial clones (`--filter=blob:none`) for speed. Repository names and refs are validated to block path traversal and git option injection.
 

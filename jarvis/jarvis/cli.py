@@ -11,7 +11,7 @@ from pathlib import Path
 
 import anthropic
 
-from . import voice
+from . import voice, wake
 from .agent import DEFAULT_MODEL, Jarvis
 from .tools import ToolContext
 
@@ -151,6 +151,59 @@ def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callabl
             speak(io, reply)
 
 
+def wake_loop(jarvis: Jarvis, io: VoiceIO, listener: wake.WakeWordListener) -> int:
+    """Hands-free conversation: "Hey Jarvis" wakes it; follow-ups within a few seconds need no wake word."""
+    print(f"{CYAN}Jarvis online, hands-free.{RESET} Say \"Hey Jarvis\" and then your request.")
+    print(f"{DIM}After each answer you have 5 seconds to ask a follow-up without the wake word. "
+          f"Say \"goodbye\" or press Ctrl+C to quit.{RESET}")
+
+    def woke() -> None:
+        print(f"{RED}● Listening...{RESET}")
+
+    follow_up = False
+    while True:
+        try:
+            if follow_up:
+                print(f"{DIM}  (listening for a follow-up...){RESET}")
+                audio = listener.listen_for_follow_up()
+                if len(audio) == 0:
+                    follow_up = False
+                    print(f"{DIM}Waiting for \"Hey Jarvis\"...{RESET}")
+                    continue
+            else:
+                audio = listener.wait_for_command(on_wake=woke)
+            print(f"{DIM}Transcribing...{RESET}")
+            prompt = wake.strip_wake_word(io.transcriber.transcribe(audio))
+        except KeyboardInterrupt:
+            print()
+            return 0
+
+        command = wake.normalise(prompt)
+        if not command:
+            print("I didn't catch that.")
+            follow_up = False
+            continue
+        print(f"{CYAN}you (voice) ›{RESET} {prompt}")
+        if command in wake.EXIT_PHRASES:
+            speak(io, "Goodbye.")
+            return 0
+        if command in wake.CANCEL_PHRASES:
+            follow_up = False
+            continue
+
+        checkpoint = len(jarvis.messages)
+        try:
+            reply = run_turn(jarvis, prompt)
+        except KeyboardInterrupt:
+            print("\nInterrupted. That turn was discarded.")
+            del jarvis.messages[checkpoint:]
+            follow_up = False
+            continue
+        if reply:
+            speak(io, reply)
+        follow_up = reply is not None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="jarvis", description="AI engineering assistant that pulls and works with code from GitHub.")
     parser.add_argument("prompt", nargs="*", help="Ask one question and exit. Omit for interactive mode.")
@@ -160,6 +213,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
     group = parser.add_argument_group("voice")
     group.add_argument("--voice", action="store_true", help="Talk to Jarvis: push-to-talk input and spoken replies.")
+    group.add_argument("--wake", action="store_true", help='Hands-free: say "Hey Jarvis" instead of pressing Enter. Implies --voice.')
+    group.add_argument("--wake-threshold", type=float, default=0.5, help="Wake word sensitivity, 0-1. Lower hears you more easily but triggers falsely more often. Default 0.5.")
     group.add_argument("--tts", default="auto", choices=["auto", "system", "elevenlabs", "none"], help="Speech output. auto = ElevenLabs if ELEVENLABS_API_KEY is set, else the system voice.")
     group.add_argument("--voice-id", default=os.environ.get("ELEVENLABS_VOICE_ID", voice.ELEVENLABS_DEFAULT_VOICE), help="ElevenLabs voice ID (default: George).")
     group.add_argument("--whisper-model", default=os.environ.get("JARVIS_WHISPER_MODEL", "base.en"), help="Whisper model: tiny.en, base.en, small.en, medium.en, or a multilingual size such as small.")
@@ -167,9 +222,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     io: VoiceIO | None = None
+    listener: wake.WakeWordListener | None = None
+    if args.wake and not args.prompt:
+        args.voice = True
     if args.voice:
         try:
             io = build_voice(args)
+            if args.wake and not args.prompt:
+                listener = wake.WakeWordListener(threshold=args.wake_threshold)
         except voice.VoiceUnavailable as err:
             print(f"Voice mode unavailable: {err}", file=sys.stderr)
             return 2
@@ -190,6 +250,8 @@ def main(argv: list[str] | None = None) -> int:
             speak(io, reply)
         return 0 if reply is not None else 1
 
+    if io and listener:
+        return wake_loop(jarvis, io, listener)
     return chat_loop(jarvis, io, args.workspace)
 
 

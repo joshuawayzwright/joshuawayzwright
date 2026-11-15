@@ -12,7 +12,7 @@ from pathlib import Path
 
 import anthropic
 
-from . import mcp_bridge, voice, wake
+from . import github, mcp_bridge, voice, wake
 from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
 from .memory import Memory
 from .tools import ToolContext
@@ -55,7 +55,9 @@ class RunLog:
     def tool(self, line: str) -> None:
         self._write(f"- `{line}`")
 
-    def result(self, name: str, content: str, is_error: bool) -> None:
+    def result(self, name: str, content: object, is_error: bool) -> None:
+        if not isinstance(content, str):
+            content = "[image and text content]"
         head = content.strip().splitlines()[:6]
         marker = "ERROR " if is_error else ""
         self._write("  ```\n  " + marker + "\n  ".join(line[:200] for line in head) + "\n  ```")
@@ -85,6 +87,13 @@ class VoiceIO:
     transcriber: voice.Transcriber
     speaker: voice.Speaker
     muted: bool = False
+    _speech: voice.SpeechQueue | None = None
+
+    @property
+    def speech(self) -> voice.SpeechQueue:
+        if self._speech is None:
+            self._speech = voice.SpeechQueue(self.speaker, on_error=lambda m: print(f"{DIM}  {m}{RESET}"))
+        return self._speech
 
 
 def build_voice(args: argparse.Namespace) -> VoiceIO:
@@ -124,6 +133,36 @@ def speak(io: VoiceIO, reply: str) -> None:
         print(f"{DIM}  (could not speak the reply: {err}){RESET}")
     except KeyboardInterrupt:
         print(f"{DIM}  (stopped speaking){RESET}")
+
+
+def talk_turn(jarvis: Jarvis, io: VoiceIO, prompt: str) -> str | None:
+    """Run a turn, speaking the reply sentence by sentence while it streams in."""
+    if io.muted:
+        return run_turn(jarvis, prompt)
+    segmenter = voice.SentenceSegmenter()
+    printer = jarvis.on_delta
+
+    def on_delta(chunk: str) -> None:
+        printer(chunk)
+        for sentence in segmenter.feed(chunk):
+            io.speech.say(sentence)
+
+    jarvis.on_delta = on_delta
+    try:
+        reply = run_turn(jarvis, prompt)
+    except KeyboardInterrupt:
+        io.speech.cancel()
+        raise
+    finally:
+        jarvis.on_delta = printer
+    try:
+        for sentence in segmenter.flush():
+            io.speech.say(sentence)
+        io.speech.wait()  # finish talking before listening again, so Jarvis never hears itself
+    except KeyboardInterrupt:
+        io.speech.cancel()
+        print(f"{DIM}  (stopped speaking){RESET}")
+    return reply
 
 
 def listen(io: VoiceIO) -> str:
@@ -180,13 +219,11 @@ def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callabl
 
         checkpoint = len(jarvis.messages)
         try:
-            reply = run_turn(jarvis, prompt)
+            run_turn(jarvis, prompt) if io is None else talk_turn(jarvis, io, prompt)
         except KeyboardInterrupt:
             print("\nInterrupted. That turn was discarded.")
             del jarvis.messages[checkpoint:]
             continue
-        if io and reply:
-            speak(io, reply)
 
 
 def wake_loop(jarvis: Jarvis, io: VoiceIO, listener: wake.WakeWordListener) -> int:
@@ -231,14 +268,12 @@ def wake_loop(jarvis: Jarvis, io: VoiceIO, listener: wake.WakeWordListener) -> i
 
         checkpoint = len(jarvis.messages)
         try:
-            reply = run_turn(jarvis, prompt)
+            reply = talk_turn(jarvis, io, prompt)
         except KeyboardInterrupt:
             print("\nInterrupted. That turn was discarded.")
             del jarvis.messages[checkpoint:]
             follow_up = False
             continue
-        if reply:
-            speak(io, reply)
         follow_up = reply is not None
 
 
@@ -254,6 +289,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
     parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
+    parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
     parser.add_argument("--max-steps", type=int, default=None, help=f"Max agent steps per request (default {DEFAULT_MAX_STEPS}, or {AUTO_MAX_STEPS} with --auto).")
     group = parser.add_argument_group("voice")
     group.add_argument("--voice", action="store_true", help="Talk to Jarvis: push-to-talk input and spoken replies.")
@@ -310,12 +346,35 @@ def start_mcp(config: Path, log_dir: Path) -> mcp_bridge.MCPManager | None:
     return manager
 
 
+def briefing_prompt(owner: str) -> str:
+    today = time.strftime("%A %d %B %Y")
+    return (
+        f"Give me my briefing for {today}. List the repositories of {owner} with list_user_repos and focus on "
+        "those pushed in the last 7 days. For each, use github_activity. Lead with what needs action: failing CI "
+        "on a default branch (use get_ci_failure to say briefly why), pull requests waiting for review, and new "
+        "issues. Then give one line per other active repository. Be brief; skip repositories with nothing to report. "
+        "End by offering to fix the most urgent problem."
+    )
+
+
 def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordListener | None,
         mcp: mcp_bridge.MCPManager | None) -> int:
     log = RunLog(args.workspace.parent / "runs") if args.auto else None
 
+    streaming = {"active": False}
+
+    def show_delta(chunk: str) -> None:
+        if not streaming["active"]:
+            print()
+            streaming["active"] = True
+        print(chunk, end="", flush=True)
+
     def show_text(text: str) -> None:
-        print(f"\n{text}\n")
+        if streaming["active"]:
+            print("\n")  # the block has already streamed to the screen
+            streaming["active"] = False
+        else:
+            print(f"\n{text}\n")
         if log:
             log.text(text)
 
@@ -329,6 +388,7 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
             workspace=args.workspace.resolve(),
             approve=make_approver(args.yes or args.auto),
             memory=None if args.no_memory else Memory(args.workspace.parent / "memory.md"),
+            confirm_private=make_approver(False),  # screenshots always ask; refused when nobody can answer
         ),
         mcp=mcp,
         model=args.model,
@@ -337,6 +397,7 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         autonomous=args.auto,
         max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
         on_text=show_text,
+        on_delta=show_delta,
         on_tool=show_tool,
         on_result=log.result if log else (lambda name, content, is_error: None),
     )
@@ -345,13 +406,18 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
               f"Destructive commands are blocked, and it never pushes the default branch or merges. Ctrl+C stops it.")
         print(f"{DIM}Run log: {log.path}{RESET}" if log else "")
 
+    if args.brief is not None:
+        try:
+            args.prompt = [briefing_prompt(args.brief or github.authenticated_login())]
+        except github.GitHubError as err:
+            print(f"Briefing needs a GitHub account: pass --brief <owner> or set GITHUB_TOKEN. ({err})", file=sys.stderr)
+            return 1
+
     if args.prompt:
         goal = " ".join(args.prompt)
         if log:
             log.goal(goal)
-        reply = run_turn(jarvis, goal)
-        if io and reply:
-            speak(io, reply)
+        reply = run_turn(jarvis, goal) if io is None else talk_turn(jarvis, io, goal)
         return 0 if reply is not None else 1
 
     if io and listener:

@@ -1,14 +1,17 @@
 """Plug in any MCP server: the open-source tool ecosystem on GitHub (browsers, docs, databases, ...).
 
 Servers are configured in the standard `mcpServers` JSON format used by Claude Desktop, Cursor and
-most MCP READMEs, so a server's documented config can be pasted in as-is. Each server runs as a
-subprocess over stdio; its tools are offered to Claude as `mcp__<server>__<tool>`.
+most MCP READMEs, so a server's documented config can be pasted in as-is. Local servers run as a
+subprocess over stdio; remote servers are reached by URL over streamable HTTP. Their tools are
+offered to Claude as `mcp__<server>__<tool>`.
 """
 
 from __future__ import annotations
 
 import asyncio
 import builtins
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 import json
 import os
 import re
@@ -31,10 +34,32 @@ class MCPUnavailable(Exception):
 @dataclass
 class ServerConfig:
     name: str
-    command: str
+    command: str = ""
     args: list[str] = field(default_factory=list)
     env: dict[str, str] = field(default_factory=dict)
     cwd: str | None = None
+    url: str | None = None  # remote server (streamable HTTP) instead of a local command
+    headers: dict[str, str] = field(default_factory=dict)
+
+
+ENV_REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def expand_env(value: str) -> str:
+    """Replace ${VAR} with the environment variable, so tokens stay out of the config file."""
+    def sub(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name not in os.environ:
+            raise KeyError(name)
+        return os.environ[name]
+
+    return ENV_REF.sub(sub, value)
+
+
+def _remote_url_ok(url: str) -> bool:
+    if url.startswith("https://"):
+        return True
+    return re.match(r"^http://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(/|$)", url) is not None
 
 
 def load_config(path: Path) -> tuple[list[ServerConfig], list[str]]:
@@ -52,16 +77,33 @@ def load_config(path: Path) -> tuple[list[ServerConfig], list[str]]:
         if not re.match(r"^[A-Za-z0-9_-]{1,30}$", name):
             warnings.append(f"Skipped MCP server '{name}': use letters, digits, - and _ (max 30).")
             continue
-        if "command" not in spec:
-            warnings.append(f"Skipped MCP server '{name}': only local (command) servers are supported, not URL servers.")
-            continue
-        servers.append(ServerConfig(
-            name=name,
-            command=str(spec["command"]),
-            args=[str(a) for a in spec.get("args", [])],
-            env={str(k): str(v) for k, v in (spec.get("env") or {}).items()},
-            cwd=spec.get("cwd"),
-        ))
+        try:
+            if "url" in spec:
+                kind = str(spec.get("type", "http")).lower()
+                if kind == "sse":
+                    warnings.append(f"Skipped MCP server '{name}': legacy SSE servers aren't supported; use its streamable HTTP URL.")
+                    continue
+                url = expand_env(str(spec["url"]))
+                if not _remote_url_ok(url):
+                    warnings.append(f"Skipped MCP server '{name}': remote servers must use https:// (http:// only for localhost).")
+                    continue
+                servers.append(ServerConfig(
+                    name=name,
+                    url=url,
+                    headers={str(k): expand_env(str(v)) for k, v in (spec.get("headers") or {}).items()},
+                ))
+            elif "command" in spec:
+                servers.append(ServerConfig(
+                    name=name,
+                    command=str(spec["command"]),
+                    args=[expand_env(str(a)) for a in spec.get("args", [])],
+                    env={str(k): expand_env(str(v)) for k, v in (spec.get("env") or {}).items()},
+                    cwd=spec.get("cwd"),
+                ))
+            else:
+                warnings.append(f"Skipped MCP server '{name}': it needs a command or a url.")
+        except KeyError as missing:
+            warnings.append(f"Skipped MCP server '{name}': environment variable {missing.args[0]} is not set.")
     return servers, warnings
 
 
@@ -147,22 +189,14 @@ class MCPManager:
         self._stop = asyncio.Event()
 
     async def _serve(self, server: ServerConfig, started: Future) -> None:
-        from mcp import ClientSession, StdioServerParameters
-        from mcp.client.stdio import get_default_environment, stdio_client
-
-        params = StdioServerParameters(
-            command=server.command,
-            args=server.args,
-            env={**get_default_environment(), **server.env},
-            cwd=server.cwd,
-        )
+        from mcp import ClientSession
         # Server stderr (startup banners, tracebacks) goes to a log file, not the user's terminal.
         log_path = self.log_dir / f"mcp-{server.name}.log" if self.log_dir else Path(os.devnull)
         if self.log_dir:
             self.log_dir.mkdir(parents=True, exist_ok=True)
         errlog = log_path.open("a", encoding="utf-8")
         try:
-            async with stdio_client(params, errlog=errlog) as (read, write), ClientSession(read, write) as session:
+            async with _transport(server, errlog) as (read, write), ClientSession(read, write) as session:
                 await session.initialize()
                 listed = []
                 cursor = None
@@ -238,6 +272,34 @@ class MCPManager:
             return f"Error: {name} timed out after {CALL_TIMEOUT_S} seconds.", True
         except Exception as err:  # noqa: BLE001 - MCP/transport errors become tool errors for Claude
             return f"Error from MCP server '{tool.server}': {_describe(err)}", True
+
+
+@asynccontextmanager
+async def _transport(server: ServerConfig, errlog: Any) -> AsyncIterator[tuple[Any, Any]]:
+    """Open the read/write streams for a local (stdio) or remote (streamable HTTP) server."""
+    if server.url is None:
+        from mcp import StdioServerParameters
+        from mcp.client.stdio import get_default_environment, stdio_client
+
+        params = StdioServerParameters(
+            command=server.command,
+            args=server.args,
+            env={**get_default_environment(), **server.env},
+            cwd=server.cwd,
+        )
+        async with stdio_client(params, errlog=errlog) as (read, write):
+            yield read, write
+        return
+
+    from mcp.client import streamable_http
+
+    if hasattr(streamable_http, "streamable_http_client"):  # MCP SDK 2.x
+        async with streamable_http.create_mcp_http_client(headers=server.headers) as http, \
+                streamable_http.streamable_http_client(server.url, http_client=http) as streams:
+            yield streams[0], streams[1]
+    else:  # MCP SDK 1.x
+        async with streamable_http.streamablehttp_client(server.url, headers=server.headers) as streams:
+            yield streams[0], streams[1]
 
 
 async def _list_tools(session: Any, cursor: str | None) -> Any:

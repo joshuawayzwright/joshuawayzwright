@@ -6,6 +6,8 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+from fakes import stream_from
+
 import pytest
 
 from jarvis import cli, github, tools
@@ -155,8 +157,8 @@ def test_remote_read_needs_github(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_autonomous_prompt_and_step_budget(tmp_path: Path) -> None:
     captured: list[dict] = []
-    client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: (
-        captured.append(kw), SimpleNamespace(stop_reason="end_turn", content=[]))[1])))
+    client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(stream=stream_from(lambda **kw: (
+        captured.append(kw), SimpleNamespace(stop_reason="end_turn", content=[]))[1]))))
     Jarvis(ctx=ctx(tmp_path), client=client, autonomous=True, on_text=lambda _t: None).ask("build it")
     assert AUTO_PROMPT in captured[0]["system"]
     assert captured[0]["context_management"] == {"edits": [{"type": "compact_20260112"}]}

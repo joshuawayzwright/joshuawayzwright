@@ -9,8 +9,9 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-from . import github
+from . import github, screen
 from .github import GitHubError
 from .memory import Memory
 
@@ -33,6 +34,8 @@ class ToolContext:
     workspace: Path
     approve: Approver
     memory: Memory | None = None
+    # Asks the person in front of the screen even when other tools are auto-approved (--yes, --auto).
+    confirm_private: Approver | None = None
 
 
 def _str(description: str) -> dict[str, object]:
@@ -98,6 +101,25 @@ TOOL_SCHEMAS: list[dict[str, object]] = [
             "type": "object",
             "properties": {"repo": REPO, "path": _str("File or directory path in the repository."), "ref": _str("Optional branch, tag or commit.")},
             "required": ["repo", "path"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "github_activity",
+        "description": "What's happening in a GitHub repository: open pull requests, open issues, recent CI (GitHub Actions) runs with their results, and recent commits. Use for status checks and briefings.",
+        "input_schema": {"type": "object", "properties": {"repo": REPO}, "required": ["repo"], "additionalProperties": False},
+    },
+    {
+        "name": "get_ci_failure",
+        "description": "Diagnose a failed GitHub Actions run: failed jobs and steps, error lines and the end of each failed job's log. Defaults to the most recent failed run. Use it before fixing CI.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo": REPO,
+                "run_id": _int("Optional workflow run ID (from github_activity)."),
+                "branch": _str("Optional branch to find the latest failed run on."),
+            },
+            "required": ["repo"],
             "additionalProperties": False,
         },
     },
@@ -225,6 +247,15 @@ TOOL_SCHEMAS: list[dict[str, object]] = [
                 "body": _str("Pull request description: what changed, why, how it was tested, and credit for any code adapted from other projects (repo, path, license)."),
             },
             "required": ["repo", "title", "body"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "look_at_screen",
+        "description": "Take a screenshot of the user's screen and look at it: error dialogs, a broken web page, a stack trace in another window, a design to match. Use when the user refers to something on their screen. The user approves each screenshot.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"monitor": _int("Which screen: 1 is the main screen (default), 2 the next, 0 all screens together.")},
             "additionalProperties": False,
         },
     },
@@ -467,6 +498,24 @@ def push_and_open_pr(ctx: ToolContext, repo: str, title: str, body: str) -> str:
     return github.push_and_open_pr(root, github.validate_repo(repo), title, body)
 
 
+def github_activity(ctx: ToolContext, repo: str) -> str:
+    return json.dumps(github.activity(repo), indent=2)
+
+
+def get_ci_failure(ctx: ToolContext, repo: str, run_id: int | None = None, branch: str | None = None) -> str:
+    return github.ci_failure(repo, run_id, branch)
+
+
+def look_at_screen(ctx: ToolContext, monitor: int = 1) -> list[dict[str, object]] | str:
+    ask = ctx.confirm_private or ctx.approve
+    if not ask(f"Take a screenshot of screen {monitor} and show it to Jarvis?"):
+        return "The user declined the screenshot."
+    try:
+        return screen.screenshot_blocks(monitor)
+    except screen.ScreenUnavailable as err:
+        raise ToolError(str(err)) from err
+
+
 def remember(ctx: ToolContext, note: str) -> str:
     if ctx.memory is None:
         raise ToolError("Memory is turned off for this session.")
@@ -533,13 +582,16 @@ HANDLERS: dict[str, Callable[..., str]] = {
     "get_repo_info": get_repo_info,
     "get_repo_tree": get_repo_tree,
     "read_remote_file": read_remote_file,
+    "github_activity": github_activity,
+    "get_ci_failure": get_ci_failure,
+    "look_at_screen": look_at_screen,
     "remember": remember,
     "forget": forget,
 }
 
 
-def execute(ctx: ToolContext, name: str, raw_input: object) -> tuple[str, bool]:
-    """Run a tool. Returns (content, is_error)."""
+def execute(ctx: ToolContext, name: str, raw_input: object) -> tuple[Any, bool]:
+    """Run a tool. Returns (content, is_error); content is text, or a list of content blocks (images)."""
     try:
         args = validate_input(name, raw_input)
         return HANDLERS[name](ctx, **args), False

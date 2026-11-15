@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import queue
 import re
 import threading
 import urllib.error
@@ -142,9 +143,14 @@ class SystemSpeaker:
             ) from err
         self.engine.setProperty("rate", rate)
 
+    thread_safe = False  # pyttsx3 engines must be driven from the thread that created them
+
     def say(self, text: str) -> None:
         self.engine.say(text)
         self.engine.runAndWait()
+
+    def stop(self) -> None:
+        self.engine.stop()
 
 
 class ElevenLabsSpeaker:
@@ -197,3 +203,126 @@ class ElevenLabsSpeaker:
 
     def say(self, text: str) -> None:
         self.player(self.synthesize(text))
+
+    def stop(self) -> None:
+        try:
+            _require("sounddevice").stop()
+        except VoiceUnavailable:
+            pass
+
+
+# ---- Speaking while the reply streams ------------------------------------------------------
+
+SENTENCE_END = re.compile(r"[.!?:](?=\s)\s+|\n\s*\n|\n(?=\s*(?:[-*+]\s|#|\|))")
+CODE_MARKER = "The code is on screen."
+
+
+class SentenceSegmenter:
+    """Splits streaming Markdown into speakable sentences as it arrives. Code blocks are skipped
+    (one short marker is spoken instead) and speech stops after `limit` characters."""
+
+    def __init__(self, limit: int = MAX_SPOKEN_CHARS) -> None:
+        self.buffer = ""
+        self.in_code = False
+        self.spoken = 0
+        self.limit = limit
+        self.exhausted = False
+
+    def feed(self, chunk: str) -> list[str]:
+        self.buffer += chunk
+        out: list[str] = []
+        while True:
+            if self.in_code:
+                end = self.buffer.find("```")
+                if end < 0:
+                    self.buffer = self.buffer[-2:]  # a closing fence may be split across chunks
+                    return out
+                self.buffer = self.buffer[end + 3:]
+                self.in_code = False
+                continue
+            fence = self.buffer.find("```")
+            region = self.buffer if fence < 0 else self.buffer[:fence]
+            match = SENTENCE_END.search(region)
+            if match:
+                out += self._emit(region[: match.end()])
+                self.buffer = self.buffer[match.end():]
+                continue
+            if fence >= 0:
+                out += self._emit(region) + self._emit(CODE_MARKER, raw=True)
+                self.buffer = self.buffer[fence + 3:]
+                self.in_code = True
+                continue
+            return out
+
+    def flush(self) -> list[str]:
+        rest, self.buffer = self.buffer, ""
+        return [] if self.in_code else self._emit(rest)
+
+    def _emit(self, text: str, raw: bool = False) -> list[str]:
+        sentence = text.strip() if raw else speakable(text, limit=10_000)
+        if not sentence or self.exhausted:
+            return []
+        if self.spoken + len(sentence) > self.limit:
+            self.exhausted = True
+            return ["The rest is on screen."]
+        self.spoken += len(sentence)
+        return [sentence]
+
+
+class SpeechQueue:
+    """Speaks sentences in order. Thread-safe speakers run on a worker thread, so the reply keeps
+    streaming to the screen while Jarvis talks; others speak inline as each sentence completes."""
+
+    def __init__(self, speaker: Speaker, on_error: Callable[[str], None] = print) -> None:
+        self.speaker = speaker
+        self.on_error = on_error
+        self.threaded = getattr(speaker, "thread_safe", True)
+        self.queue: queue.Queue[str | None] = queue.Queue()
+        self.failed = False
+        if self.threaded:
+            threading.Thread(target=self._worker, name="jarvis-speech", daemon=True).start()
+
+    def _speak(self, text: str) -> None:
+        if self.failed:
+            return
+        try:
+            self.speaker.say(text)
+        except VoiceUnavailable as err:
+            self.failed = True  # report once per reply, then stay quiet
+            self.on_error(f"(could not speak the reply: {err})")
+
+    def _worker(self) -> None:
+        while True:
+            text = self.queue.get()
+            try:
+                if text is not None:
+                    self._speak(text)
+            finally:
+                self.queue.task_done()
+
+    def say(self, text: str) -> None:
+        if self.threaded:
+            self.queue.put(text)
+        else:
+            self._speak(text)
+
+    def wait(self) -> None:
+        """Block until everything queued has been spoken."""
+        if self.threaded:
+            self.queue.join()
+
+    def cancel(self) -> None:
+        """Drop queued sentences and stop the current one where the speaker supports it."""
+        while True:
+            try:
+                self.queue.get_nowait()
+                self.queue.task_done()
+            except queue.Empty:
+                break
+        stop = getattr(self.speaker, "stop", None)
+        if stop:
+            try:
+                stop()
+            except Exception:  # noqa: BLE001 - stopping speech is best effort
+                pass
+        self.failed = False

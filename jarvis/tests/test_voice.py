@@ -8,6 +8,8 @@ import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
 
+from fakes import FakeStream
+
 import pytest
 
 from jarvis import cli, voice
@@ -107,6 +109,9 @@ class FakeMessages:
     def __init__(self, replies: list[str]) -> None:
         self.replies = replies
         self.calls: list[dict] = []
+
+    def stream(self, **kwargs: object) -> FakeStream:
+        return FakeStream(self.create(**kwargs))
 
     def create(self, **kwargs: object) -> SimpleNamespace:
         self.calls.append(kwargs)

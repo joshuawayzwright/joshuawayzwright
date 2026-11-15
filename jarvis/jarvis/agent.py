@@ -66,7 +66,8 @@ class Jarvis:
     voice_mode: bool = False
     autonomous: bool = False
     max_steps: int = DEFAULT_MAX_STEPS
-    on_text: Printer = print
+    on_text: Printer = print  # each complete text block, after it has streamed
+    on_delta: Printer = lambda chunk: None  # text as it streams
     on_tool: Printer = print
     on_result: Callable[[str, str, bool], None] = lambda name, content, is_error: None
     mcp: Any = None  # an MCPManager, when MCP servers are configured
@@ -87,9 +88,10 @@ class Jarvis:
                 + (VOICE_PROMPT if self.voice_mode else "") + self._memory_section)
 
     def _request(self) -> Any:
-        return self.client.beta.messages.create(
+        """Stream one model response: text deltas go to on_delta as they arrive."""
+        with self.client.beta.messages.stream(
             model=self.model,
-            max_tokens=16000,
+            max_tokens=64000,
             system=self.system_prompt(),
             tools=self._tools,
             messages=self.messages,
@@ -102,7 +104,11 @@ class Jarvis:
             # On a safety-classifier refusal, the API retries on a suitable fallback model.
             betas=[FALLBACK_BETA, COMPACTION_BETA],
             fallbacks="default",
-        )
+        ) as stream:
+            for event in stream:
+                if event.type == "text":
+                    self.on_delta(event.text)
+            return stream.get_final_message()
 
     def ask(self, prompt: str) -> str:
         """Send one user turn and run tools until Claude finishes. Returns the final text."""

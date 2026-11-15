@@ -199,6 +199,148 @@ def _summarise(item: dict[str, object]) -> dict[str, object]:
     }
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
+        return None  # surface the redirect so the token is not forwarded to another host
+
+
+def api_get_text(path: str) -> str:
+    """GET a GitHub endpoint that redirects to a download (such as job logs). The token goes only to
+    api.github.com; the redirect target (a signed storage URL) is fetched without it."""
+    headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "jarvis-agent"}
+    token = github_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        with opener.open(urllib.request.Request(f"{API_ROOT}{path}", headers=headers), timeout=30) as response:
+            return response.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as err:
+        location = err.headers.get("Location") if err.code in (301, 302, 303, 307, 308) else None
+        if not location:
+            detail = err.read().decode("utf-8", "replace")[:300]
+            raise GitHubError(f"GitHub API {err.code} for GET {path}: {detail}") from err
+    except urllib.error.URLError as err:
+        raise GitHubError(f"Could not reach GitHub: {err.reason}") from err
+    try:
+        with urllib.request.urlopen(urllib.request.Request(location, headers={"User-Agent": "jarvis-agent"}), timeout=60) as response:
+            return response.read().decode("utf-8", "replace")
+    except urllib.error.URLError as err:
+        raise GitHubError(f"Could not download {path}: {err}") from err
+
+
+def _short_run(run: dict[str, object]) -> dict[str, object]:
+    return {
+        "id": run.get("id"), "workflow": run.get("name"), "branch": run.get("head_branch"),
+        "event": run.get("event"), "status": run.get("status"), "conclusion": run.get("conclusion"),
+        "commit": ((run.get("head_commit") or {}).get("message") or "").splitlines()[0:1],
+        "created_at": run.get("created_at"), "url": run.get("html_url"),
+    }
+
+
+def activity(repo: str) -> dict[str, object]:
+    """Open pull requests and issues, recent CI runs and recent commits for a repository."""
+    repo = _require_github(repo)
+    pulls = api_get(f"/repos/{repo}/pulls", {"state": "open", "per_page": 10, "sort": "updated", "direction": "desc"})
+    issues = api_get(f"/repos/{repo}/issues", {"state": "open", "per_page": 15, "sort": "updated", "direction": "desc"})
+    runs = api_get(f"/repos/{repo}/actions/runs", {"per_page": 8})
+    commits = api_get(f"/repos/{repo}/commits", {"per_page": 5})
+    assert isinstance(pulls, list) and isinstance(issues, list) and isinstance(runs, dict) and isinstance(commits, list)
+    return {
+        "open_pull_requests": [
+            {"number": p.get("number"), "title": p.get("title"), "author": (p.get("user") or {}).get("login"),
+             "draft": p.get("draft"), "updated_at": p.get("updated_at")} for p in pulls
+        ],
+        "open_issues": [
+            {"number": i.get("number"), "title": i.get("title"), "author": (i.get("user") or {}).get("login"),
+             "labels": [label.get("name") for label in i.get("labels", [])], "comments": i.get("comments"),
+             "updated_at": i.get("updated_at")}
+            for i in issues if "pull_request" not in i
+        ][:10],
+        "recent_ci_runs": [_short_run(r) for r in runs.get("workflow_runs", [])],
+        "recent_commits": [
+            {"sha": (c.get("sha") or "")[:7], "message": ((c.get("commit") or {}).get("message") or "").splitlines()[0:1],
+             "author": ((c.get("commit") or {}).get("author") or {}).get("name"),
+             "date": ((c.get("commit") or {}).get("author") or {}).get("date")} for c in commits
+        ],
+    }
+
+
+ANSI = re.compile(r"\x1b\[[0-9;]*m|\[[0-9;]+m")
+LOG_TIMESTAMP = re.compile(r"^\ufeff?\d{4}-\d\d-\d\dT[\d:.]+Z ")
+FAILED = {"failure", "timed_out", "startup_failure"}
+
+
+def _collapse_repeats(lines: list[str]) -> list[str]:
+    out: list[str] = []
+    count = 0
+    for i, line in enumerate(lines):
+        if i and line == lines[i - 1]:
+            count += 1
+            continue
+        if count:
+            out.append(f"    (previous line repeated {count} more times)")
+            count = 0
+        out.append(line)
+    if count:
+        out.append(f"    (previous line repeated {count} more times)")
+    return out
+
+
+def failure_excerpt(log: str, before: int = 100) -> str:
+    """The useful part of a failed job log: the output leading up to the first error."""
+    lines = [ANSI.sub("", LOG_TIMESTAMP.sub("", line)) for line in log.splitlines()]
+    errors = [i for i, line in enumerate(lines) if "##[error]" in line]
+    if errors:
+        first = errors[0]
+        window = lines[max(0, first - before): first + 5]
+        error_lines = "\n".join(lines[i] for i in errors[:10])
+        return f"Errors:\n{error_lines}\nOutput before the first error:\n" + "\n".join(_collapse_repeats(window))
+    return "Log tail:\n" + "\n".join(_collapse_repeats(lines[-120:]))
+
+
+def ci_failure(repo: str, run_id: int | None = None, branch: str | None = None) -> str:
+    """Explain a failed GitHub Actions run: which jobs and steps failed, with the end of their logs."""
+    repo = _require_github(repo)
+    if run_id is None:
+        params: dict[str, str | int] = {"status": "failure", "per_page": 1}
+        if branch:
+            params["branch"] = validate_ref(branch)
+        runs = api_get(f"/repos/{repo}/actions/runs", params)
+        assert isinstance(runs, dict)
+        if not runs.get("workflow_runs"):
+            return f"No failed workflow runs found for {repo}{' on ' + branch if branch else ''}."
+        run = runs["workflow_runs"][0]
+    else:
+        run = api_get(f"/repos/{repo}/actions/runs/{int(run_id)}")
+    assert isinstance(run, dict)
+    jobs = api_get(f"/repos/{repo}/actions/runs/{run['id']}/jobs", {"filter": "latest", "per_page": 50})
+    assert isinstance(jobs, dict)
+    summary = _short_run(run)
+    out = [f"Run {summary['id']} ({summary['workflow']}) on {summary['branch']}: {summary['conclusion']}",
+           f"Commit: {(summary['commit'] or [''])[0]}", f"URL: {summary['url']}"]
+    failed_jobs = [j for j in jobs.get("jobs", []) if j.get("conclusion") in FAILED]
+    if not failed_jobs:
+        out.append("No failed jobs in this run.")
+    for job in failed_jobs[:4]:
+        steps = [s.get("name") for s in job.get("steps", []) if s.get("conclusion") in FAILED]
+        out.append(f"\n### Job '{job.get('name')}' failed at step(s): {', '.join(steps) or 'unknown'}")
+        try:
+            log = api_get_text(f"/repos/{repo}/actions/jobs/{job['id']}/logs")
+        except GitHubError as err:
+            out.append(f"(log unavailable: {err})")
+            continue
+        out.append(failure_excerpt(log))
+    text = "\n".join(out)
+    return text if len(text) <= 25_000 else text[:25_000] + "\n... [truncated]"
+
+
+def authenticated_login() -> str:
+    data = api_get("/user")
+    assert isinstance(data, dict)
+    return str(data.get("login"))
+
+
 def create_pull_request(repo: str, head: str, base: str, title: str, body: str) -> dict[str, object]:
     data = api_post(
         f"/repos/{_require_github(repo)}/pulls",

@@ -36,6 +36,15 @@ you › pull octocat/Hello-World and summarise it
 | `run_command` | Installs, tests, builds (120 s timeout by default, up to 900 s). Dangerous commands are always blocked | **Yes** |
 | `git_diff` | Shows the branch, status and uncommitted changes | No |
 
+**Watch CI and see**
+
+| Tool | What it does | Needs approval |
+|---|---|---|
+| `github_activity` | Open PRs and issues, recent CI runs and commits of a repository | No |
+| `get_ci_failure` | Failed jobs and steps of a GitHub Actions run, with the log output before the first error | No |
+| `look_at_screen` | Screenshot of your screen, for Claude to look at | **Yes** |
+| `remember`, `forget` | Long-term notes across sessions | No |
+
 **Ship**
 
 | Tool | What it does | Needs approval |
@@ -95,7 +104,7 @@ Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call
 
 ## Plug in tools from GitHub (MCP)
 
-Jarvis can use any [Model Context Protocol](https://modelcontextprotocol.io) server: the open-source tool ecosystem on GitHub. That includes browsers, documentation lookup, databases, Slack, Sentry, Figma, cloud consoles and thousands more. It reads the standard `mcpServers` config used by Claude Desktop, Cursor and most server READMEs, so you can paste a server's documented config in as-is.
+Jarvis can use any [Model Context Protocol](https://modelcontextprotocol.io) server, local or hosted: the open-source tool ecosystem on GitHub. That includes browsers, documentation lookup, databases, Slack, Sentry, Figma, cloud consoles and thousands more. It reads the standard `mcpServers` config used by Claude Desktop, Cursor and most server READMEs, so you can paste a server's documented config in as-is.
 
 ```bash
 pip install ".[mcp]"
@@ -117,11 +126,49 @@ How it works:
 - Each server's tools appear to Claude as `mcp__<server>__<tool>`.
 - Tools that their server marks **read-only** run freely. Every other MCP tool needs your approval, like `run_command`, unless you use `--yes` or `--auto`.
 - Server output and errors go to `~/.jarvis/logs/mcp-<server>.log`. A server that fails to start is reported and skipped; the rest keep working.
-- Only local (`command`) servers are supported for now. Entries with a `url` are skipped with a warning.
+- **Remote servers** connect by URL over streamable HTTP. Write `${VAR}` in the config to read tokens from environment variables, so secrets stay out of the file. Remote URLs must use `https://` (`http://` is accepted only for localhost). Legacy SSE-only servers aren't supported.
+
+  ```json
+  {"mcpServers": {"sentry": {"type": "http", "url": "https://mcp.sentry.dev/mcp",
+                             "headers": {"Authorization": "Bearer ${SENTRY_TOKEN}"}}}}
+  ```
 - `--mcp-config <file>` uses a different config; `--no-mcp` starts none.
 - Each server adds tool descriptions to every request, so enable the servers you use rather than dozens.
 
 MCP servers are third-party programs that run on your machine with your permissions. Only add servers you trust, from their official repositories.
+
+## CI doctor and morning briefing
+
+Jarvis reads GitHub Actions directly:
+
+- `github_activity` shows a repository's open pull requests, open issues, recent CI runs and recent commits.
+- `get_ci_failure` finds the latest failed run (or a given one) and returns the failed jobs and steps with **the log output leading up to the first error**. Repeated lines are collapsed, and timestamps and colour codes are stripped.
+
+So this works end to end:
+
+```bash
+jarvis --auto "CI is failing on joshuawayzwright/wrightwayz-website. Find out why, fix it and open a PR."
+```
+
+For a **morning briefing** across your repositories, use `--brief`. Jarvis leads with failing CI, pull requests waiting for review and new issues, then one line per active repository:
+
+```bash
+jarvis --brief                 # the GitHub account of your token
+jarvis --brief my-org          # a user or organisation
+jarvis --brief --voice         # read aloud
+```
+
+The GitHub token is sent only to `api.github.com`. Log downloads redirect to a storage URL, which Jarvis fetches without the token.
+
+## Screen vision
+
+Ask about what's on your screen: "what's this error?", "why does this page look broken?", "match this design".
+
+```bash
+pip install ".[screen]"
+```
+
+The `look_at_screen` tool takes a screenshot, downscales it to 1568 px on the long edge and shows it to Claude. **Every screenshot asks for your approval, even with `--yes` or `--auto`**, because a screenshot can capture anything you have open. When nobody can answer (no terminal attached), screenshots are refused. On macOS, allow your terminal under System Settings > Privacy & Security > Screen Recording.
 
 ## Memory
 
@@ -145,6 +192,7 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--auto` | off | Autonomous mode (implies `--yes`) |
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
+| `--brief [OWNER]` | | Morning briefing across your repositories |
 | `--max-steps` | 60, or 250 with `--auto` | Agent steps per request |
 
 When stdin is not a terminal (in scripts or CI, for example), writes and commands are **denied** unless you pass `--yes`.
@@ -158,7 +206,7 @@ pip install ".[voice]"
 jarvis --voice
 ```
 
-Press **Enter** to start talking and **Enter** again to stop. Jarvis transcribes what you said, does the work, prints its full reply and reads a short spoken version aloud. Code blocks, tables and file lists stay on screen and are not read out. You can still type messages; `/mute` and `/unmute` turn spoken replies off and on. Press Ctrl+C while it is speaking to stop it.
+Press **Enter** to start talking and **Enter** again to stop. Jarvis transcribes what you said and does the work. Its reply **streams to the screen as it's written, and Jarvis starts speaking as soon as the first sentence is finished**, rather than waiting for the whole answer. Code blocks, tables and file lists stay on screen; Jarvis says "the code is on screen" instead of reading them out. You can still type messages; `/mute` and `/unmute` turn spoken replies off and on. Press Ctrl+C while it is speaking to stop it.
 
 | Part | How it works | Cost and privacy |
 |---|---|---|

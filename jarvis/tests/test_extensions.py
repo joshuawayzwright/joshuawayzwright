@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+from fakes import stream_from
+
 import pytest
 
 from jarvis import mcp_bridge
@@ -52,8 +54,8 @@ def test_memory_is_loaded_into_system_prompt_once(tmp_path: Path) -> None:
     memory = Memory(tmp_path / "memory.md")
     memory.remember("Deploys with Vercel")
     calls: list[dict] = []
-    client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: (
-        calls.append(kw), SimpleNamespace(stop_reason="end_turn", content=[]))[1])))
+    client = SimpleNamespace(beta=SimpleNamespace(messages=SimpleNamespace(stream=stream_from(lambda **kw: (
+        calls.append(kw), SimpleNamespace(stop_reason="end_turn", content=[]))[1]))))
     jarvis = Jarvis(ctx=ToolContext(workspace=tmp_path, approve=lambda _q: True, memory=memory), client=client, on_text=lambda _t: None)
     memory.remember("Added mid-session")
     jarvis.ask("hi")
@@ -74,9 +76,9 @@ def test_load_config_standard_format(tmp_path: Path) -> None:
         "bad name!": {"command": "x"},
     }}))
     servers, warnings = mcp_bridge.load_config(path)
-    assert [s.name for s in servers] == ["playwright", "docs"]
-    assert servers[1].env == {"X": "1"}
-    assert len(warnings) == 2
+    assert [s.name for s in servers] == ["playwright", "docs", "hosted"]
+    assert servers[1].env == {"X": "1"} and servers[2].url == "https://example.com/mcp"
+    assert len(warnings) == 1  # only the invalid name
     assert mcp_bridge.load_config(tmp_path / "missing.json") == ([], [])
     (tmp_path / "broken.json").write_text("{nope")
     with pytest.raises(mcp_bridge.MCPUnavailable):
@@ -151,3 +153,71 @@ def test_real_mcp_server_round_trip(tmp_path: Path) -> None:
     finally:
         manager.close()
     assert "boom" in (tmp_path / "logs" / "mcp-echo.log").read_text()  # tracebacks go to the log, not the terminal
+
+
+# ---- Remote MCP servers ----------------------------------------------------------------------
+
+
+def test_load_config_remote_servers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SENTRY_TOKEN", "abc")
+    monkeypatch.delenv("MISSING_TOKEN", raising=False)
+    path = tmp_path / "mcp.json"
+    path.write_text(json.dumps({"mcpServers": {
+        "sentry": {"type": "http", "url": "https://mcp.sentry.dev/mcp", "headers": {"Authorization": "Bearer ${SENTRY_TOKEN}"}},
+        "local": {"url": "http://localhost:8080/mcp"},
+        "insecure": {"url": "http://example.com/mcp"},
+        "legacy": {"type": "sse", "url": "https://example.com/sse"},
+        "nokey": {"url": "https://example.com/mcp", "headers": {"Authorization": "Bearer ${MISSING_TOKEN}"}},
+        "neither": {"args": []},
+    }}))
+    servers, warnings = mcp_bridge.load_config(path)
+    assert [s.name for s in servers] == ["sentry", "local"]
+    assert servers[0].headers == {"Authorization": "Bearer abc"} and servers[0].url == "https://mcp.sentry.dev/mcp"
+    joined = " ".join(warnings)
+    assert "https://" in joined and "SSE" in joined and "MISSING_TOKEN is not set" in joined and "command or a url" in joined
+
+
+def _free_port() -> int:
+    import socket
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def test_real_remote_mcp_server_with_auth_header(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("mcp.server.mcpserver")
+    pytest.importorskip("uvicorn")
+    import socket
+    import subprocess
+    import time
+
+    port = _free_port()
+    proc = subprocess.Popen([sys.executable, str(FIXTURES / "http_mcp_server.py"), str(port), "s3cret"],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            try:
+                socket.create_connection(("127.0.0.1", port), timeout=0.2).close()
+                break
+            except OSError:
+                time.sleep(0.1)
+        monkeypatch.setenv("JARVIS_TEST_TOKEN", "s3cret")
+        config = tmp_path / "mcp.json"
+        config.write_text(json.dumps({"mcpServers": {
+            "remote": {"url": f"http://127.0.0.1:{port}/mcp", "headers": {"Authorization": "Bearer ${JARVIS_TEST_TOKEN}"}},
+            "wrongkey": {"url": f"http://127.0.0.1:{port}/mcp", "headers": {"Authorization": "Bearer nope"}},
+        }}))
+        servers, _ = mcp_bridge.load_config(config)
+        manager = mcp_bridge.MCPManager(servers, log_dir=tmp_path / "logs")
+        manager.start()
+        try:
+            assert manager.summary() == "remote (1 tools)"
+            assert manager.call("mcp__remote__shout", {"text": "over http"}) == ("OVER HTTP", False)
+            assert len(manager.errors) == 1 and "wrongkey" in manager.errors[0]  # bad token is rejected
+        finally:
+            manager.close()
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)

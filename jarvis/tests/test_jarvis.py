@@ -6,6 +6,8 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+from fakes import FakeStream
+
 import pytest
 
 from jarvis import github, tools
@@ -115,6 +117,9 @@ class FakeMessages:
     def __init__(self, responses: list[SimpleNamespace]) -> None:
         self.responses = responses
         self.calls: list[dict] = []
+
+    def stream(self, **kwargs: object) -> FakeStream:
+        return FakeStream(self.create(**kwargs))
 
     def create(self, **kwargs: object) -> SimpleNamespace:
         self.calls.append({**kwargs, "messages": list(kwargs["messages"])})  # type: ignore[arg-type]

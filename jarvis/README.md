@@ -137,28 +137,56 @@ How it works:
 
 MCP servers are third-party programs that run on your machine with your permissions. Only add servers you trust, from their official repositories.
 
-## CI doctor and morning briefing
+## CI doctor, watch mode and morning briefing
 
 Jarvis reads GitHub Actions directly:
 
-- `github_activity` shows a repository's open pull requests, open issues, recent CI runs and recent commits.
-- `get_ci_failure` finds the latest failed run (or a given one) and returns the failed jobs and steps with **the log output leading up to the first error**. Repeated lines are collapsed, and timestamps and colour codes are stripped.
+- `github_activity` shows a repository's open pull requests and issues, recent commits, and **the latest result of every workflow on the default branch**.
+- `get_ci_failure` diagnoses what is failing *now*. It looks at the latest run of each workflow on the branch (the default branch unless you name one) and reports:
+  - **CURRENT**, **ALREADY FIXED** (a newer run passed) or **INTERMITTENT** (identical code passed in another run, matched by commit or by file tree, so a merge commit still matches its pull request). An intermittent failure points to memory, timing, network or caching rather than a code bug.
+  - The failure rate across the workflow's recent runs.
+  - The failed jobs and steps, with **the log output leading up to the first error**. Repeated lines are collapsed, and timestamps and colour codes are stripped.
 
-So this works end to end:
+Fix a broken build end to end:
 
 ```bash
-jarvis --auto "CI is failing on joshuawayzwright/wrightwayz-website. Find out why, fix it and open a PR."
+jarvis --auto "CI is failing on joshuawayzwright/ai-download-center. Find out why, fix it and open a PR."
 ```
 
-For a **morning briefing** across your repositories, use `--brief`. Jarvis leads with failing CI, pull requests waiting for review and new issues, then one line per active repository:
+**Watch mode** keeps an eye on your repositories and tells you when a default-branch build breaks or recovers. It checks every 5 minutes by default, and `--voice` speaks the alerts:
+
+```bash
+jarvis --watch                                  # your account's repositories active in the last 30 days
+jarvis --watch my-org acme/api --interval 10    # owners and/or specific repositories
+jarvis --watch --fix                            # and start an autonomous fix (draft PR) for each new failure
+```
+
+The first check reports what's already failing. After that, Jarvis only speaks up when something changes, so a broken build isn't announced every 5 minutes. With `--fix`, each failure gets a fresh autonomous run: it diagnoses first, stops if the failure is already fixed, and otherwise opens a draft PR.
+
+For a **morning briefing**, use `--brief`. Jarvis leads with failing CI, pull requests waiting for review and new issues, then one line per active repository:
 
 ```bash
 jarvis --brief                 # the GitHub account of your token
-jarvis --brief my-org          # a user or organisation
 jarvis --brief --voice         # read aloud
 ```
 
 The GitHub token is sent only to `api.github.com`. Log downloads redirect to a storage URL, which Jarvis fetches without the token.
+
+## Web and phone
+
+```bash
+jarvis --web                                         # this computer only
+jarvis --web --web-host 0.0.0.0                      # reachable from your phone on the same Wi-Fi
+jarvis --web --web-host 0.0.0.0 --web-cert cert.pem --web-key key.pem   # HTTPS, needed for the phone's microphone
+```
+
+Jarvis prints a link that contains a secret token. Open it in any browser:
+
+- Replies stream in as they're written. Tool calls show as they happen, and approvals appear as **Allow** and **Decline** buttons.
+- **Voice in the browser:** tap 🎙 and speak, using your browser's own speech recognition. Tick "Speak replies" to hear answers sentence by sentence; code stays on screen. Nothing extra is installed, and on a phone this makes Jarvis a pocket assistant.
+- Every request needs the token, which is compared in constant time. The server listens only on localhost unless you pass `--web-host`.
+- Phones allow the microphone only over HTTPS. Over plain `http://` on your network, typing works but the mic button won't. For HTTPS, use a certificate with `--web-cert` and `--web-key` (`mkcert` makes locally trusted ones), or put Jarvis behind a tunnel that provides HTTPS, such as Tailscale Serve.
+- Treat the link like a password. Anyone with it can ask Jarvis to act on your machine, subject to the same approvals.
 
 ## Screen vision
 
@@ -193,6 +221,8 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--brief [OWNER]` | | Morning briefing across your repositories |
+| `--watch [TARGET ...]`, `--interval`, `--fix` | 5 min | Watch default-branch builds; optionally auto-fix |
+| `--web`, `--web-host`, `--web-port`, `--web-cert`, `--web-key` | localhost:8765 | Browser and phone interface |
 | `--max-steps` | 60, or 250 with `--auto` | Agent steps per request |
 
 When stdin is not a terminal (in scripts or CI, for example), writes and commands are **denied** unless you pass `--yes`.

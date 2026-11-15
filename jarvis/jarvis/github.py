@@ -245,8 +245,17 @@ def activity(repo: str) -> dict[str, object]:
     issues = api_get(f"/repos/{repo}/issues", {"state": "open", "per_page": 15, "sort": "updated", "direction": "desc"})
     runs = api_get(f"/repos/{repo}/actions/runs", {"per_page": 8})
     commits = api_get(f"/repos/{repo}/commits", {"per_page": 5})
+    branch = str(repo_info(repo).get("default_branch") or "main")
+    on_default = api_get(f"/repos/{repo}/actions/runs", {"branch": branch, "per_page": 50})
     assert isinstance(pulls, list) and isinstance(issues, list) and isinstance(runs, dict) and isinstance(commits, list)
+    assert isinstance(on_default, dict)
     return {
+        "default_branch": branch,
+        "default_branch_ci": [  # the latest completed run of each workflow: is the default branch healthy?
+            {"workflow": r.get("name"), "conclusion": r.get("conclusion"), "run_id": r.get("id"),
+             "commit": str(r.get("head_sha"))[:7], "created_at": r.get("created_at")}
+            for r in latest_per_workflow(on_default.get("workflow_runs", []))
+        ],
         "open_pull_requests": [
             {"number": p.get("number"), "title": p.get("title"), "author": (p.get("user") or {}).get("login"),
              "draft": p.get("draft"), "updated_at": p.get("updated_at")} for p in pulls
@@ -299,26 +308,87 @@ def failure_excerpt(log: str, before: int = 100) -> str:
     return "Log tail:\n" + "\n".join(_collapse_repeats(lines[-120:]))
 
 
+def latest_per_workflow(runs: list[dict[str, object]]) -> list[dict[str, object]]:
+    """The newest completed run of each workflow, newest first (runs arrive newest first)."""
+    seen: set[object] = set()
+    latest = []
+    for run in runs:
+        if run.get("status") != "completed" or run.get("workflow_id") in seen:
+            continue
+        seen.add(run.get("workflow_id"))
+        latest.append(run)
+    return latest
+
+
+def failure_context(repo: str, run: dict[str, object]) -> list[str]:
+    """Is this failure still current, already fixed, or intermittent? Facts from the run history."""
+    notes: list[str] = []
+    workflow_id, branch, sha = run.get("workflow_id"), run.get("head_branch"), run.get("head_sha")
+    history = api_get(f"/repos/{repo}/actions/workflows/{workflow_id}/runs", {"per_page": 20})
+    assert isinstance(history, dict)
+    runs = [r for r in history.get("workflow_runs", []) if r.get("status") == "completed"]
+    newer_on_branch = [r for r in runs if r.get("head_branch") == branch and str(r.get("created_at")) > str(run.get("created_at"))]
+    if newer_on_branch:
+        newest = newer_on_branch[0]
+        if newest.get("conclusion") == "success":
+            notes.append(f"ALREADY FIXED: a newer run of this workflow on {branch} passed (run {newest.get('id')}, "
+                         f"{newest.get('created_at')}). This failure is history, not a current problem.")
+        else:
+            notes.append(f"STILL FAILING: the newest run on {branch} (run {newest.get('id')}) is {newest.get('conclusion')}.")
+    else:
+        notes.append(f"CURRENT: this is the latest completed run of this workflow on {branch}.")
+    tree = (run.get("head_commit") or {}).get("tree_id")
+
+    def same_code(other: dict[str, object]) -> bool:
+        # A merge commit has a new SHA but often the exact same file tree as the PR commit that passed.
+        return other.get("head_sha") == sha or (tree is not None and (other.get("head_commit") or {}).get("tree_id") == tree)
+
+    passed_same_code = [r for r in runs if r.get("conclusion") == "success" and same_code(r)]
+    if passed_same_code:
+        other = passed_same_code[0]
+        notes.append(f"INTERMITTENT: identical code passed in run {other.get('id')} ({other.get('event')} on "
+                     f"{other.get('head_branch')}, commit {str(other.get('head_sha'))[:7]}). Look for nondeterminism "
+                     "such as memory limits, timing, network or caching rather than a code bug, and make the "
+                     "failure diagnosable.")
+    failures = sum(1 for r in runs if r.get("conclusion") in FAILED)
+    if runs:
+        notes.append(f"History: {failures} of the last {len(runs)} runs of this workflow failed.")
+    return notes
+
+
 def ci_failure(repo: str, run_id: int | None = None, branch: str | None = None) -> str:
-    """Explain a failed GitHub Actions run: which jobs and steps failed, with the end of their logs."""
+    """Explain a failing GitHub Actions workflow: whether it's current, fixed or intermittent; which
+    jobs and steps failed; and the log output leading up to the first error."""
     repo = _require_github(repo)
     if run_id is None:
-        params: dict[str, str | int] = {"status": "failure", "per_page": 1}
-        if branch:
-            params["branch"] = validate_ref(branch)
-        runs = api_get(f"/repos/{repo}/actions/runs", params)
-        assert isinstance(runs, dict)
-        if not runs.get("workflow_runs"):
-            return f"No failed workflow runs found for {repo}{' on ' + branch if branch else ''}."
-        run = runs["workflow_runs"][0]
+        branch = validate_ref(branch) if branch else str(repo_info(repo).get("default_branch") or "main")
+        recent = api_get(f"/repos/{repo}/actions/runs", {"branch": branch, "per_page": 50})
+        assert isinstance(recent, dict)
+        failing = [r for r in latest_per_workflow(recent.get("workflow_runs", [])) if r.get("conclusion") in FAILED]
+        if not failing:
+            last = api_get(f"/repos/{repo}/actions/runs", {"branch": branch, "status": "failure", "per_page": 1})
+            assert isinstance(last, dict)
+            past = (last.get("workflow_runs") or [None])[0]
+            note = (f" The last failure was run {past.get('id')} ({past.get('name')}, {past.get('created_at')}), "
+                    "fixed since.") if past else ""
+            return f"All workflows on {branch} in {repo} currently pass.{note}"
+        run = failing[0]
+        others = [f"{r.get('name')} (run {r.get('id')})" for r in failing[1:]]
     else:
         run = api_get(f"/repos/{repo}/actions/runs/{int(run_id)}")
+        others = []
     assert isinstance(run, dict)
     jobs = api_get(f"/repos/{repo}/actions/runs/{run['id']}/jobs", {"filter": "latest", "per_page": 50})
     assert isinstance(jobs, dict)
     summary = _short_run(run)
     out = [f"Run {summary['id']} ({summary['workflow']}) on {summary['branch']}: {summary['conclusion']}",
-           f"Commit: {(summary['commit'] or [''])[0]}", f"URL: {summary['url']}"]
+           f"Commit: {str(run.get('head_sha'))[:7]} {(summary['commit'] or [''])[0]}", f"URL: {summary['url']}"]
+    try:
+        out += failure_context(repo, run)
+    except GitHubError as err:
+        out.append(f"(run history unavailable: {err})")
+    if others:
+        out.append("Also failing on this branch: " + ", ".join(others))
     failed_jobs = [j for j in jobs.get("jobs", []) if j.get("conclusion") in FAILED]
     if not failed_jobs:
         out.append("No failed jobs in this run.")

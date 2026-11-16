@@ -357,3 +357,80 @@ def test_team_flag_and_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     monkeypatch.setenv("JARVIS_TEAM", "1")
     cli.main(["--no-mcp", "--workspace", str(tmp_path / "repos"), "hi"])
     assert captured["team"] is True
+
+
+# ---- Models per specialist and usage --------------------------------------------------------
+
+
+def with_usage(response: SimpleNamespace, inp: int, out: int, cached: int = 0) -> SimpleNamespace:
+    response.usage = SimpleNamespace(input_tokens=inp, output_tokens=out,
+                                     cache_read_input_tokens=cached, cache_creation_input_tokens=0)
+    return response
+
+
+@pytest.mark.parametrize(
+    ("spec", "expected"),
+    [
+        ("", {}),
+        ("scout=claude-haiku-5-5", {"scout": "claude-haiku-5-5"}),
+        ("economy", {"scout": "claude-sonnet-5-5", "medic": "claude-sonnet-5-5", "herald": "claude-sonnet-5-5"}),
+        ("economy, Herald=claude-haiku-5-5", {"scout": "claude-sonnet-5-5", "medic": "claude-sonnet-5-5", "herald": "claude-haiku-5-5"}),
+    ],
+)
+def test_parse_models(spec: str, expected: dict[str, str]) -> None:
+    assert team.parse_models(spec) == expected
+
+
+@pytest.mark.parametrize(("spec", "error"), [("ghost=m", "Unknown specialist"), ("scout", "agent=model"), ("scout=", "agent=model")])
+def test_parse_models_rejects_bad_specs(spec: str, error: str) -> None:
+    with pytest.raises(ValueError, match=error):
+        team.parse_models(spec)
+
+
+def test_specialists_use_their_own_model_and_usage_is_totalled(tmp_path: Path) -> None:
+    fake = CrewMessages(
+        {
+            "chief": [with_usage(tool_turn(delegate("d1", "scout", "Research")), 100, 10, cached=900),
+                      with_usage(text("done"), 200, 20)],
+            "scout": [with_usage(text("found it"), 50, 5)],
+        }
+    )
+    jarvis, _ = chief(tmp_path, fake, team_models={"scout": "claude-haiku-5-5"})
+    jarvis.ask("go")
+    assert fake.requests("scout")[0]["model"] == "claude-haiku-5-5"
+    assert fake.requests("chief")[0]["model"] == "claude-opus-5-5"
+    assert jarvis.usage["requests"] == 2 and jarvis.usage["output_tokens"] == 30
+    status = jarvis.team.status()  # type: ignore[union-attr]
+    scout_row = next(line for line in status.splitlines() if line.strip().startswith("Scout"))
+    assert "claude-haiku-5-5" in scout_row and scout_row.split()[-2:] == ["50", "5"]
+    total_row = next(line for line in status.splitlines() if line.strip().startswith("Total"))
+    assert total_row.split()[-3:] == ["3", "1,250", "35"]  # 3 requests; input includes 900 cached
+    assert "Cache reads: 900" in status
+
+
+def test_usage_ignores_responses_without_usage(tmp_path: Path) -> None:
+    jarvis, _ = chief(tmp_path, CrewMessages({"chief": [text("hi")]}))
+    jarvis.ask("hi")
+    assert jarvis.usage["requests"] == 1 and jarvis.usage["input_tokens"] == 0
+
+
+def test_unknown_team_model_key_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="ghost"):
+        chief(tmp_path, CrewMessages({}), team_models={"ghost": "m"})
+
+
+def test_team_models_flag_implies_team_and_bad_spec_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(cli, "run", lambda args, *_: captured.update(team=args.team, models=args.team_models) or 0)
+    cli.main(["--team-models", "economy", "--no-mcp", "--workspace", str(tmp_path / "r"), "hi"])
+    assert captured["team"] is True and captured["models"]["scout"] == "claude-sonnet-5-5"  # type: ignore[index]
+    with pytest.raises(SystemExit):
+        cli.main(["--team-models", "ghost=x", "--no-mcp", "--workspace", str(tmp_path / "r"), "hi"])
+
+
+def test_run_log_records_the_crew(tmp_path: Path) -> None:
+    log = cli.RunLog(tmp_path / "runs")
+    jarvis, _ = chief(tmp_path, CrewMessages({}))
+    log.crew(jarvis.team.status())  # type: ignore[union-attr]
+    body = log.path.read_text()
+    assert "## Crew" in body and "Sentinel" in body and "Total" in body

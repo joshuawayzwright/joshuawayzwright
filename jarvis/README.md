@@ -133,7 +133,19 @@ How the crew works:
 - **Approvals.** Without `--yes` or `--auto`, each write, command and push still asks you, labelled with the specialist that wants it (`[Forge] Run in acme/api: pytest`). Approval prompts never overlap.
 - **Visibility.** Specialists' tool calls appear in the terminal, web page and run log, prefixed with their name (`Scout ▸ search_github_code ...`).
 
-Every specialist uses Jarvis's model (`--model`) at an effort level that fits its role: `medium` for Scout, Medic and Herald, `high` for the rest. A team run makes more API calls than a solo run, because each specialist reads the code it works on.
+### Models and cost
+
+A team run makes more API calls than a solo run, because each specialist reads the code it works on. Every specialist uses Jarvis's model (`--model`) unless you choose another with `--team-models`. Each also has an effort level that fits its role: `medium` for Scout, Medic and Herald, `high` for the rest.
+
+```bash
+jarvis --team-models economy "..."                          # Scout, Medic and Herald on claude-sonnet-5-5
+jarvis --team-models "economy,forge=claude-sonnet-5-5" "..."  # presets and overrides combine
+export JARVIS_TEAM_MODELS="scout=claude-haiku-5-5"
+```
+
+`--team-models` turns on team mode. Keep Forge and Sentinel on your strongest model: they write and judge the code.
+
+`/team` shows each agent's model, assignments, API requests and tokens used this session (input includes prompt-cache reads and writes). Autonomous runs write the same table to the end of the run log. Jarvis reports tokens, not dollars: multiply by your plan's prices for each model.
 
 ## Plug in tools from GitHub (MCP)
 
@@ -252,6 +264,7 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `-y`, `--yes` | off | Approve edits, commands, commits and pushes without asking |
 | `--auto` | off | Autonomous mode (implies `--yes`) |
 | `--team`, `JARVIS_TEAM=1` | off | Team mode: Jarvis leads six specialist agents |
+| `--team-models`, `JARVIS_TEAM_MODELS` | `--model` for all | Models per specialist, or `economy` |
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--brief [OWNER]` | | Morning briefing across your repositories |

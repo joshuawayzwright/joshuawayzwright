@@ -12,7 +12,7 @@ from pathlib import Path
 
 import anthropic
 
-from . import github, mcp_bridge, voice, wake, watch, web
+from . import github, mcp_bridge, team, voice, wake, watch, web
 from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
 from .memory import Memory
 from .tools import ToolContext
@@ -54,6 +54,9 @@ class RunLog:
 
     def tool(self, line: str) -> None:
         self._write(f"- `{line}`")
+
+    def crew(self, status: str) -> None:
+        self._write(f"\n## Crew\n\n```\n{status}\n```")
 
     def result(self, name: str, content: object, is_error: bool) -> None:
         if not isinstance(content, str):
@@ -292,6 +295,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
     parser.add_argument("--team", action="store_true", default=os.environ.get("JARVIS_TEAM") == "1", help="Team mode: Jarvis becomes the chief of a seven-agent crew and delegates to six specialists (Scout, Architect, Medic, Forge, Sentinel, Herald). Also JARVIS_TEAM=1.")
+    parser.add_argument("--team-models", default=os.environ.get("JARVIS_TEAM_MODELS", ""), metavar="SPEC", help="Team mode: models per specialist, e.g. 'scout=claude-sonnet-5-5,herald=claude-haiku-5-5'. 'economy' runs Scout, Medic and Herald on claude-sonnet-5-5 and can be combined: 'economy,forge=...'. Others use --model. Implies --team. Also JARVIS_TEAM_MODELS.")
     parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
     parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
     parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account.")
@@ -313,6 +317,12 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--whisper-model", default=os.environ.get("JARVIS_WHISPER_MODEL", "base.en"), help="Whisper model: tiny.en, base.en, small.en, medium.en, or a multilingual size such as small.")
     group.add_argument("--language", default=None, help="Spoken language code (e.g. en). Default: auto-detect.")
     args = parser.parse_args(argv)
+    try:
+        args.team_models = team.parse_models(args.team_models)
+    except ValueError as err:
+        parser.error(f"--team-models: {err}")
+    if args.team_models:
+        args.team = True
     if args.fix:
         if args.watch is None:
             parser.error("--fix works with --watch")
@@ -493,6 +503,7 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         voice_mode=io is not None,
         autonomous=args.auto,
         team_mode=args.team,
+        team_models=args.team_models,
         max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
         on_text=show_text,
         on_delta=show_delta,
@@ -523,6 +534,8 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         if log:
             log.goal(goal)
         reply = run_turn(jarvis, goal) if io is None else talk_turn(jarvis, io, goal)
+        if log and jarvis.team:
+            log.crew(jarvis.team.status())
         return 0 if reply is not None else 1
 
     if io and listener:

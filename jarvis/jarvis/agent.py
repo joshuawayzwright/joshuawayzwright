@@ -57,6 +57,8 @@ If something blocks you (missing permissions, failing tests you cannot fix), sto
 
 Printer = Callable[[str], None]
 
+USAGE_FIELDS = ("requests", "input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+
 
 @dataclass
 class Jarvis:
@@ -75,6 +77,7 @@ class Jarvis:
     messages: list[dict[str, Any]] = field(default_factory=list)
     # Team mode: Jarvis is the chief and delegates to six specialists (see team.py).
     team_mode: bool = False
+    team_models: dict[str, str] = field(default_factory=dict)  # per-specialist model overrides
     # Used by specialists: their own instructions and tool allowlist instead of Jarvis's.
     persona: str | None = None
     tool_names: frozenset[str] | None = None
@@ -94,7 +97,8 @@ class Jarvis:
         if self.mcp_read_only:
             mcp_tools = [s for s in mcp_tools if self.mcp.is_read_only(s["name"])]
         self._allowed = {str(s["name"]) for s in builtin + mcp_tools}
-        self.team = crew.Team(self) if self.team_mode else None
+        self.usage: dict[str, int] = dict.fromkeys(USAGE_FIELDS, 0)
+        self.team = crew.Team(self, models=self.team_models) if self.team_mode else None
         self._tools = builtin + mcp_tools + ([crew.DELEGATE_SCHEMA] if self.team else [])
 
     def reset(self) -> None:
@@ -141,6 +145,7 @@ class Jarvis:
 
         for _ in range(self.max_steps):
             response = self._request()
+            self._count(response)
             # Append the full content (thinking, compaction, fallback and tool_use blocks), unchanged.
             self.messages.append({"role": "assistant", "content": response.content})
 
@@ -175,6 +180,14 @@ class Jarvis:
         self.on_text(f"[Stopped after {self.max_steps} steps. Ask me to continue if needed.]")
         return final_text
 
+
+    def _count(self, response: Any) -> None:
+        """Add one response's token usage to this agent's running totals."""
+        usage = getattr(response, "usage", None)
+        for name in USAGE_FIELDS:
+            value = getattr(usage, name, 0) if usage is not None else 0
+            self.usage[name] += value if isinstance(value, int) else 0
+        self.usage["requests"] += 1
 
     def _run_calls(self, calls: list[Any]) -> list[tuple[Any, bool]]:
         """Run one turn's tool calls in order; the chief's delegate calls go to the team together."""

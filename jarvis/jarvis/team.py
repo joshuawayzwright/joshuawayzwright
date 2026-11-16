@@ -282,8 +282,12 @@ def verdict(report: str) -> str | None:
 class Team:
     """Creates and runs the specialists for one chief Jarvis, and enforces the quality gate."""
 
-    def __init__(self, chief: Jarvis) -> None:
+    def __init__(self, chief: Jarvis, models: dict[str, str] | None = None) -> None:
         self.chief = chief
+        self.models = dict(models or {})
+        unknown = set(self.models) - set(ROLES)
+        if unknown:
+            raise ValueError(f"Unknown specialist(s) in team models: {', '.join(sorted(unknown))}.")
         self.members: dict[str, Jarvis] = {}
         self.gate = CLEAN
         self.history: list[tuple[str, str]] = []  # (agent, outcome) per finished assignment
@@ -411,7 +415,7 @@ class Team:
         return Jarvis(
             ctx=ctx,
             client=chief.client,
-            model=chief.model,
+            model=self.model_for(role),
             effort=role.effort,
             max_steps=role.max_steps,
             persona=role.system_prompt(),
@@ -441,6 +445,9 @@ class Team:
 
         return ask
 
+    def model_for(self, role: Role) -> str:
+        return self.models.get(role.key, self.chief.model)
+
     def reset(self) -> None:
         with self._lock:
             for agent in self.members.values():
@@ -454,8 +461,51 @@ class Team:
             for key, _ in self.history:
                 counts[key] = counts.get(key, 0) + 1
             gate = self.gate
-        lines = [f"Jarvis (chief) + {len(ROLES)} specialists. Quality gate: {gate}."]
+            members = dict(self.members)
+        lines = [f"Jarvis (chief) + {len(ROLES)} specialists. Quality gate: {gate}.",
+                 f"  {'Agent':<9} {'Model':<20} {'Runs':<10} {'Tasks':>5} {'Requests':>8} {'Input tok':>10} {'Output tok':>10}"]
+        totals = dict(self.chief.usage)
+        lines.append(_usage_row("Jarvis", self.chief.model, "chief", None, self.chief.usage))
         for role in ROLES.values():
+            usage = members[role.key].usage if role.key in members else {}
+            for name, value in usage.items():
+                totals[name] = totals.get(name, 0) + value
             mode = "parallel" if role.parallel else "sequential"
-            lines.append(f"  {role.name:<9} {role.title:<34} {mode:<10} assignments: {counts.get(role.key, 0)}")
+            lines.append(_usage_row(role.name, self.model_for(role), mode, counts.get(role.key, 0), usage))
+        lines.append(_usage_row("Total", "", "", None, totals))
+        cached = totals.get("cache_read_input_tokens", 0)
+        if cached:
+            lines.append(f"  Cache reads: {cached:,} input tokens served from the prompt cache.")
         return "\n".join(lines)
+
+
+def _usage_row(name: str, model: str, mode: str, tasks: int | None, usage: dict[str, int]) -> str:
+    """One line of the /team table. Input tokens include cache reads and writes."""
+    total_in = sum(usage.get(k, 0) for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+    shown = "" if tasks is None else str(tasks)
+    return (f"  {name:<9} {model:<20} {mode:<10} {shown:>5} {usage.get('requests', 0):>8} "
+            f"{total_in:>10,} {usage.get('output_tokens', 0):>10,}")
+
+
+ECONOMY = "economy"
+ECONOMY_MODEL = "claude-sonnet-5-5"
+ECONOMY_ROLES = ("scout", "medic", "herald")  # research, CI reading and shipping need less depth
+
+
+def parse_models(spec: str) -> dict[str, str]:
+    """Parse 'economy' or 'scout=model,herald=model' (combinable: 'economy,forge=model')."""
+    models: dict[str, str] = {}
+    for part in (p.strip() for p in spec.split(",")):
+        if not part:
+            continue
+        if part.lower() == ECONOMY:
+            models.update(dict.fromkeys(ECONOMY_ROLES, ECONOMY_MODEL))
+            continue
+        key, sep, model = part.partition("=")
+        key, model = key.strip().lower(), model.strip()
+        if not sep or not model:
+            raise ValueError(f"'{part}' should look like agent=model, e.g. scout=claude-sonnet-5-5.")
+        if key not in ROLES:
+            raise ValueError(f"Unknown specialist '{key}'. Choose from: {', '.join(ROLES)}.")
+        models[key] = model
+    return models

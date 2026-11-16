@@ -12,7 +12,7 @@ from pathlib import Path
 
 import anthropic
 
-from . import github, mcp_bridge, voice, wake
+from . import github, mcp_bridge, voice, wake, watch, web
 from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
 from .memory import Memory
 from .tools import ToolContext
@@ -290,6 +290,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
     parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
     parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
+    parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account.")
+    parser.add_argument("--interval", type=float, default=5, help="Watch mode: minutes between checks (default 5).")
+    parser.add_argument("--fix", action="store_true", help="Watch mode: when a build breaks, run an autonomous fix that opens a draft PR. Implies --auto.")
+    group_web = parser.add_argument_group("web and phone")
+    group_web.add_argument("--web", action="store_true", help="Serve a chat page with streaming replies, approvals and browser voice. Opens on this computer only unless --web-host is set.")
+    group_web.add_argument("--web-host", default="127.0.0.1", help="Address to listen on. Use 0.0.0.0 to reach Jarvis from your phone on the same network.")
+    group_web.add_argument("--web-port", type=int, default=8765)
+    group_web.add_argument("--web-cert", type=Path, help="TLS certificate (PEM) to serve HTTPS. Phones only allow the microphone over HTTPS.")
+    group_web.add_argument("--web-key", type=Path, help="TLS private key (PEM) for --web-cert.")
     parser.add_argument("--max-steps", type=int, default=None, help=f"Max agent steps per request (default {DEFAULT_MAX_STEPS}, or {AUTO_MAX_STEPS} with --auto).")
     group = parser.add_argument_group("voice")
     group.add_argument("--voice", action="store_true", help="Talk to Jarvis: push-to-talk input and spoken replies.")
@@ -300,6 +309,10 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--whisper-model", default=os.environ.get("JARVIS_WHISPER_MODEL", "base.en"), help="Whisper model: tiny.en, base.en, small.en, medium.en, or a multilingual size such as small.")
     group.add_argument("--language", default=None, help="Spoken language code (e.g. en). Default: auto-detect.")
     args = parser.parse_args(argv)
+    if args.fix:
+        if args.watch is None:
+            parser.error("--fix works with --watch")
+        args.auto = True
 
     io: VoiceIO | None = None
     listener: wake.WakeWordListener | None = None
@@ -357,6 +370,86 @@ def briefing_prompt(owner: str) -> str:
     )
 
 
+def _lan_address() -> str:
+    import socket
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("192.0.2.1", 80))  # TEST-NET address: no packet is sent for a UDP connect
+            return sock.getsockname()[0]
+    except OSError:
+        return "your-computer-ip"
+
+
+def run_web(args: argparse.Namespace, jarvis: Jarvis) -> int:
+    import ssl
+
+    if bool(args.web_cert) != bool(args.web_key):
+        print("--web-cert and --web-key go together.", file=sys.stderr)
+        return 2
+    session = web.WebSession(jarvis, auto_approve=args.yes or args.auto)
+    try:
+        server, token = web.serve(session, args.web_host, args.web_port)
+    except OSError as err:
+        print(f"Can't listen on {args.web_host}:{args.web_port}: {err}", file=sys.stderr)
+        return 1
+    scheme = "http"
+    if args.web_cert:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(args.web_cert, args.web_key)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+        scheme = "https"
+    host = _lan_address() if args.web_host in ("0.0.0.0", "::") else args.web_host
+    print(f"{CYAN}Jarvis web is running.{RESET} Open this link (it contains your secret token, keep it private):")
+    print(f"  {scheme}://{host}:{args.web_port}/?token={token}")
+    if args.web_host not in ("127.0.0.1", "localhost", "::1"):
+        print(f"{DIM}Reachable from other devices on your network."
+              f"{'' if scheme == 'https' else ' Without --web-cert the connection is unencrypted and phones block the microphone.'}{RESET}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print()
+    finally:
+        server.server_close()
+    return 0
+
+
+def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> int:
+    repos = [t for t in args.watch if "/" in t]
+    owners = [t for t in args.watch if "/" not in t]
+    if not args.watch:
+        try:
+            owners = [github.authenticated_login()]
+        except github.GitHubError as err:
+            print(f"Watch mode needs targets or a GitHub token: {err}", file=sys.stderr)
+            return 1
+    try:
+        watcher = watch.Watcher(repos, owners)
+    except github.GitHubError as err:
+        print(str(err), file=sys.stderr)
+        return 1
+
+    def announce(alert: watch.Alert) -> None:
+        colour = RED if alert.kind == "failing" else CYAN
+        print(f"{colour}{time.strftime('%H:%M')} {alert.message()}{RESET}")
+        if io:
+            speak(io, alert.message().split(" http")[0])
+
+    def fix(alert: watch.Alert) -> None:
+        print(f"{DIM}Starting an autonomous fix for {alert.repo} ({alert.workflow})...{RESET}")
+        jarvis.reset()
+        if run_turn(jarvis, watch.fix_prompt(alert)) is None:
+            print(f"{DIM}The fix attempt stopped with an error; watching continues.{RESET}")
+
+    print(f"{CYAN}Jarvis is watching{RESET} {', '.join(repos + owners)} every {args.interval:g} min. Ctrl+C stops.")
+    try:
+        watch.watch_loop(watcher, announce, report=lambda m: print(f"{DIM}{m}{RESET}"),
+                         interval_s=args.interval * 60, on_failure=fix if args.fix else None)
+    except KeyboardInterrupt:
+        print()
+    return 0
+
+
 def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordListener | None,
         mcp: mcp_bridge.MCPManager | None) -> int:
     log = RunLog(args.workspace.parent / "runs") if args.auto else None
@@ -405,6 +498,11 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         print(f"{RED}Autonomous mode:{RESET} Jarvis will edit, run commands, commit and open draft PRs without asking. "
               f"Destructive commands are blocked, and it never pushes the default branch or merges. Ctrl+C stops it.")
         print(f"{DIM}Run log: {log.path}{RESET}" if log else "")
+
+    if args.watch is not None:
+        return run_watch(args, jarvis, io)
+    if args.web:
+        return run_web(args, jarvis)
 
     if args.brief is not None:
         try:

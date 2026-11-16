@@ -13,7 +13,9 @@ import json
 import queue
 import secrets
 import threading
+import time
 import uuid
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -24,6 +26,8 @@ from .agent import Jarvis
 from .dashboard import Dashboard
 
 APPROVAL_TIMEOUT_S = 300
+MAX_ACTIVITY = 40
+ACTIVITY_TEXT = 160
 MAX_BODY = 64_000
 
 
@@ -36,11 +40,25 @@ class WebSession:
         self.lock = threading.Lock()
         self.events: queue.Queue[dict[str, Any] | None] | None = None
         self.pending: dict[str, tuple[threading.Event, list[bool]]] = {}
+        # What Jarvis has been doing, newest first, for the dashboard's activity feed.
+        self.activity: deque[dict[str, Any]] = deque(maxlen=MAX_ACTIVITY)
         jarvis.ctx.approve = self.approve_tool
         jarvis.ctx.confirm_private = self.confirm_private
         jarvis.on_delta = lambda text: self._emit({"type": "delta", "text": text})
         jarvis.on_text = lambda text: self._emit({"type": "block_end"})
-        jarvis.on_tool = lambda line: self._emit({"type": "tool", "line": line})
+        jarvis.on_tool = self._on_tool
+
+    def _record(self, kind: str, text: str) -> None:
+        text = " ".join(text.split())
+        self.activity.appendleft({"time": time.time(), "kind": kind,
+                                  "text": text[:ACTIVITY_TEXT] + ("…" if len(text) > ACTIVITY_TEXT else "")})
+
+    def recent_activity(self) -> list[dict[str, Any]]:
+        return list(self.activity)
+
+    def _on_tool(self, line: str) -> None:
+        self._record("tool", line)
+        self._emit({"type": "tool", "line": line})
 
     def _emit(self, event: dict[str, Any]) -> None:
         if self.events is not None:
@@ -52,9 +70,11 @@ class WebSession:
         approval_id = uuid.uuid4().hex
         done, answer = threading.Event(), [False]
         self.pending[approval_id] = (done, answer)
+        self._record("approval", question)
         self._emit({"type": "approval", "id": approval_id, "question": question})
         done.wait(APPROVAL_TIMEOUT_S)  # unanswered approvals are declined
         self.pending.pop(approval_id, None)
+        self._record("allowed" if answer[0] else "declined", question)
         return answer[0]
 
     def approve_tool(self, question: str) -> bool:
@@ -77,17 +97,21 @@ class WebSession:
             return None
         events: queue.Queue[dict[str, Any] | None] = queue.Queue()
         self.events = events
+        self._record("ask", message)
 
         def work() -> None:
             checkpoint = len(self.jarvis.messages)
             try:
                 reply = self.jarvis.ask(message)
+                self._record("done", reply or "(no reply text)")
                 events.put({"type": "done", "reply": reply})
             except anthropic.APIError as err:
                 del self.jarvis.messages[checkpoint:]
+                self._record("error", f"Claude API error: {getattr(err, 'message', err)}")
                 events.put({"type": "error", "message": f"Claude API error: {getattr(err, 'message', err)}"})
             except Exception as err:  # noqa: BLE001 - report anything to the browser rather than hang
                 del self.jarvis.messages[checkpoint:]
+                self._record("error", f"{type(err).__name__}: {err}")
                 events.put({"type": "error", "message": f"{type(err).__name__}: {err}"})
             finally:
                 events.put(None)
@@ -136,7 +160,8 @@ def make_handler(session: WebSession, token: str, dashboard: Dashboard) -> type[
                 self._json(401, {"error": "Open the URL with the token Jarvis printed at start-up."})
                 return
             if path == "/api/dashboard":
-                self._json(200, dashboard.snapshot(busy=session.lock.locked()))
+                self._json(200, dashboard.snapshot(busy=session.lock.locked(), activity=session.recent_activity(),
+                                                   waiting=len(session.pending)))
                 return
             body = pages[path].encode()
             self.send_response(200)
@@ -407,24 +432,41 @@ DASHBOARD_PAGE = r"""<!doctype html>
   .stack { display:grid; gap:16px; }
   .pill { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
   .pill.busy { color:var(--warn); border-color:var(--warn); }
+  a.pill.busy { font-weight:600; }
+  header h1 { white-space:nowrap; }
+  @media (max-width: 480px) { header .wide { display:none; } header { gap:8px; } }
+  .hist { display:inline-flex; gap:2px; align-items:flex-end; }
+  .hist i { width:6px; height:14px; border-radius:2px; background:var(--ok); opacity:.85; }
+  .hist i.failing { background:var(--bad); } .hist i.other { background:var(--line); height:8px; }
+  .rate { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; min-width:34px; text-align:right; }
+  .tag { font-size:11px; border:1px solid var(--line); border-radius:6px; padding:0 5px; color:var(--muted); margin-left:4px; }
+  .act { display:grid; grid-template-columns:auto 1fr; gap:2px 8px; align-items:baseline; }
+  .act .kind { font-size:12px; font-family:ui-monospace, monospace; color:var(--muted); min-width:58px; }
+  .act .kind.error, .act .kind.declined { color:var(--bad); } .act .kind.approval { color:var(--warn); }
+  .act .kind.done, .act .kind.allowed { color:var(--ok); }
+  .act .when { grid-column:2; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Jarvis · Dashboard</h1>
-  <span id="state" class="pill">…</span>
+  <h1>Jarvis<span class="wide"> · Dashboard</span></h1>
+  <a id="state" class="pill">…</a>
   <button id="refresh" type="button">Check now</button>
   <a id="chat" href="#">Chat</a>
 </header>
 <main>
   <div class="kpis" id="kpis"></div>
   <div class="cols">
+    <div class="stack">
     <section>
       <h2>CI on default branches <span class="meta" id="checked"></span></h2>
       <div id="repos" class="repos"></div>
       <ul id="errors" class="list errors"></ul>
     </section>
+    <section><h2>Open pull requests <span class="meta" id="prcount"></span></h2><ul id="pulls" class="list"></ul></section>
+    </div>
     <div class="stack">
+      <section><h2>Activity</h2><ul id="activity" class="list"></ul></section>
       <section><h2>Alerts</h2><ul id="alerts" class="list"></ul></section>
       <section><h2>Session</h2><dl id="session"></dl></section>
       <section><h2>Memory <span class="meta" id="memcount"></span></h2><ul id="memory" class="list"></ul></section>
@@ -447,6 +489,7 @@ function ago(t, now) {
   if (!t) return "never"; const s = Math.max(0, Math.round(now - t));
   return s < 60 ? s + "s ago" : s < 3600 ? Math.floor(s / 60) + " min ago" : Math.floor(s / 3600) + " h ago";
 }
+function agoIso(iso, now) { const t = Date.parse(iso); return isNaN(t) ? "unknown" : ago(t / 1000, now); }
 function kpi(label, value, sub, cls) {
   const box = el("div", "kpi"); box.append(el("div", "label", label), el("div", "value " + (cls || ""), value));
   if (sub) box.append(el("div", "sub", sub)); return box;
@@ -459,13 +502,17 @@ function fixLink(prompt) {
 
 function render(d) {
   const ci = d.ci, s = d.session, u = s.usage || {};
-  const state = $("state"); state.textContent = s.busy ? "Working" : "Idle"; state.className = "pill" + (s.busy ? " busy" : "");
+  const state = $("state");
+  if (s.waiting_for_approval) {   // an approval is waiting in the chat: make it obvious and one tap away
+    state.textContent = "Needs your approval"; state.className = "pill busy"; state.href = $("chat").href;
+  } else { state.textContent = s.busy ? "Working" : "Idle"; state.className = "pill" + (s.busy ? " busy" : ""); state.removeAttribute("href"); }
   const tokens = (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
   const k = $("kpis"); k.textContent = "";
   if (ci.enabled) {
     k.append(kpi("Failing workflows", String(ci.totals.failing), ci.totals.failing ? "needs attention" : "all green", ci.totals.failing ? "bad" : "ok"),
              kpi("Passing workflows", String(ci.totals.passing), "of " + ci.totals.workflows),
-             kpi("Repositories", String(ci.totals.repos), "watched"));
+             kpi("Repositories", String(ci.totals.repos), "watched"),
+             kpi("Open pull requests", String(ci.pulls.length), plural(ci.pulls.filter(p => p.draft).length, "draft")));
   } else {
     k.append(kpi("CI watch", "Off", "start with --web --watch"));
   }
@@ -486,7 +533,15 @@ function render(d) {
       card.append(head);
       for (const w of r.workflows) {
         const row = el("div", "wf");
-        row.append(el("span", "dot " + w.status), el("span", "name", w.workflow), el("span", "chip", w.commit), link(w.url, w.status === "failing" ? "logs" : "run"));
+        row.append(el("span", "dot " + w.status), el("span", "name", w.workflow));
+        const h = w.history || [], graded = h.filter(x => x !== "other");
+        if (h.length > 1) {
+          const strip = el("span", "hist"); strip.title = "Last " + h.length + " runs, oldest first";
+          for (const x of h) strip.append(el("i", x));
+          const rate = graded.length ? Math.round(100 * graded.filter(x => x === "passing").length / graded.length) + "%" : "–";
+          row.append(strip, el("span", "rate", rate));
+        }
+        row.append(el("span", "chip", w.commit), link(w.url, w.status === "failing" ? "logs" : "run"));
         if (w.fix_prompt) row.append(fixLink(w.fix_prompt));
         card.append(row);
       }
@@ -495,6 +550,23 @@ function render(d) {
   }
   const errors = $("errors"); errors.textContent = "";
   for (const e of (ci.errors || [])) errors.append(el("li", "", e));
+
+  const pulls = $("pulls"); pulls.textContent = "";
+  $("prcount").textContent = ci.enabled ? String(ci.pulls.length) : "";
+  if (!ci.enabled || !ci.pulls.length) pulls.append(el("li", "empty", ci.enabled ? "No open pull requests in the watched repositories." : "Pull requests appear when CI watch is on."));
+  else for (const pr of [...ci.pulls].sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))) {
+    const li = el("li"); li.append(el("span", "when", pr.repo + " · " + (pr.author || "unknown") + " · updated " + agoIso(pr.updated_at, d.now)),
+      link(pr.url, "#" + pr.number + " " + pr.title));
+    if (pr.draft) li.append(el("span", "tag", "draft"));
+    pulls.append(li);
+  }
+
+  const act = $("activity"); act.textContent = "";
+  if (!s.activity.length) act.append(el("li", "empty", "Nothing yet. Requests, tool calls and approvals from the chat show up here."));
+  for (const a of s.activity.slice(0, 12)) {
+    const li = el("li", "act"); li.append(el("span", "kind " + a.kind, a.kind), el("span", "", a.text), el("span", "when", ago(a.time, d.now)));
+    act.append(li);
+  }
 
   const alerts = $("alerts"); alerts.textContent = "";
   if (!ci.enabled || !ci.alerts.length) alerts.append(el("li", "empty", ci.enabled ? "No alerts yet. Builds that break or recover show up here." : "Alerts appear when CI watch is on."));

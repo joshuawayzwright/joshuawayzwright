@@ -17,6 +17,7 @@ from .agent import Jarvis
 
 MAX_ALERTS = 50
 MAX_MEMORY_NOTES = 5
+MAX_PULLS_PER_REPO = 20
 
 
 class Dashboard:
@@ -31,6 +32,7 @@ class Dashboard:
         self.lock = threading.Lock()
         self.alerts: deque[dict[str, Any]] = deque(maxlen=MAX_ALERTS)
         self.errors: list[str] = []
+        self.pulls: dict[str, list[dict[str, Any]]] = {}
         self.last_checked: float | None = None
         self.next_check: float | None = None
         self.checking = False
@@ -49,8 +51,11 @@ class Dashboard:
             errors = list(self.watcher.errors)
         except Exception as err:  # noqa: BLE001 - a network blip must not kill the poller
             alerts, errors = [], [f"Check failed: {type(err).__name__}: {err}"]
+        pulls, pull_errors = self._fetch_pulls()
         now = self.clock()
         with self.lock:
+            self.pulls = pulls
+            errors += pull_errors
             for alert in alerts:
                 self.alerts.appendleft({
                     "time": now, "repo": alert.repo, "workflow": alert.workflow, "kind": alert.kind,
@@ -60,6 +65,27 @@ class Dashboard:
             self.last_checked = now
             self.next_check = now + self.interval_s
             self.checking = False
+
+    def _fetch_pulls(self) -> tuple[dict[str, list[dict[str, Any]]], list[str]]:
+        """Open pull requests of every repository the watcher has seen; one request per repository."""
+        assert self.watcher is not None
+        repos = sorted({repo for repo, _ in self.watcher.runs} | set(self.watcher.repos))
+        pulls: dict[str, list[dict[str, Any]]] = {}
+        errors: list[str] = []
+        for repo in repos:
+            try:
+                listed = self.watcher.api.api_get(f"/repos/{repo}/pulls", {"state": "open", "per_page": MAX_PULLS_PER_REPO,
+                                                                          "sort": "updated", "direction": "desc"})
+            except Exception as err:  # noqa: BLE001 - pull requests are extra; CI status still shows
+                errors.append(f"{repo}: couldn't list pull requests: {err}")
+                continue
+            if isinstance(listed, list):
+                pulls[repo] = [{
+                    "number": p.get("number"), "title": str(p.get("title") or ""), "url": p.get("html_url"),
+                    "author": (p.get("user") or {}).get("login"), "draft": bool(p.get("draft")),
+                    "updated_at": p.get("updated_at"),
+                } for p in listed]
+        return pulls, errors
 
     def refresh(self) -> bool:
         """Ask the poller to check now. False when no repositories are being watched."""
@@ -104,7 +130,7 @@ class Dashboard:
         repos.sort(key=lambda r: (-r["failing"], r["repo"].lower()))
         return repos
 
-    def snapshot(self, busy: bool = False) -> dict[str, Any]:
+    def snapshot(self, busy: bool = False, activity: list[dict[str, Any]] | None = None, waiting: int = 0) -> dict[str, Any]:
         jarvis = self.jarvis
         memory = jarvis.ctx.memory
         notes = memory.notes() if memory is not None else []
@@ -123,6 +149,7 @@ class Dashboard:
                         "passing": sum(w["status"] == "passing" for w in workflows),
                     },
                     "alerts": list(self.alerts),
+                    "pulls": [dict(pull, repo=repo) for repo, items in self.pulls.items() for pull in items],
                     "errors": list(self.errors),
                     "last_checked": self.last_checked,
                     "next_check": self.next_check,
@@ -138,6 +165,8 @@ class Dashboard:
                     "autonomous": jarvis.autonomous,
                     "auto_approve": self.auto_approve,
                     "busy": busy,
+                    "waiting_for_approval": waiting,
+                    "activity": activity or [],
                     "started_at": self.started_at,
                     "turns": sum(1 for m in jarvis.messages if m.get("role") == "user" and isinstance(m.get("content"), str)),
                     "usage": dict(jarvis.usage),

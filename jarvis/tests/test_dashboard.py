@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from jarvis import web
+from jarvis import github, watch, web
 from jarvis.agent import Jarvis
 from jarvis.dashboard import Dashboard
 from jarvis.memory import Memory
@@ -56,7 +56,7 @@ def test_poll_errors_are_reported_not_raised(tmp_path: Path) -> None:
     def explode() -> list:
         raise OSError("network down")
 
-    watcher = SimpleNamespace(poll=explode, errors=[], runs={})
+    watcher = SimpleNamespace(poll=explode, errors=[], runs={}, repos=[], api=None)
     dash = Dashboard(make_jarvis(tmp_path), watcher)  # type: ignore[arg-type]
     dash.poll_once()
     ci = dash.snapshot()["ci"]
@@ -149,3 +149,59 @@ def test_refresh_without_watch_is_a_conflict(tmp_path: Path) -> None:
         assert json.loads(request(port, "GET", "/api/dashboard", token).read())["ci"] == {"enabled": False}
     finally:
         httpd.shutdown()
+
+
+def test_workflow_history_is_oldest_first_and_capped() -> None:
+    runs = [  # newest first, as GitHub returns them
+        {"workflow_id": 1, "status": "completed", "conclusion": "failure"},
+        {"workflow_id": 1, "status": "in_progress", "conclusion": None},
+        {"workflow_id": 2, "status": "completed", "conclusion": "success"},
+        {"workflow_id": 1, "status": "completed", "conclusion": "cancelled"},
+        {"workflow_id": 1, "status": "completed", "conclusion": "success"},
+    ]
+    assert watch.workflow_history(runs) == {1: ["passing", "other", "failing"], 2: ["passing"]}
+    assert watch.workflow_history(runs, limit=2) == {1: ["other", "failing"], 2: ["passing"]}
+
+
+class PullsAPI:
+    """Workflow runs for acme/api and acme/web; open pull requests for acme/api; listing fails for acme/web."""
+
+    FAILED = github.FAILED
+    latest_per_workflow = staticmethod(github.latest_per_workflow)
+
+    def repo_info(self, repo: str) -> dict:
+        return {"default_branch": "main"}
+
+    def api_get(self, path: str, params: dict) -> object:
+        if path.endswith("/actions/runs"):
+            return {"workflow_runs": [
+                {"id": 2, "workflow_id": 7, "name": "CI", "status": "completed", "conclusion": "failure", "head_sha": "b" * 40},
+                {"id": 1, "workflow_id": 7, "name": "CI", "status": "completed", "conclusion": "success", "head_sha": "a" * 40},
+            ]}
+        if path == "/repos/acme/web/pulls":
+            raise github.GitHubError("403 rate limited")
+        return [{"number": 12, "title": "Add dark mode", "html_url": "https://github.com/acme/api/pull/12",
+                 "user": {"login": "octo"}, "draft": True, "updated_at": "2026-11-16T10:00:00Z"}]
+
+
+def test_pulls_history_and_activity_in_snapshot(tmp_path: Path) -> None:
+    dash = Dashboard(make_jarvis(tmp_path), watch.Watcher(["acme/api", "acme/web"], [], api=PullsAPI()))
+    dash.poll_once()
+    snap = dash.snapshot(activity=[{"time": 1.0, "kind": "tool", "text": "pull_repo repo=acme/api"}], waiting=1)
+    ci = snap["ci"]
+    assert ci["repos"][0]["workflows"][0]["history"] == ["passing", "failing"]
+    assert ci["pulls"] == [{"repo": "acme/api", "number": 12, "title": "Add dark mode", "draft": True, "author": "octo",
+                            "url": "https://github.com/acme/api/pull/12", "updated_at": "2026-11-16T10:00:00Z"}]
+    assert ci["errors"] == ["acme/web: couldn't list pull requests: 403 rate limited"]
+    assert snap["session"]["waiting_for_approval"] == 1
+    assert snap["session"]["activity"][0]["kind"] == "tool"
+
+
+def test_web_session_records_activity(tmp_path: Path) -> None:
+    session = web.WebSession(make_jarvis(tmp_path))
+    session.jarvis.on_tool("read_file repo=acme/api path=" + "x" * 300)
+    session._record("ask", "  fix   the\nbuild  ")
+    activity = session.recent_activity()
+    assert [a["kind"] for a in activity] == ["ask", "tool"]  # newest first
+    assert activity[0]["text"] == "fix the build"
+    assert len(activity[1]["text"]) == web.ACTIVITY_TEXT + 1 and activity[1]["text"].endswith("…")

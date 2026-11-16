@@ -197,13 +197,15 @@ jarvis --web --watch                              # your account's repositories 
 jarvis --web --watch my-org acme/api --interval 10
 ```
 
-- **CI on default branches:** every watched repository with the latest result of each workflow, failing ones first, and links to the run logs. Jarvis checks every `--interval` minutes; **Check now** checks at once.
+- **CI on default branches:** every watched repository with the latest result of each workflow, failing ones first, and links to the run logs. Each workflow shows its last 10 results and pass rate, so you can see a flaky workflow from one that is newly broken. Jarvis checks every `--interval` minutes; **Check now** checks at once.
+- **Open pull requests:** across the watched repositories, most recently updated first, with drafts marked.
 - **Fix with Jarvis:** on a failing workflow, opens the chat with a fix request filled in. You read it and press Send, so nothing runs until you do.
+- **Activity:** what Jarvis is doing right now: your requests, each tool call, approvals and how each turn ended. When Jarvis is waiting for an approval, the status at the top reads **Needs your approval** and opens the chat.
 - **Alerts:** builds that broke or recovered since the dashboard started.
 - **Session:** model, effort, approval mode, tools (including MCP), whether Jarvis is working, and tokens used this session (input, output and cached).
 - **Memory:** the most recent long-term notes.
 
-The dashboard reads GitHub through your `GITHUB_TOKEN` and never calls Claude, so viewing it costs no tokens. It refreshes every 15 seconds while open. Without `--watch`, it shows the session and memory panels only. `--fix` is terminal-only; on the web, use the Fix with Jarvis button.
+The dashboard reads GitHub through your `GITHUB_TOKEN` (two requests per repository per check) and never calls Claude, so viewing it costs no tokens. It refreshes every 15 seconds while open. Without `--watch`, it shows the session and memory panels only. `--fix` is terminal-only; on the web, use the Fix with Jarvis button.
 
 ## Screen vision
 

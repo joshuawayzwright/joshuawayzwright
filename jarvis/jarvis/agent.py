@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -57,6 +58,44 @@ If something blocks you (missing permissions, failing tests you cannot fix), sto
 
 Printer = Callable[[str], None]
 
+
+class Budget:
+    """A token cap shared by Jarvis and every specialist. Counts all input, cache and output tokens."""
+
+    def __init__(self, limit: int) -> None:
+        if limit <= 0:
+            raise ValueError("The token budget must be a positive number.")
+        self.limit = limit
+        self.used = 0
+        self._lock = threading.Lock()
+
+    def add(self, tokens: int) -> None:
+        with self._lock:
+            self.used += tokens
+
+    def exceeded(self) -> bool:
+        with self._lock:
+            return self.used >= self.limit
+
+    def describe(self) -> str:
+        with self._lock:
+            return f"{self.used:,} of {self.limit:,} tokens used"
+
+
+def parse_tokens(text: str) -> int:
+    """'500000', '500k', '2M' or '1.5m' -> a token count."""
+    cleaned = text.strip().lower().replace(",", "").replace("_", "")
+    scale = {"k": 1_000, "m": 1_000_000}.get(cleaned[-1:], 1)
+    number = cleaned[:-1] if scale > 1 else cleaned
+    try:
+        value = int(float(number) * scale)
+    except ValueError:
+        raise ValueError(f"'{text}' is not a token count; use e.g. 500000, 500k or 2M.") from None
+    if value <= 0:
+        raise ValueError("The token budget must be a positive number.")
+    return value
+
+
 USAGE_FIELDS = ("requests", "input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
 
 
@@ -78,6 +117,7 @@ class Jarvis:
     # Team mode: Jarvis is the chief and delegates to six specialists (see team.py).
     team_mode: bool = False
     team_models: dict[str, str] = field(default_factory=dict)  # per-specialist model overrides
+    budget: Budget | None = None  # shared token cap; specialists share the chief's
     # Used by specialists: their own instructions and tool allowlist instead of Jarvis's.
     persona: str | None = None
     tool_names: frozenset[str] | None = None
@@ -144,6 +184,10 @@ class Jarvis:
         final_text = ""
 
         for _ in range(self.max_steps):
+            if self.budget is not None and self.budget.exceeded():
+                note = f"[Stopped: the token budget is spent ({self.budget.describe()}). Raise --budget to continue.]"
+                self.on_text(note)
+                return f"{final_text}\n\n{note}".strip()
             response = self._request()
             self._count(response)
             # Append the full content (thinking, compaction, fallback and tool_use blocks), unchanged.
@@ -188,6 +232,13 @@ class Jarvis:
             value = getattr(usage, name, 0) if usage is not None else 0
             self.usage[name] += value if isinstance(value, int) else 0
         self.usage["requests"] += 1
+        if self.budget is not None:
+            self.budget.add(sum(self.usage_of(usage)))
+
+    @staticmethod
+    def usage_of(usage: Any) -> list[int]:
+        values = [getattr(usage, n, 0) if usage is not None else 0 for n in USAGE_FIELDS[1:]]
+        return [v if isinstance(v, int) else 0 for v in values]
 
     def _run_calls(self, calls: list[Any]) -> list[tuple[Any, bool]]:
         """Run one turn's tool calls in order; the chief's delegate calls go to the team together."""

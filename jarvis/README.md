@@ -147,6 +147,47 @@ export JARVIS_TEAM_MODELS="scout=claude-haiku-5-5"
 
 `/team` shows each agent's model, assignments, API requests and tokens used this session (input includes prompt-cache reads and writes). Autonomous runs write the same table to the end of the run log. Jarvis reports tokens, not dollars: multiply by your plan's prices for each model.
 
+**Spending cap.** `--budget` (or `JARVIS_BUDGET`) stops Jarvis and every specialist once they have used that many tokens between them. It works in solo mode too.
+
+```bash
+jarvis --team --auto --budget 1.5M "..."     # also 500000 or 500k
+```
+
+- Every token counts toward the cap: input, prompt-cache reads and writes, and output. That's deliberately conservative, because cache reads cost much less than fresh input.
+- Each agent checks the budget before each request. A specialist that hits the cap stops and reports what it has. Jarvis then stops before its next request and tells you how much was used. A request already in progress finishes, so a run can go over the cap by up to one response.
+
+### Crew panel in the browser
+
+In team mode, `jarvis --web --team` adds a crew panel above the chat. It shows:
+
+- each agent's status: working (pulsing), done, error or idle;
+- each agent's latest result, or Sentinel's verdict;
+- tasks and tokens per agent;
+- the quality-gate state;
+- a budget meter, when `--budget` is set.
+
+The panel refreshes every 2 seconds. On a phone it starts collapsed to a one-line summary (gate, who's working, budget); tap it to see the agents. It reads `GET /api/team`, which needs the same token as the rest of the page.
+
+### Self-test
+
+`--selftest` checks, end to end and with real API calls, that team mode works with your key, models and MCP setup:
+
+```bash
+jarvis --selftest                              # capped at 2M tokens
+jarvis --selftest --team-models economy --budget 1M
+```
+
+1. Jarvis creates a small local repository (`selftest/stats`) under `~/.jarvis/selftest/<time>/`. It has a planted bug and a failing test, and no remote.
+2. The crew gets one autonomous goal: find the bug, fix it, verify it, and commit on a feature branch without pushing. It works in `--auto` mode, so its writes, commands and commits run without asking you, all inside that folder.
+3. Jarvis then checks the result itself, without relying on the crew's reports:
+   - the fix is on a feature branch and `main` is untouched;
+   - the working tree is clean;
+   - the suite passes;
+   - **the original tests pass on the new code**, so deleting or weakening a test can't fake a pass;
+   - the run went Forge → Sentinel → Herald, so the quality gate was exercised.
+
+It prints `SELF-TEST PASSED` or `FAILED` with each check and the crew table, and exits 0 or 1. The full run log is in the same folder. The self-test needs no GitHub token, and it uses its own memory file, so your notes are left alone.
+
 ## Plug in tools from GitHub (MCP)
 
 Jarvis can use any [Model Context Protocol](https://modelcontextprotocol.io) server, local or hosted: the open-source tool ecosystem on GitHub. That includes browsers, documentation lookup, databases, Slack, Sentry, Figma, cloud consoles and thousands more. It reads the standard `mcpServers` config used by Claude Desktop, Cursor and most server READMEs, so you can paste a server's documented config in as-is.
@@ -265,6 +306,8 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--auto` | off | Autonomous mode (implies `--yes`) |
 | `--team`, `JARVIS_TEAM=1` | off | Team mode: Jarvis leads six specialist agents |
 | `--team-models`, `JARVIS_TEAM_MODELS` | `--model` for all | Models per specialist, or `economy` |
+| `--budget`, `JARVIS_BUDGET` | no cap | Stop after this many tokens across all agents (`500k`, `2M`) |
+| `--selftest` | | Live end-to-end team check on a local repository with a planted bug |
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--brief [OWNER]` | | Morning briefing across your repositories |

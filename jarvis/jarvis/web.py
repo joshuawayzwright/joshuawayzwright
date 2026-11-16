@@ -125,11 +125,16 @@ def make_handler(session: WebSession, token: str) -> type[BaseHTTPRequestHandler
             return data
 
         def do_GET(self) -> None:  # noqa: N802
-            if urlparse(self.path).path != "/":
+            path = urlparse(self.path).path
+            if path not in ("/", "/api/team"):
                 self._json(404, {"error": "not found"})
                 return
             if not self._authorised():
                 self._json(401, {"error": "Open the URL with the token Jarvis printed at start-up."})
+                return
+            if path == "/api/team":
+                team = session.jarvis.team
+                self._json(200, team.snapshot() if team else {"enabled": False})
                 return
             body = PAGE.encode()
             self.send_response(200)
@@ -208,10 +213,10 @@ PAGE = r"""<!doctype html>
 <title>Jarvis</title>
 <style>
   :root { --bg:#f6f7f9; --panel:#ffffff; --text:#14171c; --muted:#5d6673; --accent:#0b6bcb; --line:#dde1e7;
-          --you:#e8f1fb; --code:#f0f2f5; --warn:#b4530f; }
+          --you:#e8f1fb; --code:#f0f2f5; --warn:#b4530f; --ok:#1f7a3a; }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#0f1216; --panel:#171b21; --text:#e7eaee; --muted:#98a2ae; --accent:#5aa9ff; --line:#2a3039;
-            --you:#16273a; --code:#1f252d; --warn:#f0a35e; } }
+            --you:#16273a; --code:#1f252d; --warn:#f0a35e; --ok:#5fc27e; } }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
          display:flex; flex-direction:column; height:100dvh; }
@@ -233,6 +238,27 @@ PAGE = r"""<!doctype html>
   form { display:flex; gap:8px; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--panel); }
   textarea { flex:1; resize:none; font:inherit; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--text); min-height:44px; max-height:160px; }
   #mic.on { background:var(--warn); border-color:var(--warn); color:#fff; }
+  #crew { border-bottom:1px solid var(--line); background:var(--panel); padding:8px 16px 10px; }
+  #crew[hidden] { display:none; }
+  #crew summary { cursor:pointer; font-size:14px; color:var(--muted); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #crew summary b { color:var(--text); }
+  .badge { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); }
+  .badge.passed, .badge.clean { color:var(--ok); border-color:var(--ok); }
+  .badge.failed, .badge.unverified { color:var(--warn); border-color:var(--warn); }
+  .meter { flex:1; min-width:120px; max-width:240px; height:6px; border-radius:3px; background:var(--code); overflow:hidden; }
+  .meter i { display:block; height:100%; background:var(--accent); }
+  .meter.hot i { background:var(--warn); }
+  .agents { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; margin-top:8px; }
+  .agent { border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px; min-width:0; }
+  .agent .top { display:flex; align-items:center; gap:6px; font-weight:600; font-size:14px; }
+  .agent .meta, .agent .last { color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex:none; }
+  .s-working .dot { background:var(--accent); animation:pulse 1s ease-in-out infinite; }
+  .s-done .dot, .s-chief .dot { background:var(--ok); }
+  .s-error .dot { background:var(--warn); }
+  .s-error .last { color:var(--warn); }
+  @keyframes pulse { 50% { opacity:.3; } }
+  @media (prefers-reduced-motion: reduce) { .s-working .dot { animation:none; } }
 </style>
 </head>
 <body>
@@ -241,6 +267,11 @@ PAGE = r"""<!doctype html>
   <label><input type="checkbox" id="speak"> Speak replies</label>
   <button id="reset" type="button">New chat</button>
 </header>
+<details id="crew" hidden open>
+  <summary><b>Crew</b> <span class="badge" id="gate"></span> <span id="busy"></span>
+    <span class="meter" id="meter" hidden><i></i></span> <span id="budget"></span></summary>
+  <div class="agents" id="agents"></div>
+</details>
 <main id="log" aria-live="polite"></main>
 <form id="form">
   <button id="mic" type="button" aria-label="Talk" title="Talk">🎙</button>
@@ -314,6 +345,44 @@ function askApproval(event) {
   }
   box.appendChild(row);
 }
+
+// Crew panel: shown in team mode, refreshed every 2 seconds.
+const crew = document.getElementById("crew"), agentsBox = document.getElementById("agents");
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n);
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+async function refreshCrew() {
+  try {
+    const res = await fetch("/api/team", {headers: {"X-Jarvis-Token": token}});
+    if (!res.ok) return;
+    const team = await res.json();
+    if (!team.enabled) { crew.hidden = true; return false; }
+    crew.hidden = false;
+    const gate = document.getElementById("gate");
+    gate.textContent = "Quality gate: " + team.gate; gate.className = "badge " + team.gate;
+    const working = team.agents.filter(a => a.status === "working").map(a => a.name);
+    document.getElementById("busy").textContent = working.length ? "Working: " + working.join(", ") : "";
+    const meter = document.getElementById("meter"), budget = document.getElementById("budget");
+    if (team.budget) {
+      const share = Math.min(1, team.budget.used / team.budget.limit);
+      meter.hidden = false; meter.firstElementChild.style.width = (share * 100) + "%"; meter.classList.toggle("hot", share >= 0.8);
+      budget.textContent = fmt(team.budget.used) + " / " + fmt(team.budget.limit) + " tokens";
+    } else { meter.hidden = true; budget.textContent = ""; }
+    agentsBox.textContent = "";
+    for (const a of team.agents) {
+      const card = el("div", "agent s-" + a.status);
+      card.title = a.title + " · " + a.model + (a.last ? "\n" + a.last : "");
+      const top = el("div", "top"); top.append(el("span", "dot"), el("span", "", a.name)); card.appendChild(top);
+      const tasks = a.tasks === null ? "chief" : a.tasks + (a.tasks === 1 ? " task" : " tasks");
+      card.appendChild(el("div", "meta", tasks + " · " + fmt(a.input + a.output) + " tok"));
+      const last = a.status === "chief" ? "Leads the crew" : a.status === "idle" ? a.mode : (a.last || a.status);
+      card.appendChild(el("div", "last", last));
+      agentsBox.appendChild(card);
+    }
+    return true;
+  } catch (err) { return; }
+}
+if (innerWidth < 600) crew.open = false;  // phones: the summary line is enough until tapped
+refreshCrew().then(on => { if (on !== false) setInterval(refreshCrew, 2000); });
 
 document.getElementById("form").onsubmit = e => { e.preventDefault(); const t = input.value.trim(); if (t) chat(t); };
 input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("form").requestSubmit(); } });

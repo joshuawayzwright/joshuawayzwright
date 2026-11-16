@@ -291,6 +291,8 @@ class Team:
         self.members: dict[str, Jarvis] = {}
         self.gate = CLEAN
         self.history: list[tuple[str, str]] = []  # (agent, outcome) per finished assignment
+        self.active: set[str] = set()  # specialists working right now
+        self.last: dict[str, str] = {}  # one line on each specialist's latest assignment
         self._lock = threading.Lock()  # guards members, gate and history
         self._approval_lock = threading.Lock()  # one approval prompt on screen at a time
         self._pull_lock = threading.Lock()  # parallel specialists must not clone the same repo at once
@@ -336,14 +338,24 @@ class Team:
             return f"Error: unexpected field '{sorted(unexpected)[0]}'.", True
 
         member = self.member(role, fresh=fresh)
+        with self._lock:
+            self.active.add(role.key)
+            self.last[role.key] = "Working: " + _first_line(task)
         try:
             report = member.ask(task)
         except Exception as err:  # an API or network failure inside the specialist goes back to the chief
             self._record(role, "error")
+            with self._lock:
+                self.last[role.key] = f"Error: {type(err).__name__}"
             return f"{role.name} could not finish: {type(err).__name__}: {err}", True
+        finally:
+            with self._lock:
+                self.active.discard(role.key)
 
         if not report.strip():
             report = f"{role.name} finished without a written report."
+        with self._lock:
+            self.last[role.key] = _summary(report)
         outcome = self._after(role, report)
         return f"## {role.name} report\n\n{report}\n\n_{outcome}_", False
 
@@ -426,6 +438,7 @@ class Team:
             on_tool=on_tool,
             on_result=on_result,
             middleware=self._guard,
+            budget=chief.budget,
         )
 
     def _guard(self, name: str, run: Callable[[], tuple[Any, bool]]) -> tuple[Any, bool]:
@@ -454,6 +467,44 @@ class Team:
                 agent.reset()
             self.gate = CLEAN
             self.history.clear()
+            self.last.clear()
+
+    def snapshot(self) -> dict[str, Any]:
+        """The crew's state as JSON-ready data, for the web panel."""
+        with self._lock:
+            counts: dict[str, int] = {}
+            for key, _ in self.history:
+                counts[key] = counts.get(key, 0) + 1
+            history = list(self.history)
+            gate, active, last, members = self.gate, set(self.active), dict(self.last), dict(self.members)
+
+        def tokens(usage: dict[str, int]) -> dict[str, int]:
+            return {
+                "requests": usage.get("requests", 0),
+                "input": sum(usage.get(k, 0) for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")),
+                "output": usage.get("output_tokens", 0),
+            }
+
+        agents = [{"key": "jarvis", "name": "Jarvis", "title": "chief", "model": self.chief.model, "mode": "chief",
+                   "status": "chief", "tasks": None, "last": "", **tokens(self.chief.usage)}]
+        for role in ROLES.values():
+            if role.key in active:
+                state = "working"
+            elif role.key not in counts:
+                state = "idle"
+            else:
+                state = "error" if _last_outcome(history, role.key) == "error" else "done"
+            usage = members[role.key].usage if role.key in members else {}
+            agents.append({"key": role.key, "name": role.name, "title": role.title, "model": self.model_for(role),
+                           "mode": "parallel" if role.parallel else "sequential", "status": state,
+                           "tasks": counts.get(role.key, 0), "last": last.get(role.key, ""), **tokens(usage)})
+        budget = self.chief.budget
+        return {
+            "enabled": True,
+            "gate": gate,
+            "agents": agents,
+            "budget": {"limit": budget.limit, "used": budget.used} if budget else None,
+        }
 
     def status(self) -> str:
         with self._lock:
@@ -476,6 +527,8 @@ class Team:
         cached = totals.get("cache_read_input_tokens", 0)
         if cached:
             lines.append(f"  Cache reads: {cached:,} input tokens served from the prompt cache.")
+        if self.chief.budget is not None:
+            lines.append(f"  Budget: {self.chief.budget.describe()}.")
         return "\n".join(lines)
 
 
@@ -509,3 +562,20 @@ def parse_models(spec: str) -> dict[str, str]:
             raise ValueError(f"Unknown specialist '{key}'. Choose from: {', '.join(ROLES)}.")
         models[key] = model
     return models
+
+
+def _first_line(text: str, limit: int = 140) -> str:
+    line = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+    return line if len(line) <= limit else line[: limit - 1] + "…"
+
+
+def _summary(report: str) -> str:
+    """The verdict if there is one, otherwise the first line of prose (skipping Markdown headings)."""
+    found = verdict(report)
+    prose = next((ln.strip() for ln in report.splitlines() if ln.strip() and not ln.lstrip().startswith("#")), "")
+    line = _first_line(prose)
+    return f"VERDICT: {found} · {line}" if found else line
+
+
+def _last_outcome(history: list[tuple[str, str]], key: str) -> str:
+    return next((outcome for k, outcome in reversed(history) if k == key), "")

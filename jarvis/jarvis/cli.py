@@ -12,8 +12,8 @@ from pathlib import Path
 
 import anthropic
 
-from . import github, mcp_bridge, team, voice, wake, watch, web
-from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
+from . import github, mcp_bridge, selftest, team, voice, wake, watch, web
+from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Budget, Jarvis, parse_tokens
 from .memory import Memory
 from .tools import ToolContext
 
@@ -56,7 +56,10 @@ class RunLog:
         self._write(f"- `{line}`")
 
     def crew(self, status: str) -> None:
-        self._write(f"\n## Crew\n\n```\n{status}\n```")
+        self.section("Crew", status)
+
+    def section(self, title: str, body: str) -> None:
+        self._write(f"\n## {title}\n\n```\n{body}\n```")
 
     def result(self, name: str, content: object, is_error: bool) -> None:
         if not isinstance(content, str):
@@ -296,6 +299,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
     parser.add_argument("--team", action="store_true", default=os.environ.get("JARVIS_TEAM") == "1", help="Team mode: Jarvis becomes the chief of a seven-agent crew and delegates to six specialists (Scout, Architect, Medic, Forge, Sentinel, Herald). Also JARVIS_TEAM=1.")
     parser.add_argument("--team-models", default=os.environ.get("JARVIS_TEAM_MODELS", ""), metavar="SPEC", help="Team mode: models per specialist, e.g. 'scout=claude-sonnet-5-5,herald=claude-haiku-5-5'. 'economy' runs Scout, Medic and Herald on claude-sonnet-5-5 and can be combined: 'economy,forge=...'. Others use --model. Implies --team. Also JARVIS_TEAM_MODELS.")
+    parser.add_argument("--budget", default=os.environ.get("JARVIS_BUDGET", ""), metavar="TOKENS", help="Stop when Jarvis and its specialists together have used this many tokens (input, cache and output), e.g. 500k or 2M. Also JARVIS_BUDGET. Default: no cap.")
+    parser.add_argument("--selftest", action="store_true", help=f"Live end-to-end check of team mode: the crew fixes a planted bug in a local repository, then Jarvis verifies the result itself. Uses your API key; capped at {selftest.DEFAULT_BUDGET:,} tokens unless --budget is set. Needs no GitHub token.")
     parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
     parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
     parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account.")
@@ -323,6 +328,20 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"--team-models: {err}")
     if args.team_models:
         args.team = True
+    try:
+        args.budget = parse_tokens(args.budget) if args.budget else None
+    except ValueError as err:
+        parser.error(f"--budget: {err}")
+    args.selftest_repo = None
+    if args.selftest:
+        if args.prompt or args.watch is not None or args.web or args.brief is not None:
+            parser.error("--selftest runs on its own; drop the prompt, --watch, --web and --brief")
+        run_dir = home / "selftest" / time.strftime("%Y%m%d-%H%M%S")
+        args.workspace = run_dir / "repos"
+        args.selftest_repo = selftest.build_fixture(args.workspace)
+        args.auto = args.team = True
+        args.budget = args.budget or selftest.DEFAULT_BUDGET
+        args.prompt = [selftest.GOAL]
     if args.fix:
         if args.watch is None:
             parser.error("--fix works with --watch")
@@ -464,6 +483,21 @@ def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> i
     return 0
 
 
+def finish_selftest(repo: Path, jarvis: Jarvis, log: RunLog | None) -> int:
+    """Check the crew's work in the repository itself and print the verdict."""
+    checks = selftest.verify(repo, jarvis.team.history if jarvis.team else None)
+    summary = selftest.report(checks)
+    passed = all(c.ok for c in checks)
+    print(f"\n{CYAN if passed else RED}{summary}{RESET}")
+    if jarvis.team:
+        print(jarvis.team.status())
+    print(f"{DIM}Repository: {repo}{RESET}")
+    if log:
+        log.section("Self-test", summary)
+        print(f"{DIM}Full run log: {log.path}{RESET}")
+    return 0 if passed else 1
+
+
 def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordListener | None,
         mcp: mcp_bridge.MCPManager | None) -> int:
     log = RunLog(args.workspace.parent / "runs") if args.auto else None
@@ -504,6 +538,7 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         autonomous=args.auto,
         team_mode=args.team,
         team_models=args.team_models,
+        budget=Budget(args.budget) if args.budget else None,
         max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
         on_text=show_text,
         on_delta=show_delta,
@@ -536,6 +571,8 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         reply = run_turn(jarvis, goal) if io is None else talk_turn(jarvis, io, goal)
         if log and jarvis.team:
             log.crew(jarvis.team.status())
+        if args.selftest_repo is not None:
+            return finish_selftest(args.selftest_repo, jarvis, log)
         return 0 if reply is not None else 1
 
     if io and listener:

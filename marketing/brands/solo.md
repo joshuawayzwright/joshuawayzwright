@@ -34,6 +34,10 @@ Check the live site before you write about availability. The status changes.
 
 **Known conflict:** the profile `README.md` says the shop has 16 live toolkits. The live shop says nothing is on sale. Follow the live site, and flag the README to the owner.
 
+**Known conflict:** the live rate calculator page shows "Get the toolkit → … All ten SOLO toolkits for A$79", but the shop says nothing is on sale and no price is approved. Never repeat that offer.
+
+Until the owner resolves this, every draft that links to the calculator gets this line in Writer notes: `[NEEDS OWNER APPROVAL: calculator page shows unapproved A$79 offer]`.
+
 ### The planned product range
 
 From `ai-download-center/docs/SOLO-10-PRODUCT-RESET.md` (27 October 2026). All ten are in development, with provisional prices that aren't approved for publishing:
@@ -63,6 +67,7 @@ Australian sole traders and small service businesses: tradies, cleaners, handyme
 - Australian English (organisation, colour, licence as a noun, practise as a verb).
 - Lead with the reader's problem and a concrete next step. Use real numbers only when they come from a source.
 - Build in public: share honest progress, including what isn't finished.
+- **Who is speaking:** LinkedIn and GitHub posts are written in the first person, as Joshua ("I built…"). The website, email and Google Business Profile posts speak as the business ("we", or "The Solo Service Provider").
 - Banned: "revolutionary", "game-changing", "unlock", "supercharge", "10x", "guaranteed results", "passive income", "bestseller".
 
 ## Visual identity

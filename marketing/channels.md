@@ -4,18 +4,23 @@ Shared by every content agent. These are the formats the engine drafts.
 
 **Character limits are platform limits as of November 2026.** If a platform rejects a post, check its current limit and update this table.
 
-| Channel key | Format | Length guide | Notes |
-| --- | --- | --- | --- |
-| `linkedin` | Post | 1,300 characters or fewer is ideal (limit 3,000). Make the first 2 lines carry the post. | Professional. Put one link at the end. At most 3 hashtags. |
-| `x` | Post or thread | 280 characters per post; threads of 4 to 7 posts | Put the link in the final post. At most 2 hashtags. |
-| `facebook` | Page post | 80 to 250 words | One link. Plain, community tone. |
-| `instagram` | Caption plus image brief | Caption of 2,200 characters or fewer; first line is the hook | Links don't work in captions, so write "link in bio". Include an image brief (see below). |
-| `threads` | Post | 500 characters or fewer | Conversational. |
-| `blog` | Article | 700 to 1,500 words, with H2 sections | Include a meta title (60 characters or fewer) and a meta description (155 characters or fewer). |
-| `email` | Newsletter or sequence step | Subject of 50 characters or fewer, plus preview text and body | Must comply with the Spam Act 2003 (see `compliance.md`). |
-| `video-short` | Script for Shorts, Reels or TikTok | 30 to 60 seconds | Hook in the first 2 seconds. Include on-screen text and a shot list. |
-| `video-long` | YouTube outline | Chapters with timestamps | Include a title, a description and chapters. |
-| `gbp` | Google Business Profile post | 1,500 characters or fewer | `solo` only. Local Gold Coast angle. |
+**How to count length:** count everything that gets published, including links and hashtags.
+- The **hard limit** is the only fail.
+- The **ideal** is a target.
+- Use the full UTM URL as the visible link. No shorteners are approved yet.
+
+| Channel key | Format | Length guide | Image brief | Notes |
+| --- | --- | --- | --- | --- |
+| `linkedin` | Post | 1,300 characters or fewer is ideal (limit 3,000). Make the first 2 lines carry the post. | optional (link preview if none) | Professional. Put one link at the end. At most 3 hashtags. |
+| `x` | Post or thread | 280 characters per post; threads of 4 to 7 posts | optional | Put the link in the final post. At most 2 hashtags. |
+| `facebook` | Page post | 80 to 250 words | optional (link preview if none) | One link. Plain, community tone. |
+| `instagram` | Caption plus image brief | Caption of 2,200 characters or fewer; first line is the hook | **required** | Links don't work in captions, so write "link in bio". Include an image brief (see below). |
+| `threads` | Post | 500 characters or fewer | optional | Conversational. |
+| `blog` | Article | 700 to 1,500 words, with H2 sections | required (featured image) | Include a meta title (60 characters or fewer) and a meta description (155 characters or fewer). |
+| `email` | Newsletter or sequence step | Subject of 50 characters or fewer, plus preview text and body | optional | Must comply with the Spam Act 2003 (see `compliance.md`). |
+| `video-short` | Script for Shorts, Reels or TikTok | 30 to 60 seconds | shot list instead | Hook in the first 2 seconds. Include on-screen text and a shot list. |
+| `video-long` | YouTube outline | Chapters with timestamps | required (thumbnail) | Include a title, a description and chapters. |
+| `gbp` | Google Business Profile post | 1,500 characters or fewer | **required** | `solo` only. Local Gold Coast angle. |
 
 ## Image briefs
 

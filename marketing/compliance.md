@@ -54,11 +54,17 @@ These rules are a checklist, not legal advice. If a draft raises a real legal qu
 
 ## 7. Placeholders
 
-Writers use these when they can't know something. A draft that contains any of them can't be APPROVED.
+**Blocking placeholders.** Writers use these when they can't know something. A draft that contains any of them can't be APPROVED.
 
 | Placeholder | Meaning |
 | --- | --- |
 | `[NEEDS INFO: ...]` | A fact that couldn't be verified |
 | `[NEEDS OWNER APPROVAL: ...]` | A decision for the owner, such as a price, an offer, consent or a launch date |
 | `[NEEDS ASSET: ...]` | A missing approved image or file |
-| `[UNSUBSCRIBE LINK]`, `[POSTAL ADDRESS]` | Required email fields the owner fills in |
+
+**Merge fields.** These don't block approval. Your email platform fills them in when it sends.
+
+| Field | Rule |
+| --- | --- |
+| `[UNSUBSCRIBE LINK]` | Required in every email draft |
+| `[POSTAL ADDRESS]` | Use where a law or platform requires it |

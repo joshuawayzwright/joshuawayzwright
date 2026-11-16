@@ -5,7 +5,11 @@ Checks:
   * every agent and skill file has front matter with a name and a description;
   * every draft names a known brand and channel, lives in that brand's folder,
     and has a valid status;
-  * no approved draft still contains a placeholder or lacks a review block;
+  * reviewed drafts have a review block, and no approved draft still contains
+    a blocking placeholder;
+  * approved emails carry the [UNSUBSCRIBE LINK] merge field;
+  * a draft's tracking link carries the UTM tags channels.md requires, and the
+    body stays within the channel's hashtag limit;
   * no WrightWayz draft links to a SOLO website, and no draft makes
     WrightWayz charity or tax-deductibility claims.
 
@@ -27,7 +31,17 @@ CHANNELS = {
     "email", "video-short", "video-long", "gbp",
 }
 STATUSES = {"draft", "approved", "needs-changes", "published"}
-PLACEHOLDER = re.compile(r"\[(NEEDS (INFO|OWNER APPROVAL|ASSET)|UNSUBSCRIBE LINK|POSTAL ADDRESS)")
+# Blocking placeholders (compliance.md section 7). Merge fields such as
+# [UNSUBSCRIBE LINK] are deliberately excluded: they never block approval.
+PLACEHOLDER = re.compile(r"\[NEEDS (INFO|OWNER APPROVAL|ASSET)")
+# UTM medium per channel, from channels.md "Tracking links".
+MEDIUM = {
+    "linkedin": "social", "x": "social", "facebook": "social",
+    "instagram": "social", "threads": "social", "email": "email",
+    "video-short": "video", "video-long": "video", "blog": "organic", "gbp": "organic",
+}
+MAX_HASHTAGS = {"linkedin": 3, "x": 2}
+HASHTAG = re.compile(r"(?<![\w&/])#[A-Za-z][\w]*")
 SOLO_DOMAIN = "thesoloserviceprovider.com.au"
 # Claims WrightWayz must never make (see marketing/brands/wrightwayz.md).
 WRIGHTWAYZ_BANNED = re.compile(
@@ -90,11 +104,36 @@ def check_draft(path: Path, errors: list[str]) -> None:
     if status not in STATUSES:
         errors.append(f"{rel}: invalid status '{status}'")
 
+    if status in {"approved", "needs-changes", "published"} and "## Review:" not in text:
+        errors.append(f"{rel}: marked {status} without a review block")
     if status in {"approved", "published"}:
         if PLACEHOLDER.search(text):
-            errors.append(f"{rel}: marked {status} but still contains a placeholder")
-        if "## Review:" not in text:
-            errors.append(f"{rel}: marked {status} without a review block")
+            errors.append(f"{rel}: marked {status} but still contains a blocking placeholder")
+        if channel == "email" and "[UNSUBSCRIBE LINK]" not in text:
+            errors.append(f"{rel}: approved email has no [UNSUBSCRIBE LINK] merge field")
+
+    link = fm.get("link", "")
+    if link.startswith("http") and brand in BRANDS and channel in MEDIUM:
+        expected = {
+            "utm_source": channel,
+            "utm_medium": MEDIUM[channel],
+        }
+        for key, value in expected.items():
+            if f"{key}={value}" not in link:
+                errors.append(f"{rel}: link should carry {key}={value}")
+        if f"utm_campaign={brand}-" not in link:
+            errors.append(f"{rel}: link should carry utm_campaign={brand}-<campaign>")
+
+    body = text.split("## Writer notes")[0].split("## Review:")[0]
+    body = body.split("\n---", 2)[-1]  # drop front matter
+    body = re.sub(r"^#+ .*$", "", body, flags=re.MULTILINE)  # markdown headings aren't hashtags
+    limit = MAX_HASHTAGS.get(channel)
+    if limit is not None:
+        # X limits are per post; count the busiest post in a thread.
+        posts = re.split(r"^\s*\d+/", body, flags=re.MULTILINE) if channel == "x" else [body]
+        worst = max(len(HASHTAG.findall(post)) for post in posts)
+        if worst > limit:
+            errors.append(f"{rel}: {worst} hashtags in one post; {channel} allows {limit}")
 
     if brand == "wrightwayz":
         body = text.split("## Review:")[0]

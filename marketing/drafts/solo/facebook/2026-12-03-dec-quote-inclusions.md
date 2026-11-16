@@ -11,7 +11,7 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - https://thesoloserviceprovider.com.au/shop/
-status: draft
+status: approved
 ---
 
 # "About a day" is not a quote
@@ -41,3 +41,10 @@ General information only, not financial or tax advice.
 - Placeholders: none
 - Length: about 160 words (limit 80 to 250). Image: none requested, link preview will be used.
 - Calendar note: the row's date column is 2026-12-03 (filename uses it).
+
+## Review: 2026-11-16
+Status: APPROVED
+- No changes needed. The claims are general quoting practice plus the sign-up description, which matches the live shop page word for word ("pricing, quoting and getting paid, plus new tools and the occasional offer"; free; unsubscribe any time). The inclusions example is clearly illustrative.
+- Length: 157 words, about 1,050 characters including the link (guide 80 to 250 words). One link, correct UTM (facebook / social / solo-dec-quote-inclusions). Advice line present. No banned words, Australian English, no engagement bait.
+- Verified: https://thesoloserviceprovider.com.au/shop/ (live, 200, 16 Nov 2026): sign-up form and consent wording present, "DIGITAL PRODUCTS ARE NOT ON SALE YET".
+- Owner escalation (non-blocking, the post can go out): the shop page links to the free rate calculator, which still shows the unapproved "All ten SOLO toolkits for A$79" offer. The shop's intro copy ("Choose a product, pay securely with Stripe, then download it straight away", "30-day money-back guarantee on every product") also sits beside "not on sale yet".

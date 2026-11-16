@@ -11,7 +11,7 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - https://thesoloserviceprovider.com.au/shop/
-status: draft
+status: needs-changes
 ---
 
 # Quotes that go quiet: a simple follow-up routine
@@ -47,3 +47,13 @@ Image brief
 - Placeholders: [name] and [job] inside the sample message are intentional fill-ins for the reader, not writer placeholders. One [NEEDS INFO] in the image brief (GBP image size), non-content.
 - Length: about 1,150 characters including the link (limit 1,500). GBP button suggestion: "Learn more" to the same link.
 - Calendar note: the row's date column is 2026-12-04.
+
+## Review: 2026-11-16
+Status: NEEDS CHANGES
+- Blocking placeholder still present: `[NEEDS INFO: confirm GBP preferred post image size in the dashboard]`. I checked Google's own help pages. "Add posts to your Business Profile" (https://support.google.com/business/answer/7342169) gives no image specs for posts. "Manage photos and videos for your Business Profile" (https://support.google.com/business/answer/6103862) gives only general Business Profile photo guidelines: "JPG or PNG", "Between 10 KB and 5 MB", minimum "250 px tall, 250 px wide", recommended "720 px tall, 720 px wide". It sets no separate size for posts. Google doesn't state a post size, so I haven't resolved the placeholder. → Either the owner confirms the size in the GBP dashboard, or replace the Sizes line with: "Sizes: 1080×1080 (feed), JPG or PNG, 10 KB to 5 MB. Google's Business Profile photo guidelines: minimum 250×250 px, recommended 720×720 px (support.google.com/business/answer/6103862). Google states no separate post size."
+- "GBP also accepts 1200x900 (4:3)" isn't stated by Google (it's third-party guidance only). → Delete it.
+- "It happens to most trades." is an unsourced claim about most trades. → Replace with "It happens."
+- "A short, steady follow-up routine often helps more than another discount." is an unsourced comparison. → Replace with "A short, steady follow-up routine can help."
+- Passes otherwise. The length is about 1,110 characters for the published text including the link (hard limit 1,500). The UTM is correct (gbp / organic / solo-dec-quote-follow-up). It speaks as the business with a Gold Coast angle, the advice line is present, and there's no phone number in the text (Google says posts with phone numbers "might get rejected"). The asset path is approved and exists (business-emblem.png, 285×282 confirmed), with a no-upscale note. Alt text is present, there are no banned words, and it's in Australian English.
+- Verified: https://thesoloserviceprovider.com.au/shop/ (live, 200, 16 Nov 2026): sign-up wording, unsubscribe any time, "not on sale yet". Google help pages above. /home/user/ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png.
+- Owner escalation (non-blocking for this post): the shop page links to the calculator, which still shows the unapproved "All ten SOLO toolkits for A$79" offer.

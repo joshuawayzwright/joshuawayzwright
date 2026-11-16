@@ -9,7 +9,7 @@ sources:
   - marketing/calendar/2026-12-solo.md
   - marketing/brands/solo.md
   - https://thesoloserviceprovider.com.au/revenue-rescue.html
-status: draft
+status: needs-changes
 ---
 
 # Three places visitors leave a service-business website
@@ -40,3 +40,11 @@ I'm closed from Thursday 24 December and back Monday 4 January 2027, so enquirie
 - Placeholders: none
 - Length: about 1,430 characters including the link, slightly over the 1,300 ideal but well under the 3,000 limit. Trim the phone test or shutdown line if wanted. 2 hashtags.
 - Check before posting: confirm the 0452 number and email on the page still match; neither is used in the post.
+
+## Review: 2026-11-16
+Status: NEEDS CHANGES
+- No text changes needed. Every service claim matches the live Revenue Rescue page: fixed-scope, Australian service businesses, conversion diagnosis, replacement website copy, follow-up sequences, 30-day action plan, human-reviewed ("reviewed, edited and checked by a person"), "Implementation is scoped and approved before any live-site change", "No revenue or ranking guarantee", 15-minute fit call. The three leaks are fairly adapted from the page's leak list. The shutdown dates match the 16 Nov owner decision.
+- Blocked by the link target. The Revenue Rescue page shows unapproved prices with live Stripe buy links: Conversion Leak Audit A$395 "BUY SECURELY", SOLO Revenue Rescue A$1,250 "BUY SECURELY", Implemented Rescue "From A$2,500". It also promotes "SOLO Revenue Rescue DIY Kit (A$39)", which links to /shop/solo-revenue-rescue-kit.html with "BUY NOW · A$39". That's a digital product the brand file says isn't on sale, with no approved price. This is the same class of issue as the calculator's A$79 offer. → Add `[NEEDS OWNER APPROVAL: Revenue Rescue page shows unapproved prices, Stripe buy buttons and an A$39 DIY Kit]` to Writer notes. Re-review once the owner approves those prices, or removes them from the page.
+- Passed: length 1,428 characters including link and hashtags (ideal 1,300, so a note only; limit 3,000); 2 hashtags; one link at the end; UTM correct (linkedin/social/solo-dec-site-leaks); no result promises; first person; no banned words; Australian English.
+- Owner escalations: (1) Revenue Rescue prices and Stripe buttons not approved in the brand file (calendar item 5). Blocks this draft. (2) DIY Kit A$39 on sale. Blocks this draft. (3) The whole shop is now on sale at unapproved prices (see the 16 Dec review). The page links to it.
+- Verified: https://thesoloserviceprovider.com.au/revenue-rescue.html?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-site-leaks (200); https://thesoloserviceprovider.com.au/shop/solo-revenue-rescue-kit.html (200); brand file; calendar Owner decisions.

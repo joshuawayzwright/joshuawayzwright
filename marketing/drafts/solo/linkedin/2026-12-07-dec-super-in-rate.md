@@ -12,7 +12,7 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - marketing/calendar/2026-12-solo.md
-status: draft
+status: approved
 ---
 
 # Does your rate cover super?
@@ -48,3 +48,10 @@ I send short, practical emails on pricing, quoting and getting paid. Free sign-u
 - Conflicts: none. The calendar hook says "most tradies undercharge". No source supports "most", so the draft says "a common way to undercharge" instead.
 - Placeholders: none
 - Notes: no mention of the rate calculator, so the A$79 offer line is not needed here. The shop page links to the calculator, but the post's CTA is the sign-up only. 12% is shown as an example only, not as a statement of the legal rate, and the post says to check with the ATO or a registered tax agent.
+
+## Review: 2026-11-16
+Status: APPROVED
+- Checked and OK: $80,000 × 12% = $9,600 and $80,000 + $9,600 = $89,600 (recomputed). The example values match the live calculator DEFAULTS (income 80000, super 12). The 12% is clearly presented as an example and not as the legal rate, and readers are pointed to the ATO or a registered tax agent. "No employer is paying it for you" is supported by the calculator FAQ ("the employer covers super… As a sole trader you pay for all of that"). The "General information only" line is present. The CTA wording matches the live shop sign-up ("Short, practical emails on pricing, quoting and getting paid"), and its consent box discloses offers. 913 characters including the link, one link at the end, 2 hashtags, UTM tags correct, Australian English, no banned words, SOLO-only.
+- Note (not a fail): "A common way to undercharge" is an unsourced framing. It is acceptable as opinion; "One easy way to undercharge" would be safer if you want no prevalence implication.
+- Owner escalation (post can still go out): the link target (shop) says "Choose a product, pay securely with Stripe, then download it straight away" and "30-day money-back guarantee on every product" next to "DIGITAL PRODUCTS ARE NOT ON SALE YET". It also links to the calculator, which leads to live "BUY NOW" product pages at A$29, A$39 and A$79, including an "A$79 instead of A$199… You save A$120" comparison. See the 2026-12-02 review. Fix it on the site soon. The post itself makes no product or price claim.
+- Verified: https://thesoloserviceprovider.com.au/shop/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-super-in-rate (200), https://thesoloserviceprovider.com.au/rate-calculator.html and rate-calculator.js (200), marketing/brands/solo.md, marketing/compliance.md, marketing/channels.md.

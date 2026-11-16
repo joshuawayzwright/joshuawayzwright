@@ -10,7 +10,7 @@ sources:
   - marketing/brands/solo.md
   - marketing/compliance.md
   - marketing/calendar/2026-12-solo.md
-status: draft
+status: needs-changes
 ---
 
 # Year-end admin checklist (email to consented subscribers)
@@ -60,3 +60,10 @@ Unsubscribe: [UNSUBSCRIBE LINK]
 - Conflicts: none. The shop page says digital products aren't on sale yet, so the email doesn't mention toolkits or prices.
 - Placeholders: [UNSUBSCRIBE LINK] (merge field). Send only to consented subscribers. Whether the sign-up form records consent isn't visible from the page, so the owner should confirm the list source before sending. [POSTAL ADDRESS] isn't included, since it's only needed where a law or platform requires it; the platform may add it. Phone number is on the live site but not in the brand file, so it isn't used. The "answered once we're back" line is a reasonable reading of the closure, but the owner should confirm it.
 - Subject length: 41 characters (limit 50).
+
+## Review: 2026-11-16
+Status: NEEDS CHANGES
+- "Emails sent in that time will be answered once we're back." is a service commitment the owner hasn't made. The Owner decisions give only the closure dates, and the writer notes say it's unconfirmed. → Delete the sentence (the line before it already says when the business reopens), or get the owner's confirmation and note it in Writer notes.
+- Passes otherwise. The shutdown dates match Owner decisions (Thursday 24 December 2026 to Monday 4 January 2027; I rechecked the weekdays). On the Spam Act: the email goes to the consented list only (live consent box "Yes, email me pricing tips, new tools and offers… I can unsubscribe at any time."), it identifies the sender (The Solo Service Provider, ABN 63 638 672 067, Gold Coast, contact email), and it includes `[UNSUBSCRIBE LINK]`. The advice line with the ATO or tax agent pointer is present. The subject is 41 characters (limit 50), there's one link with the correct UTM (email / email / solo-dec-year-end-admin), no products or prices, no banned words, and it's in Australian English.
+- Verified: https://thesoloserviceprovider.com.au/shop/ (live, 200, 16 Nov 2026); marketing/calendar/2026-12-solo.md Owner decisions.
+- Owner escalation (non-blocking for this email): the shop page links to the calculator, which still shows the unapproved "All ten SOLO toolkits for A$79" offer.

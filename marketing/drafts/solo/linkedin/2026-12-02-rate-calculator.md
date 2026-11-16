@@ -9,7 +9,7 @@ sources:
   - https://thesoloserviceprovider.com.au/rate-calculator.html
   - https://thesoloserviceprovider.com.au/rate-calculator.js
   - marketing/brands/solo.md
-status: draft
+status: needs-changes
 ---
 
 # The hours nobody pays you for
@@ -62,3 +62,11 @@ Status: NEEDS CHANGES
 | Draft | Status | Top issue |
 | --- | --- | --- |
 | marketing/drafts/solo/linkedin/2026-12-02-rate-calculator.md | needs-changes | "take home $80,000" misstates a before-tax figure |
+
+## Review: 2026-11-16 (re-review)
+Status: NEEDS CHANGES
+- Blocking placeholder still present: `[NEEDS OWNER APPROVAL: calculator page shows unapproved A$79 offer]`. The live link target still shows "Get the toolkit → … All ten SOLO toolkits for A$79". → Hold this post until the owner removes the offer from the calculator page, or approves the price and updates solo.md and the shop. Then remove the placeholder and re-review.
+- Previous issue fixed: the hook now reads "Want to earn $80,000 a year before tax?", which matches the calculator's "Income you want before tax".
+- Re-checked and OK: the calculator DEFAULTS (80000, 12, 12000, 6, 38, 60, 15) and the formula in rate-calculator.js. My recomputation gives 1,048.8 billable hours, $101,600, $96.87 and $111.40, rounded up to $112; $80,000 ÷ 1,976 = $40.49; 112 ÷ 40.49 = 2.77 ("nearly three times"). "No sign-up", "never sent anywhere" and the income tax/ATO wording match the page. The advice line is present. 1,224 characters including the link, one link, 3 hashtags, UTM tags correct, Australian English, no banned words.
+- Owner escalation (blocks this post; worse than at the last review): the calculator's "Get the toolkit" button and three "See inside →" cards go to live product pages with "BUY NOW · A$79", "BUY NOW · A$29" (Cashflow Control, Quote & Invoice Builder) and "BUY NOW · A$39" ("SOLO Revenue Rescue DIY Kit", which isn't in the brand file's planned range). The bundle page says "A$79 instead of A$199 bought separately" and "You save A$120". That is a was/now saving with no real prior selling price, which is an ACL risk while the shop says "DIGITAL PRODUCTS ARE NOT ON SALE YET". The calculator FAQ also promotes "SOLO Cashflow Control helps you plan the set-aside". → Owner to take the product pages and buy buttons down, or remove the links from the calculator, and remove the A$199/"You save" comparison unless there was a real prior price.
+- Verified: https://thesoloserviceprovider.com.au/rate-calculator.html?utm_source=linkedin&utm_medium=social&utm_campaign=solo-rate-calculator (200), https://thesoloserviceprovider.com.au/rate-calculator.js (200), https://thesoloserviceprovider.com.au/shop/ (200), /shop/solo-complete-toolkit-bundle.html, /shop/solo-cashflow-control.html, /shop/solo-quote-invoice-builder.html, /shop/solo-revenue-rescue-kit.html (all 200), marketing/brands/solo.md.

@@ -12,7 +12,7 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - marketing/calendar/2026-12-solo.md
-status: draft
+status: needs-changes
 ---
 
 # Three things I wouldn't paste into an AI chat
@@ -27,7 +27,7 @@ A simple rule: if you wouldn't be comfortable showing it to a stranger, don't pa
 
 AI can still help with admin that has none of this in it, like a template for a polite payment reminder.
 
-If you want to look at what's out there, the AI Download Centre is a free directory of AI tools and models, with links to their official download sources.
+If you want to look at what's out there, the AI Download Centre is a free directory of AI tools and models. Hand-picked listings link to the official source.
 
 https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-paste-privacy#apps
 
@@ -43,3 +43,11 @@ https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm
 - Conflicts: none
 - Placeholders: none
 - Link: the #apps fragment sits after the UTM query string so the tags still register.
+
+## Review: 2026-11-16
+Status: NEEDS CHANGES
+- The link lands on the wrong section. On the live homepage, `#apps` is the "SOLO AI. BUILT FOR WHAT'S NEXT." block ("IN THE WORKS · COMING SOON"), which lists "an AI Download Centre" among features that "are in development and are not available". So the post's call to look at the live directory takes readers to text saying it isn't available. The live AI Download Centre card ("LIVE DIRECTORY … OPEN THE AI DOWNLOAD CENTRE →") is under `#projects`. → In both the front-matter `link:` and the published link, change `#apps` to `#projects`: `https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-paste-privacy#projects`. Also update the calendar row's link target.
+- Small fix made: "with links to their official download sources" → "Hand-picked listings link to the official source." This matches the live AI Download Center ("Hand-picked listings link to the official source, community model cards link to Hugging Face") and the `ai-download-center.md` rule not to imply every link is official.
+- Checked and OK: the AI workflow is general, names no tool and makes no safety claim about any tool. The privacy check is present. No client data is used. First person, Australian English, no banned words, one link at the end, 2 hashtags, UTM tags in the right order before the fragment. Length is under 1,000 characters including the link (limit 3,000). No advice disclaimer is needed, since these are general data-handling habits, not tax, financial or legal advice.
+- Owner escalation (post can go out once the anchor is fixed): the homepage `#apps` copy calls the AI Download Centre "in development", which contradicts "LIVE DIRECTORY". The homepage og:description says toolkits and "the SOLO AI app for Android" are offered. See the 2026-12-01 review for the full list.
+- Verified: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-paste-privacy#apps (200; anchor content checked), https://joshuawayzwright.github.io/ai-download-center/ (200), https://thesoloserviceprovider.com.au/shop/ (200), marketing/brands/solo.md, marketing/brands/ai-download-center.md, marketing/compliance.md, marketing/channels.md.

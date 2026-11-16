@@ -1,7 +1,7 @@
 ---
 brand: solo
 channel: linkedin
-calendar_id: adhoc
+calendar_id: solo-2026-12-02
 campaign: rate-calculator
 publish_on: 2026-12-02
 link: https://thesoloserviceprovider.com.au/rate-calculator.html?utm_source=linkedin&utm_medium=social&utm_campaign=solo-rate-calculator
@@ -9,12 +9,12 @@ sources:
   - https://thesoloserviceprovider.com.au/rate-calculator.html
   - https://thesoloserviceprovider.com.au/rate-calculator.js
   - marketing/brands/solo.md
-status: needs-changes
+status: draft
 ---
 
 # The hours nobody pays you for
 
-Want to take home $80,000 a year? $80,000 ÷ 52 weeks ÷ 38 hours says about $40 an hour.
+Want to earn $80,000 a year before tax? $80,000 ÷ 52 weeks ÷ 38 hours says about $40 an hour.
 
 For a sole trader, that sum leaves out three things.
 
@@ -47,7 +47,8 @@ Work out your rate: https://thesoloserviceprovider.com.au/rate-calculator.html?u
   - "No sign-up", "your numbers are never sent anywhere", "runs in your browser" → page hero and FAQ "Do you keep my numbers?"
   - Doesn't include income tax; ask the ATO or your accountant → page FAQ "Does this include income tax?"
   - Calculator is free and safe to promote → marketing/brands/solo.md status table
-- Placeholders: none
+- Placeholders: [NEEDS OWNER APPROVAL: calculator page shows unapproved A$79 offer]
+- Revision 2026-11-16: hook changed from "take home $80,000" to "earn $80,000 a year before tax" to match the calculator's "Income you want before tax" label (review below). Post now links to a page carrying the unapproved offer, so it can't go out until the owner resolves it.
 - Flag for owner: the live calculator page shows "Get the toolkit → … All ten SOLO toolkits for A$79" and links to product pages, while the live shop (/shop) says "DIGITAL PRODUCTS ARE NOT ON SALE YET" and the brand file says no prices. This post deliberately doesn't mention toolkits or prices, but readers who click will see the A$79 offer. Worth resolving on the site before this goes out.
 - Image: none requested; LinkedIn will use the page's link preview. If an image is wanted, see channels.md (1200×627).
 

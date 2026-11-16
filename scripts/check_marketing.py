@@ -41,7 +41,8 @@ MEDIUM = {
     "video-short": "video", "video-long": "video", "blog": "organic", "gbp": "organic",
 }
 MAX_HASHTAGS = {"linkedin": 3, "x": 2}
-HASHTAG = re.compile(r"(?<![\w&/])#[A-Za-z][\w]*")
+# A hashtag starts with a letter; colour codes such as #D4AF37 or #fff are not hashtags.
+HASHTAG = re.compile(r"(?<![\w&/])#(?!(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})\b)[A-Za-z]\w*")
 SOLO_DOMAIN = "thesoloserviceprovider.com.au"
 # Claims WrightWayz must never make (see marketing/brands/wrightwayz.md).
 WRIGHTWAYZ_BANNED = re.compile(
@@ -125,6 +126,7 @@ def check_draft(path: Path, errors: list[str]) -> None:
             errors.append(f"{rel}: link should carry utm_campaign={brand}-<campaign>")
 
     body = text.split("## Writer notes")[0].split("## Review:")[0]
+    body = re.split(r"^\W*Image brief", body, flags=re.MULTILINE | re.IGNORECASE)[0]
     body = body.split("\n---", 2)[-1]  # drop front matter
     body = re.sub(r"^#+ .*$", "", body, flags=re.MULTILINE)  # markdown headings aren't hashtags
     limit = MAX_HASHTAGS.get(channel)

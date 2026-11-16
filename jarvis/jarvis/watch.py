@@ -39,6 +39,8 @@ class Watcher:
         self.state: dict[tuple[str, object], str] = {}
         self.default_branches: dict[str, str] = {}
         self.errors: list[str] = []
+        # The latest completed run of each workflow, for the web dashboard.
+        self.runs: dict[tuple[str, object], dict[str, Any]] = {}
 
     def targets(self) -> list[str]:
         found = list(self.repos)
@@ -77,6 +79,11 @@ class Watcher:
                 status = "failing" if failing else "passing"
                 previous = self.state.get(key)
                 self.state[key] = status
+                self.runs[key] = {
+                    "workflow": str(run.get("name")), "status": status, "conclusion": run.get("conclusion"),
+                    "run_id": run.get("id"), "url": run.get("html_url"), "commit": str(run.get("head_sha"))[:7],
+                    "updated_at": run.get("updated_at") or run.get("created_at"),
+                }
                 if status == previous or (previous is None and not failing):
                     continue
                 alerts.append(Alert(

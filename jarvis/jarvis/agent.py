@@ -16,6 +16,7 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 COMPACTION_BETA = "compact-2026-01-12"
 DEFAULT_MAX_STEPS = 60
 AUTO_MAX_STEPS = 250
+USAGE_FIELDS = ("requests", "input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
 
 SYSTEM_PROMPT = """You are Jarvis, a sharp, calm engineering agent. You work with code on GitHub, and you can research, change, test and ship it.
 
@@ -72,6 +73,8 @@ class Jarvis:
     on_result: Callable[[str, str, bool], None] = lambda name, content, is_error: None
     mcp: Any = None  # an MCPManager, when MCP servers are configured
     messages: list[dict[str, Any]] = field(default_factory=list)
+    # Token use across the session, shown on the web dashboard.
+    usage: dict[str, int] = field(default_factory=lambda: dict.fromkeys(USAGE_FIELDS, 0))
 
     def __post_init__(self) -> None:
         if self.client is None:
@@ -108,7 +111,16 @@ class Jarvis:
             for event in stream:
                 if event.type == "text":
                     self.on_delta(event.text)
-            return stream.get_final_message()
+            message = stream.get_final_message()
+        self._add_usage(getattr(message, "usage", None))
+        return message
+
+    def _add_usage(self, usage: Any) -> None:
+        self.usage["requests"] = self.usage.get("requests", 0) + 1
+        for name in USAGE_FIELDS[1:]:
+            value = getattr(usage, name, None)
+            if isinstance(value, int):
+                self.usage[name] = self.usage.get(name, 0) + value
 
     def ask(self, prompt: str) -> str:
         """Send one user turn and run tools until Claude finishes. Returns the final text."""

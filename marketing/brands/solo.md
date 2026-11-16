@@ -75,7 +75,7 @@ Australian sole traders and small service businesses: tradies, cleaners, handyme
 - Palette: charcoal `#0A0A0A`, steel `#8A8F98`, burnished gold `#D4AF37`, electric blue `#0087FF`.
 - Type: Montra Bold for headlines, Rajdhani Semibold for subheadings, Inter Regular for body text.
 - The business mark is the gold and steel angular-S emblem. SOLO AI has its own hooded guardian emblem. **Never swap them**, and never use a Gemini-like icon for SOLO AI.
-- Approved assets are in `ai-download-center/powerhouse-website/assets/approved-stage/`. The crops are small (business emblem 285×282, SOLO AI emblem 349×306), so don't upscale them for large formats.
+- Approved assets are in `ai-download-center/powerhouse-website/assets/approved-stage/`. Business emblem: `business-emblem.png` (285×282). SOLO AI emblem: `solo-ai-emblem.png`. Watermark: `watermark-business.png`. Banner: `banner-approved.png`. Social glyphs: `social-<platform>.png`. The crops are small (business emblem 285×282, SOLO AI emblem 349×306), so don't upscale them for large formats.
 - No founder photo in SOLO marketing unless the owner approves one.
 
 ## Hard rules

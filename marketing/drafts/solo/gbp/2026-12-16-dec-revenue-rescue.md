@@ -34,7 +34,7 @@ The Solo Service Provider, Gold Coast
 
 Image brief
 - Purpose: GBP post image for a Gold Coast local post about turning website visitors into paid jobs. Simple, calm, no results implied.
-- Approved asset(s) to use: business emblem (gold and steel angular-S) from ai-download-center/powerhouse-website/assets/approved-stage/ [NEEDS ASSET: confirm the exact business emblem filename; the folder isn't in this workspace]. Don't redraw, recolour or upscale it (the crop is 285x282, so keep it small).
+- Approved asset(s) to use: business emblem (gold and steel angular-S) from ai-download-center/powerhouse-website/assets/approved-stage/ business emblem confirmed: `ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png` (285×282, confirmed 16 Nov 2026). Don't redraw, recolour or upscale it (the crop is 285x282, so keep it small).
 - Palette: charcoal #0A0A0A background, steel #8A8F98 secondary text, burnished gold #D4AF37 accent, electric blue #0087FF for one highlight line only
 - Text on image: Visitors, but no enquiries?
 - Sizes: 1200x627 (link/landscape). Check GBP's current image requirements before upload.
@@ -43,4 +43,4 @@ Image brief
 ## Writer notes
 - Facts used: Revenue Rescue is fixed-scope, delivered remotely across Australia, client work is reviewed and edited by a person, offers a 15-minute fit call, and gives no revenue or ranking guarantee, with results depending on traffic, demand and implementation → https://thesoloserviceprovider.com.au/revenue-rescue.html (read 16 Nov 2026). Three leak types (unclear offer, proof too late, quiet enquiries) → same page. Closed Thu 24 Dec 2026, back Mon 4 Jan 2027 → calendar Owner decisions (16 Nov 2026). Gold Coast based → brand file. No worked-example sums.
 - Conflicts: the live Revenue Rescue page lists prices and Stripe buy buttons, but the brand file has no approved prices. No price is quoted, and the CTA is the fit call, not a purchase. The post links to a page that shows prices, so the owner should confirm that is acceptable (calendar item 5). Live page and brand file otherwise agree.
-- Placeholders: [NEEDS ASSET: confirm business emblem filename in approved-stage/]. Body is about 1,150 characters including the link, under the 1,500 limit.
+- Placeholders: business emblem confirmed: `ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png` (285×282, confirmed 16 Nov 2026). Body is about 1,150 characters including the link, under the 1,500 limit.

@@ -102,6 +102,39 @@ Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call
 
 > **Run it somewhere disposable.** Autonomous mode runs commands from repositories it pulls, including their install scripts and tests, without asking. Use a container, VM or cloud dev box rather than your main machine, and a GitHub token limited to the repositories you want it to change.
 
+## Team mode: Jarvis and six specialists
+
+With `--team`, Jarvis becomes the chief of a seven-agent crew. It plans, hands work to six specialists, checks what they report and tells you the outcome. Each specialist is its own Claude agent with its own instructions and a restricted set of tools.
+
+| Agent | Role | Tools | Runs |
+|---|---|---|---|
+| **Jarvis** (chief) | Plans, delegates, checks reports, remembers, reports to you | Read-only GitHub and local tools, CI status, memory, `delegate` | |
+| **Scout** | Research: prior art across GitHub, library docs, license checks | Remote GitHub search and reads, read-only MCP tools | In parallel |
+| **Architect** | Design: reads the target repository and writes a file-by-file plan with a test plan | Remote and local reads | In parallel |
+| **Medic** | CI and operations: diagnoses failing builds and repository health | `github_activity`, `get_ci_failure`, reads | In parallel |
+| **Forge** | Build: edits code, installs dependencies, builds and runs tests | Reads, `write_file`, `edit_file`, `run_command` | One at a time |
+| **Sentinel** | QA and security: reviews the diff, runs tests and linters, ends with `VERDICT: PASS` or `FAIL` | Reads, test edits, `run_command`, all MCP tools (e.g. a browser) | One at a time |
+| **Herald** | Ship: updates docs, commits on a feature branch, opens the draft PR | Reads, docs edits, `commit_changes`, `push_and_open_pr` | One at a time |
+
+```bash
+jarvis --team                                    # interactive; /team shows the crew and the quality gate
+jarvis --team --auto "Add rate limiting to acme/api"
+jarvis --team --watch --fix                      # the crew fixes broken builds
+export JARVIS_TEAM=1                             # make team mode the default
+```
+
+How the crew works:
+
+- **Delegation.** Jarvis calls `delegate(agent, task)` with everything the specialist needs, including findings from the others. Specialists don't see each other's reports unless Jarvis passes them on.
+- **Parallel recon.** When Jarvis delegates to several of Scout, Architect and Medic in one step, they run at the same time. Forge, Sentinel and Herald change things, so they run one at a time.
+- **Memory per specialist.** Each specialist keeps its conversation across assignments in a session, so "now fix issue 2" works. Jarvis can pass `fresh: true` to start one over; `/reset` clears everyone.
+- **Quality gate, enforced in code.** After Forge changes code, Herald's `commit_changes` and `push_and_open_pr` are refused until Sentinel's report ends with `VERDICT: PASS`. On `FAIL`, Jarvis sends the issues back to Forge and verifies again, up to three rounds.
+- **Separation of duties.** Jarvis can't edit, run commands or ship in team mode, and every specialist is limited to its own tools: a call outside them is refused.
+- **Approvals.** Without `--yes` or `--auto`, each write, command and push still asks you, labelled with the specialist that wants it (`[Forge] Run in acme/api: pytest`). Approval prompts never overlap.
+- **Visibility.** Specialists' tool calls appear in the terminal, web page and run log, prefixed with their name (`Scout ▸ search_github_code ...`).
+
+Every specialist uses Jarvis's model (`--model`) at an effort level that fits its role: `medium` for Scout, Medic and Herald, `high` for the rest. A team run makes more API calls than a solo run, because each specialist reads the code it works on.
+
 ## Plug in tools from GitHub (MCP)
 
 Jarvis can use any [Model Context Protocol](https://modelcontextprotocol.io) server, local or hosted: the open-source tool ecosystem on GitHub. That includes browsers, documentation lookup, databases, Slack, Sentry, Figma, cloud consoles and thousands more. It reads the standard `mcpServers` config used by Claude Desktop, Cursor and most server READMEs, so you can paste a server's documented config in as-is.
@@ -205,7 +238,7 @@ Jarvis keeps long-term notes in `~/.jarvis/memory.md`: your preferences, your re
 ## Usage
 
 ```bash
-jarvis                                   # interactive (/reset, /memory, /tools, /exit)
+jarvis                                   # interactive (/reset, /memory, /tools, /team, /exit)
 jarvis "what changed in octocat/Hello-World this month?"   # one question, then exit
 jarvis --yes "pull acme/api and run its tests"             # auto-approve writes and commands
 jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
@@ -218,6 +251,7 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--effort` | `high` | Reasoning depth: `low` to `max` |
 | `-y`, `--yes` | off | Approve edits, commands, commits and pushes without asking |
 | `--auto` | off | Autonomous mode (implies `--yes`) |
+| `--team`, `JARVIS_TEAM=1` | off | Team mode: Jarvis leads six specialist agents |
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--brief [OWNER]` | | Morning briefing across your repositories |
@@ -287,6 +321,7 @@ Each spoken reply is capped at about 1,500 characters, which also limits ElevenL
 ## How it works
 
 - **Agent loop** (`jarvis/agent.py`): a manual tool-use loop on the Messages API, with adaptive thinking, prompt caching of the conversation prefix, and server-side refusal fallbacks (`fallbacks: "default"`). All tool results for one turn go back in a single message. The loop stops after 40 steps.
+- **Team** (`jarvis/team.py`): the six specialist roles, their prompts and tool allowlists, parallel delegation on a thread pool, and the quality gate, applied as middleware on every specialist tool call.
 - **Tools** (`jarvis/tools.py`): every tool input is checked against its schema before it runs. File paths are resolved and confined to the repository, and writes into `.git` are refused. Output is capped so large files and searches don't flood the context.
 - **Wake word** (`jarvis/wake.py`): openWakeWord scores each 80 ms microphone frame for "hey Jarvis". A loudness-based end-of-speech detector, calibrated to the room's background noise, decides when you have finished talking.
 - **Voice** (`jarvis/voice.py`): push-to-talk recording with `sounddevice`, local transcription with faster-whisper, and speech output through pyttsx3 or ElevenLabs. In voice mode the system prompt asks Claude for short, speakable replies and to allow for transcription errors.

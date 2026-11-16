@@ -9,6 +9,7 @@ from typing import Any
 
 import anthropic
 
+from . import team as crew
 from .tools import TOOL_SCHEMAS, ToolContext, execute
 
 DEFAULT_MODEL = "claude-opus-5-5"
@@ -72,20 +73,43 @@ class Jarvis:
     on_result: Callable[[str, str, bool], None] = lambda name, content, is_error: None
     mcp: Any = None  # an MCPManager, when MCP servers are configured
     messages: list[dict[str, Any]] = field(default_factory=list)
+    # Team mode: Jarvis is the chief and delegates to six specialists (see team.py).
+    team_mode: bool = False
+    # Used by specialists: their own instructions and tool allowlist instead of Jarvis's.
+    persona: str | None = None
+    tool_names: frozenset[str] | None = None
+    mcp_read_only: bool = False  # offer only the MCP tools their servers mark read-only
+    # Wraps every built-in and MCP tool call: middleware(name, run) -> run() or a refusal.
+    middleware: Callable[[str, Callable[[], tuple[Any, bool]]], tuple[Any, bool]] | None = None
 
     def __post_init__(self) -> None:
         if self.client is None:
             self.client = anthropic.Anthropic()
         # Fixed for the session, so the cached prompt prefix stays valid; new notes appear next session.
         self._memory_section = self.ctx.memory.prompt_section() if self.ctx.memory else ""
-        self._tools = TOOL_SCHEMAS + (self.mcp.schemas() if self.mcp else [])
+        if self.team_mode and self.tool_names is None:
+            self.tool_names = crew.CHIEF_TOOLS
+        builtin = [s for s in TOOL_SCHEMAS if self.tool_names is None or s["name"] in self.tool_names]
+        mcp_tools = self.mcp.schemas() if self.mcp else []
+        if self.mcp_read_only:
+            mcp_tools = [s for s in mcp_tools if self.mcp.is_read_only(s["name"])]
+        self._allowed = {str(s["name"]) for s in builtin + mcp_tools}
+        self.team = crew.Team(self) if self.team_mode else None
+        self._tools = builtin + mcp_tools + ([crew.DELEGATE_SCHEMA] if self.team else [])
 
     def reset(self) -> None:
         self.messages.clear()
+        if self.team:
+            self.team.reset()
 
     def system_prompt(self) -> str:
-        return (SYSTEM_PROMPT + (AUTO_PROMPT if self.autonomous else "")
-                + (VOICE_PROMPT if self.voice_mode else "") + self._memory_section)
+        if self.persona is not None:
+            return self.persona + self._memory_section
+        if self.team:
+            mode = crew.TEAM_PROMPT.format(roster=crew.roster()) + (crew.TEAM_AUTO_PROMPT if self.autonomous else "")
+        else:
+            mode = AUTO_PROMPT if self.autonomous else ""
+        return SYSTEM_PROMPT + mode + (VOICE_PROMPT if self.voice_mode else "") + self._memory_section
 
     def _request(self) -> Any:
         """Stream one model response: text deltas go to on_delta as they arrive."""
@@ -137,12 +161,10 @@ class Jarvis:
             if response.stop_reason != "tool_use":
                 return final_text
 
+            calls = [b for b in response.content if b.type == "tool_use"]
+            outcomes = self._run_calls(calls)
             results = []
-            for block in response.content:
-                if block.type != "tool_use":
-                    continue
-                self.on_tool(f"{block.name} {_preview(block.input)}")
-                content, is_error = self._dispatch(block.name, block.input)
+            for block, (content, is_error) in zip(calls, outcomes):
                 self.on_result(block.name, content, is_error)
                 results.append(
                     {"type": "tool_result", "tool_use_id": block.id, "content": content, "is_error": is_error}
@@ -154,7 +176,31 @@ class Jarvis:
         return final_text
 
 
-    def _dispatch(self, name: str, tool_input: Any) -> tuple[str, bool]:
+    def _run_calls(self, calls: list[Any]) -> list[tuple[Any, bool]]:
+        """Run one turn's tool calls in order; the chief's delegate calls go to the team together."""
+        done: dict[int, tuple[Any, bool]] = {}
+        if self.team is not None:
+            delegated = [(i, b) for i, b in enumerate(calls) if b.name == "delegate"]
+            for _, block in delegated:
+                self.on_tool(f"delegate {_preview(block.input)}")
+            reports = self.team.run_many([(b.name, b.input) for _, b in delegated])
+            done = {i: report for (i, _), report in zip(delegated, reports)}
+        outcomes = []
+        for i, block in enumerate(calls):
+            if i not in done:
+                self.on_tool(f"{block.name} {_preview(block.input)}")
+                done[i] = self._dispatch(block.name, block.input)
+            outcomes.append(done[i])
+        return outcomes
+
+    def _dispatch(self, name: str, tool_input: Any) -> tuple[Any, bool]:
+        if name not in self._allowed:
+            return f"Error: tool '{name}' is not available to this agent.", True
+        if self.middleware is not None:
+            return self.middleware(name, lambda: self._call(name, tool_input))
+        return self._call(name, tool_input)
+
+    def _call(self, name: str, tool_input: Any) -> tuple[Any, bool]:
         if self.mcp is not None and self.mcp.handles(name):
             if not isinstance(tool_input, dict):
                 return "Error: tool input must be a JSON object.", True

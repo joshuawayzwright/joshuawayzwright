@@ -173,7 +173,7 @@ def listen(io: VoiceIO) -> str:
 
 
 def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callable[[str], str] = input) -> int:
-    commands = "/reset, /memory, /tools, /exit" + (", /mute, /unmute" if io else "")
+    commands = "/reset, /memory, /tools, " + ("/team, " if jarvis.team else "") + "/exit" + (", /mute, /unmute" if io else "")
     print(f"{CYAN}Jarvis online.{RESET} Workspace: {workspace}. Commands: {commands}")
     if io:
         print("Voice mode: press Enter to talk, press Enter again to stop. You can still type messages.")
@@ -207,6 +207,9 @@ def chat_loop(jarvis: Jarvis, io: VoiceIO | None, workspace: Path, read: Callabl
             continue
         if prompt == "/tools":
             print(f"{len(jarvis._tools)} tools. MCP servers: {jarvis.mcp.summary() if jarvis.mcp else 'none'}")
+            continue
+        if prompt == "/team":
+            print(jarvis.team.status() if jarvis.team else "Team mode is off. Start Jarvis with --team.")
             continue
         if prompt == "/reset":
             jarvis.reset()
@@ -288,6 +291,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default=os.environ.get("JARVIS_MODEL", DEFAULT_MODEL))
     parser.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
+    parser.add_argument("--team", action="store_true", default=os.environ.get("JARVIS_TEAM") == "1", help="Team mode: Jarvis becomes the chief of a seven-agent crew and delegates to six specialists (Scout, Architect, Medic, Forge, Sentinel, Herald). Also JARVIS_TEAM=1.")
     parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
     parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
     parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account.")
@@ -488,12 +492,15 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         effort=args.effort,
         voice_mode=io is not None,
         autonomous=args.auto,
+        team_mode=args.team,
         max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
         on_text=show_text,
         on_delta=show_delta,
         on_tool=show_tool,
         on_result=log.result if log else (lambda name, content, is_error: None),
     )
+    if jarvis.team:
+        print(f"{CYAN}Team mode:{RESET} Jarvis leads Scout, Architect, Medic, Forge, Sentinel and Herald. /team shows the crew.")
     if args.auto:
         print(f"{RED}Autonomous mode:{RESET} Jarvis will edit, run commands, commit and open draft PRs without asking. "
               f"Destructive commands are blocked, and it never pushes the default branch or merges. Ctrl+C stops it.")

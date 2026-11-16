@@ -13,3 +13,7 @@ Thumbs.db
 # Logs/temp
 *.log
 *.tmp
+
+# Raw analytics exports may contain personal data; commit reports only
+marketing/data/*/*
+!marketing/data/*/.gitkeep

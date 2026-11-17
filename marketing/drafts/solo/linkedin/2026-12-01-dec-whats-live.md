@@ -8,11 +8,13 @@ link: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=soci
 sources:
   - https://thesoloserviceprovider.com.au/
   - https://thesoloserviceprovider.com.au/shop/
+  - https://thesoloserviceprovider.com.au/shop/products.json
+  - https://joshuawayzwright.github.io/ai-download-center/
   - marketing/brands/solo.md
   - marketing/channels.md
   - marketing/compliance.md
   - marketing/calendar/2026-12-solo.md
-status: needs-changes
+status: draft
 ---
 
 # What's live and what isn't at SOLO this December
@@ -22,13 +24,13 @@ What's live at SOLO this December, and what isn't.
 I'd rather you hear it from me than guess from the website.
 
 Live now:
+- Digital toolkits: 16 products for sole traders, covering quotes and invoices, cashflow, bookings and more, plus trade editions for cleaners, handyman, lawn and gardening, and mobile dog grooming. One-off prices from A$9 to A$79, no GST charged, with a 30-day money-back guarantee alongside your consumer rights.
 - AI Download Centre: a free, searchable directory of AI tools and models. Hand-picked listings link to the official source.
 - A free hourly rate calculator for sole traders.
 - Revenue Rescue: a service that helps local businesses turn website visitors into paid jobs.
 - Free pricing tips by email.
 
 In development:
-- The ten digital toolkits. Nothing is on sale yet.
 - SOLO AI. It isn't available as a public service, and no launch date has been announced.
 
 I'll keep sharing honest progress, including the parts that aren't finished.
@@ -38,17 +40,24 @@ See what's live: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_
 #BuildInPublic #SoleTrader
 
 ## Writer notes
-- Length: 811 characters including link and hashtags (ideal 1,300 or fewer, limit 3,000). One link, 2 hashtags.
+- Length: 1,080 characters excluding the title (ideal 1,300 or fewer, limit 3,000). One link, 2 hashtags.
 - Facts used:
-  - AI Download Centre is a live, free, searchable directory of AI tools and models with links to official download sources -> live homepage ("LIVE DIRECTORY"); marketing/brands/solo.md status table
-  - Free hourly rate calculator is live -> marketing/brands/solo.md; calculator linked from homepage sign-up blurb
-  - Revenue Rescue helps local businesses turn website visitors into paid jobs; no result promises -> marketing/brands/solo.md; homepage mentions Revenue Rescue services
-  - Free pricing tips by email -> live homepage sign-up and shop page
-  - Toolkits in development, nothing on sale -> live shop ("DIGITAL PRODUCTS ARE NOT ON SALE YET"); marketing/brands/solo.md
-  - SOLO AI not available as a public service, no launch date announced -> live homepage; marketing/brands/solo.md
-  - "Ten digital toolkits" -> marketing/brands/solo.md planned product range (ten products, in development)
-- Conflicts: solo-ai.html reportedly says "Android early access" (calendar Needs owner decision 4). Per the owner decision of 16 Nov 2026, SOLO AI is described as in development only, with no mention of testers or early access. Profile README says 16 live toolkits; the live shop says none are on sale, so the draft follows the shop.
+  - Toolkits available: shop open, 16 products -> https://thesoloserviceprovider.com.au/shop/products.json (`salesOpen: true`, 16 products, re-checked 17 Nov 2026); marketing/brands/solo.md (owner opened sales 16 Nov, prices approved 17 Nov)
+  - Product areas (quotes and invoices, cashflow, bookings; trade editions for cleaners, handyman, lawn and gardening, mobile dog grooming) -> product names in the brand-file table and products.json
+  - "From A$9 to A$79": lowest and highest prices in the approved table (SOLO AI Workflow Starter Pack A$9, SOLO Complete Toolkit A$79); derived from the table. All 16 products.json priceLabels match the table. No product is singled out.
+  - No GST, one-off, 30-day money-back guarantee alongside consumer rights -> marketing/brands/solo.md; live shop page
+  - AI Download Centre is a free, searchable directory; "Hand-picked listings link to the official source" -> https://joshuawayzwright.github.io/ai-download-center/ (live, 200). The homepage card says "links to their official download sources"; not repeated.
+  - Free hourly rate calculator live -> marketing/brands/solo.md; https://thesoloserviceprovider.com.au/rate-calculator.html (200)
+  - Revenue Rescue described only, no prices, no result promises, not linked -> marketing/brands/solo.md
+  - Free pricing tips by email -> live homepage and shop sign-up
+  - SOLO AI in development only, no launch date -> live homepage ("No launch date has been announced"); owner decision 16 Nov
+- Conflicts:
+  - Homepage meta description and og:description (used by LinkedIn link previews) still say "Toolkits for quotes, cashflow and bookings, a free rate calculator, Revenue Rescue website help and the SOLO AI app for Android". "SOLO AI app for Android" implies SOLO AI is available, which contradicts "in development only". The post doesn't repeat it; owner should reword the meta before publishing since the preview will show it.
+  - Homepage `#apps` section calls the AI Download Centre "in development" while `#projects` says "LIVE DIRECTORY". The post follows the brand file (live) and links only to the homepage root.
+  - Live shop and calculator pages show a "Launch offer: 20% off with code LAUNCH20, ends 31 December 2026". It isn't in the brand file and isn't approved, so the post doesn't mention it. Owner to confirm.
+  - `solo-ai.html` says "Android early access" (owner decision: in development only). Not repeated.
 - Placeholders: none
+- Revision 2026-11-17: the toolkits line changed from "in development, nothing on sale" to "live" with approved price range (A$9 to A$79), per the 16 Nov and 17 Nov owner decisions and the latest review. Dropped "ten digital toolkits" as a development item. Link target unchanged and re-checked (200).
 
 ## Review: 2026-11-16
 Status: APPROVED

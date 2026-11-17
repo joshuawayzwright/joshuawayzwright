@@ -11,7 +11,7 @@ sources:
   - https://thesoloserviceprovider.com.au/
   - https://thesoloserviceprovider.com.au/shop/
   - https://thesoloserviceprovider.com.au/revenue-rescue.html
-status: needs-changes
+status: draft
 ---
 
 # An honest look at where SOLO is at, end of 2026
@@ -19,14 +19,14 @@ status: needs-changes
 Year-end check-in, with no spin: what's live at The Solo Service Provider, and what isn't.
 
 Live now:
+- The shop: 16 digital products for Australian sole traders, from A$9, with a 30-day money-back guarantee. It opened on 16 November.
 - The AI Download Centre, a free, searchable directory of AI tools and models with links to their official download sources.
 - A free hourly rate calculator for sole traders.
 - A pricing-tips email list, with short, practical emails on pricing, quoting and getting paid.
 - Revenue Rescue, a fixed-scope service that helps service businesses turn website visitors into paying customers.
 
-Not ready:
-- The ten digital toolkits. The shop still says they're not on sale yet.
-- SOLO AI. It's in development, and it isn't available as a public service. No launch date has been announced, and I won't invent one.
+Still in development:
+- SOLO AI. It isn't available as a public service. No launch date has been announced, and I won't invent one.
 
 I'd rather show you a short honest list than a long hopeful one. In the new year I'll keep sharing progress, including the parts that aren't finished.
 
@@ -39,11 +39,11 @@ See what's live and what's in development: https://thesoloserviceprovider.com.au
 #BuildInPublic #SoleTrader
 
 ## Writer notes
-- Facts used: AI Download Centre description (free, searchable directory, official download links) → live homepage; availability of calculator, pricing-tips list, Revenue Rescue, toolkits, SOLO AI → brand file table and live pages (shop says "Digital products are not on sale yet"; homepage says SOLO AI is "not available as a public SOLO AI service yet. No launch date has been announced."). Shutdown dates → calendar Owner decisions.
-- Conflicts: none for this post. Known: `solo-ai.html` reportedly mentions early access/testers (calendar item 4); this post says "in development" only per owner decision. README says 16 live toolkits; not repeated.
-- Placeholders: none. I couldn't verify when each item launched, so the post says "live now" rather than "shipped this year" (the title says end of 2026 only). The calculator is mentioned but not linked (its page shows an unapproved A$79 offer: [NEEDS OWNER APPROVAL: calculator page shows unapproved A$79 offer] would apply if it were linked).
-- Scheduling flag: 30 Dec falls inside the shutdown (24 Dec to 4 Jan), and the calendar says posting stops 24 to 29 Dec. Schedule it in advance or move it to Monday 4 Jan 2027 (then drop the "closed until" lines).
-- Length: about 1,200 characters including the link. 2 hashtags.
+- Facts used: shop open since 16 Nov 2026, 16 products, "from A$9" (lowest approved price, the AI Workflow Starter Pack), 30-day money-back guarantee → brand file (17 Nov) and live products.json (`salesOpen: true`, 16 products, lowest priceLabel A$9). AI Download Centre description (free, searchable directory, official download links) → live homepage. Calculator, pricing-tips list, Revenue Rescue availability → brand file table and live pages. SOLO AI "not available as a public SOLO AI service yet. No launch date has been announced." → live homepage; worded as "in development" only per the 16 Nov owner decision. Shutdown dates → calendar Owner decisions.
+- Date and shutdown lines kept as instructed (owner pre-schedules this post before the shutdown; 30 Dec is inside the 24 Dec to 4 Jan closure).
+- No sales numbers or popularity claims; no flagship product. The post doesn't say when other items launched, only that they're live now.
+- Conflicts: the live shop shows a "20% off with code LAUNCH20, ends 31 December 2026" launch offer that isn't in the brand file. Not repeated; owner to confirm. `solo-ai.html` reportedly mentions early access/testers (calendar item 4); not repeated. No service prices quoted and the post doesn't link revenue-rescue.html.
+- Placeholders: none. Calculator is named but not linked. Length about 1247 characters including the link (limit 3,000). 2 hashtags. Link checked 17 Nov 2026 (200).
 
 ## Review: 2026-11-16
 Status: NEEDS CHANGES

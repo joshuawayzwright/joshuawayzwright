@@ -9,7 +9,7 @@ sources:
   - marketing/calendar/2026-12-solo.md
   - marketing/brands/solo.md
   - https://thesoloserviceprovider.com.au/revenue-rescue.html
-status: needs-changes
+status: draft
 ---
 
 # Three places visitors leave a service-business website
@@ -35,10 +35,11 @@ I'm closed from Thursday 24 December and back Monday 4 January 2027, so enquirie
 #SmallBusiness #WebsiteTips
 
 ## Writer notes
-- Facts used: fixed-scope service; conversion diagnosis, replacement website copy, follow-up sequences, 30-day action plan; human-reviewed; scope approved before live-site changes; "No revenue or ranking guarantee"; 15-minute fit call; "Australian service businesses" → live Revenue Rescue page. Three leaks adapted from the page's leak list (offer hard to understand, weak calls to action, enquiries go quiet). Shutdown 24 Dec to Mon 4 Jan 2027 → calendar Owner decisions (16 Nov 2026). The phone test is the author's suggestion, not a statistic.
-- Conflicts: the page lists prices and Stripe buy buttons, but the brand file has no approved prices. No prices are quoted and no purchase is offered; the CTA is the fit check only. Revenue Rescue is described as a service listed on the site, per brand file.
-- Placeholders: none
-- Length: about 1,430 characters including the link, slightly over the 1,300 ideal but well under the 3,000 limit. Trim the phone test or shutdown line if wanted. 2 hashtags.
+- Facts used: fixed-scope service; conversion diagnosis, replacement website copy, follow-up sequences, 30-day action plan; human-reviewed; scope approved before live-site changes; "No revenue or ranking guarantee"; 15-minute fit call; "Australian service businesses" → live Revenue Rescue page (re-fetched 17 Nov 2026; all still match). Three leaks adapted from the page's leak list (offer hard to understand, weak calls to action, enquiries go quiet). Shutdown 24 Dec to Mon 4 Jan 2027 → calendar Owner decisions (16 Nov 2026). The phone test is the author's suggestion, not a statistic.
+- Text unchanged from the reviewed version (reviewer: no text changes needed). No service prices are quoted and no purchase is offered; the CTA is the fit check only. Revenue Rescue is described as a service, per brand file. The A$39 DIY Kit isn't mentioned (it is approved in the brand file now, but not needed here).
+- Conflicts: the Revenue Rescue page shows service package prices (A$395, A$1,250, from A$2,500) with Stripe "BUY SECURELY" buttons. Those service prices are not approved (brand file, calendar 17 Nov defaults), so they are not repeated. The page's A$39 DIY Kit price is now approved and matches the brand file.
+- Placeholders: [NEEDS OWNER APPROVAL: Revenue Rescue service prices]. This blocks approval until the owner approves the prices or removes them from the linked page.
+- Length: about 1,430 characters including the link, over the 1,300 ideal but well under the 3,000 limit. Trim the phone test or shutdown line if wanted. 2 hashtags. Link checked 17 Nov 2026 (200).
 - Check before posting: confirm the 0452 number and email on the page still match; neither is used in the post.
 
 ## Review: 2026-11-16

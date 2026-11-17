@@ -4,15 +4,15 @@ channel: linkedin
 calendar_id: solo-2026-12-03
 campaign: dec-first-ai-job
 publish_on: 2026-12-03
-link: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-first-ai-job#apps
+link: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-first-ai-job#projects
 sources:
   - https://thesoloserviceprovider.com.au/
-  - https://thesoloserviceprovider.com.au/shop/
+  - https://joshuawayzwright.github.io/ai-download-center/
   - marketing/brands/solo.md
   - marketing/channels.md
   - marketing/compliance.md
   - marketing/calendar/2026-12-solo.md
-status: needs-changes
+status: draft
 ---
 
 # Which admin job should you hand to AI first?
@@ -31,19 +31,23 @@ Before you paste anything into an AI chat, ask: would my client be fine with thi
 
 If you're looking for tools to try, the AI Download Centre is a free directory of AI tools and models. Hand-picked listings link to the official source.
 
-Browse it here: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-first-ai-job#apps
+Browse it here: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-first-ai-job#projects
 
 #SoleTrader #PracticalAI
 
 ## Writer notes
-- Length: 995 characters including link and hashtags (ideal 1,300 or fewer, limit 3,000). One link, 2 hashtags.
+- Length: about 1,000 characters including link and hashtags (ideal 1,300 or fewer, limit 3,000). One link, 2 hashtags.
 - Facts used:
-  - AI Download Centre is a free directory of AI tools and models with links to official download sources -> live homepage; marketing/brands/solo.md
+  - AI Download Centre is a free, searchable directory of AI tools and models -> live homepage `#projects` card ("LIVE DIRECTORY"); https://joshuawayzwright.github.io/ai-download-center/ (200); marketing/brands/solo.md
+  - "Hand-picked listings link to the official source" -> the Download Centre site's own wording (re-fetched 17 Nov 2026). The homepage card says "links to their official download sources", which overstates it, so I haven't used it.
   - Pillar approach (privacy check, starter job with no client details, quote follow-up template) -> calendar row solo-2026-12-03; marketing/brands/solo.md pillar "Safe, specific AI workflows with privacy checks"
   - The four-step workflow is general advice from the calendar brief, not a sourced claim about any tool. No tool is named or claimed to be safe.
-- Conflicts: none
+- Conflicts:
+  - Homepage `#apps` section lists "an AI Download Centre" among features "in development and ... not available", while `#projects` labels it "LIVE DIRECTORY". Followed the brand file and `#projects`. Owner should fix the homepage copy.
+  - Homepage meta/og:description (link preview) mentions "the SOLO AI app for Android", which implies availability. Not repeated in the post.
 - Placeholders: none
-- Link: the #apps fragment sits after the UTM query string so the tags still register.
+- Link: `#projects` (not `#apps`) per the 16 Nov review and brand file. The fragment sits after the UTM query string so the tags still register. Live check 17 Nov 2026: 200, and `id="projects"` section contains the AI Download Centre card.
+- Revision 2026-11-17: link changed from `#apps` to `#projects` in both front matter and body. The calendar row still lists `#apps`; the orchestrator should update it.
 
 ## Review: 2026-11-16
 Status: NEEDS CHANGES

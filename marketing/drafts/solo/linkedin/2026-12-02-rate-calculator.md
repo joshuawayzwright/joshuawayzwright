@@ -8,8 +8,10 @@ link: https://thesoloserviceprovider.com.au/rate-calculator.html?utm_source=link
 sources:
   - https://thesoloserviceprovider.com.au/rate-calculator.html
   - https://thesoloserviceprovider.com.au/rate-calculator.js
+  - https://thesoloserviceprovider.com.au/shop/
   - marketing/brands/solo.md
-status: needs-changes
+  - marketing/calendar/2026-12-solo.md
+status: draft
 ---
 
 # The hours nobody pays you for
@@ -18,7 +20,7 @@ Want to earn $80,000 a year before tax? $80,000 ÷ 52 weeks ÷ 38 hours says abo
 
 For a sole trader, that sum leaves out three things.
 
-1. Super. No employer is paying it for you. Put away 12% and you need $89,600.
+1. Super. No employer is paying it for you. If you put away 12% (my example figure, so check the current rate with the ATO), you need $89,600.
 2. Business costs. Tools, vehicle, fuel, phone, insurance, software. Add $12,000 and you're at $101,600.
 3. Hours you can't bill. Quoting, travel, admin, invoicing, finding work. Take 6 weeks off and bill 60% of a 38-hour week: about 1,049 billable hours, not 1,976.
 
@@ -37,19 +39,25 @@ Work out your rate: https://thesoloserviceprovider.com.au/rate-calculator.html?u
 #SoleTrader #SmallBusinessAustralia #Pricing
 
 ## Writer notes
+- Length: about 1,290 characters including link and hashtags (ideal 1,300 or fewer, limit 3,000). One link, 3 hashtags.
 - Facts used:
-  - Example inputs ($80,000 income, 12% super, $12,000 costs, 6 weeks off, 38 hrs/week, 60% billable, 15% buffer) → the calculator's default example numbers (rate-calculator.html form values; DEFAULTS in rate-calculator.js)
-  - Formula: rate = (income × (1 + super%) + costs) ÷ billable hours, plus buffer → rate-calculator.js header comment and calc lines. Outputs reproduced: 1,048.8 billable hrs (shown as 1,049), $101,600 needed, $96.87 break-even, $111.40 rounded up to $112 → what the page shows for the example numbers.
-  - "$40 an hour": $80,000 ÷ (52 × 38) = $40.49. My own comparison sum, not on the page.
-  - "1,976": 52 × 38 hours. My own sum.
-  - "If only 60% of your working time is billable, every billable hour has to cover the other 40% too" → page FAQ "Why is the rate higher than I expected?"
-  - Non-billable activities (quoting, travel, admin, invoicing, finding work), weeks off (holidays, public holidays, sick days), business-cost examples → page form help text
-  - "No sign-up", "your numbers are never sent anywhere", "runs in your browser" → page hero and FAQ "Do you keep my numbers?"
-  - Doesn't include income tax; ask the ATO or your accountant → page FAQ "Does this include income tax?"
-  - Calculator is free and safe to promote → marketing/brands/solo.md status table
-- Placeholders: [NEEDS OWNER APPROVAL: calculator page shows unapproved A$79 offer]
-- Revision 2026-11-16: hook changed from "take home $80,000" to "earn $80,000 a year before tax" to match the calculator's "Income you want before tax" label (review below). Post now links to a page carrying the unapproved offer, so it can't go out until the owner resolves it.
-- Flag for owner: the live calculator page shows "Get the toolkit → … All ten SOLO toolkits for A$79" and links to product pages, while the live shop (/shop) says "DIGITAL PRODUCTS ARE NOT ON SALE YET" and the brand file says no prices. This post deliberately doesn't mention toolkits or prices, but readers who click will see the A$79 offer. Worth resolving on the site before this goes out.
+  - Example inputs ($80,000 income, 12% super, $12,000 costs, 6 weeks off, 38 hrs/week, 60% billable, 15% buffer) -> the calculator's default example numbers (rate-calculator.html form values; DEFAULTS in rate-calculator.js, re-fetched 17 Nov 2026). The page labels super "Your choice: put 0 if you don't plan to", so 12% is presented in the post as my example figure, not the legal rate.
+  - Formula: rate = (income × (1 + super%) + costs) ÷ billable hours, plus buffer -> rate-calculator.js header comment and calc lines. Outputs for the example inputs: 1,048.8 billable hrs (shown as 1,049), $101,600 needed, $96.87 break-even, $111.40 rounded up to $112 (Math.ceil) -> derived, matching the earlier reviews' recomputation.
+  - "$40 an hour": $80,000 ÷ (52 × 38) = $40.49 -> derived.
+  - "1,976": 52 × 38 hours -> derived.
+  - "$89,600": $80,000 × 1.12 -> derived. "$101,600": $89,600 + $12,000 -> derived.
+  - "Nearly three times": 112 ÷ 40.49 = 2.77 -> derived.
+  - "If only 60% of your working time is billable, every billable hour has to cover the other 40% too" -> page FAQ "Why is the rate higher than I expected?"
+  - Non-billable activities, weeks off, business-cost examples -> page form help text
+  - "No sign-up", "your numbers are never sent anywhere" -> page hero (re-fetched 17 Nov)
+  - Doesn't include income tax; ask the ATO or your accountant -> page FAQ "Does this include income tax?"
+  - Calculator is free and safe to promote -> marketing/brands/solo.md status table
+- Conflicts:
+  - The A$79 bundle offer that earlier reviews flagged is no longer on the calculator page; the page CTA (17 Nov) now reads "See the toolkits. Quote, invoice and track cash at this rate. Toolkits from A$9." (A$9 matches the approved table.) The sticky button still goes to the A$79 Complete Toolkit page, which is now approved. The post doesn't mention toolkits or prices.
+  - The calculator CTA and the shop page also show "Launch offer: 20% off everything with code LAUNCH20, ends 31 December 2026". That offer isn't in the brand file or the owner decisions, so I haven't repeated it. Owner should confirm it's approved before this goes out, because readers who click will see it.
+  - The calculator FAQ says "SOLO Cashflow Control helps you plan the set-aside" (product is approved and on sale; not repeated).
+- Placeholders: none. (The earlier A$79 approval placeholder is removed: resolved by the 17 Nov owner decision. The 12% needs-info placeholder isn't used here; 12% is framed as an example per the 17 Nov defaults.)
+- Revision 2026-11-17: removed the A$79 placeholder; reworded the super line to present 12% as the example and point to the ATO for the current rate. The "earn $80,000 a year before tax" hook fix from the 16 Nov review is kept. Link re-checked (200, with UTM tags).
 - Image: none requested; LinkedIn will use the page's link preview. If an image is wanted, see channels.md (1200×627).
 
 ## Review: 2026-11-16

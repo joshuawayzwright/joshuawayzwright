@@ -57,6 +57,8 @@ All prices are in AUD, one-off, with no GST charged (not GST-registered). There 
 
 **Bundle saving claim:** "A$199 if bought separately, you save A$120" is accurate, because the ten toolkit prices above add up to A$199. You may use it only while all ten are on sale at those prices. If any individual price changes, recompute before using it. Never invent "was" prices or time-limited discounts.
 
+**Launch offer (not yet confirmed):** on 17 Nov the shop page shows "Launch offer: 20% off everything with code LAUNCH20 at checkout. Ends 31 December 2026." The owner hasn't confirmed it in this file. Don't mention it until it's added here: `[NEEDS OWNER APPROVAL: LAUNCH20 offer]`.
+
 **Presenting the range:**
 
 - Present the range fairly. Don't make one product look like the flagship. The bundle is a convenience option, not the "real" product.

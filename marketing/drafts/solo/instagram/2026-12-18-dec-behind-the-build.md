@@ -4,28 +4,30 @@ channel: instagram
 calendar_id: solo-2026-12-18
 campaign: dec-behind-the-build
 publish_on: 2026-12-18
-link: https://thesoloserviceprovider.com.au/?utm_source=instagram&utm_medium=social&utm_campaign=solo-dec-behind-the-build (link in bio)
+link: https://thesoloserviceprovider.com.au/?utm_source=instagram&utm_medium=social&utm_campaign=solo-dec-behind-the-build
 sources:
   - https://thesoloserviceprovider.com.au/
   - https://thesoloserviceprovider.com.au/shop/
   - marketing/brands/solo.md
   - marketing/calendar/2026-12-solo.md
-status: needs-changes
+status: draft
 ---
 
-# Behind the build: what's finished and what isn't
+# Behind the build: what went into shipping the shop
 
-Behind the build: here's what an unfinished product looks like.
+Behind the build: what went into opening the shop.
 
-We're building SOLO AI, a practical assistant for ideas, answers and everyday work. It's in development. Generative conversations aren't publicly enabled yet, and no launch date has been announced.
+On 16 November we opened sales on 16 digital products for Australian sole traders. Depending on the product, each one is an app, a spreadsheet, a written guide and templates.
 
-Same story for the toolkit range. The ten toolkits we've planned are in development, and nothing is on sale yet.
+A few things had to be decided before it opened: one-off prices from A$9 to A$79, no GST charged because we're not registered, payment through Stripe with an instant download, and a 30-day money-back guarantee.
 
-What is live today:
-- The AI Download Centre, a free, searchable directory of AI tools and models with links to their official download sources
-- Free pricing tips by email for Australian sole traders
+It's new, so there's no track record to quote yet.
 
-What's decided: we'd rather show honest progress than hype. What isn't: dates.
+What isn't finished: SOLO AI, a practical assistant for ideas, answers and everyday work. It's in development. Generative conversations aren't publicly enabled yet, and no launch date has been announced.
+
+Also live: the AI Download Centre, a free, searchable directory of AI tools and models with links to their official download sources, and free pricing tips by email.
+
+What's decided: we'd rather show honest progress than hype. What isn't: SOLO AI dates.
 
 No empty promises. Just practical technology and clear progress.
 
@@ -33,18 +35,21 @@ Link in bio.
 
 #SoleTrader #BuildInPublic #GoldCoast
 
-Image brief
-- Purpose: Feed image for an honest "work in progress" post. Should look deliberately unfinished: a simple status list, not a product shot.
-- Approved asset(s) to use: business emblem (gold and steel angular-S) only, from ai-download-center/powerhouse-website/assets/approved-stage/ business emblem confirmed: `ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png` (285×282, confirmed 16 Nov 2026). Do not use the SOLO AI hooded guardian emblem, do not redraw either emblem, and don't upscale the 285x282 crop (keep it small in a corner).
+## Image brief
+- Purpose: Feed image for an honest build-in-public post: a simple status list ("Shop: open. SOLO AI: in development."), not a product shot.
+- Approved asset(s) to use: business emblem (gold and steel angular-S) only: `ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png` (285×282). Do not use the SOLO AI hooded guardian emblem, do not redraw either emblem, and don't upscale the 285x282 crop (keep it small in a corner).
 - Palette: charcoal #0A0A0A background, steel #8A8F98 for list text, burnished gold #D4AF37 for the headline, electric blue #0087FF for "live" tags only
-- Text on image: Behind the build. Not finished yet.
+- Text on image: Behind the build: shop open, SOLO AI building. (8 words)
 - Sizes: 1080x1080 (feed). Optional 1080x1920 story version of the same layout.
-- Alt text: Dark graphic reading "Behind the build. Not finished yet." with a small gold and steel emblem in the corner.
+- Alt text: Dark graphic reading "Behind the build: shop open, SOLO AI building." with a small gold and steel emblem in the corner.
 
 ## Writer notes
-- Facts used: SOLO AI "in development", generative conversations not publicly enabled, no launch date announced → https://thesoloserviceprovider.com.au/ ("No launch date has been announced"). AI Download Centre is a free, searchable directory with links to official download sources → same page. Free pricing-tips sign-up is live → https://thesoloserviceprovider.com.au/shop/. Shop says "Digital products are not on sale yet" → shop page. Ten planned toolkits in development → brand file product range (count of ten only, no names, no prices). "No empty promises. Just practical technology and clear progress." → homepage and brand file voice line. No worked-example sums.
-- Conflicts: SOLO AI wording is "in development" only, per the 16 Nov owner decision. No mention of testers or early access, although solo-ai.html says "Android early access" (calendar item 4); that page's claim isn't repeated. Homepage and brand file agree otherwise. The README's "16 live toolkits" claim isn't used.
-- Placeholders: business emblem confirmed: `ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png` (285×282, confirmed 16 Nov 2026). Hashtags are optional and can be cut. Link goes in the bio, not the caption.
+- Facts used: shop opened 16 Nov 2026; 16 products; one-off prices A$9 to A$79; no GST (not registered); Stripe; instant download; 30-day money-back guarantee → brand file (17 Nov) and live products.json (`salesOpen: true`, lowest A$9, highest A$79). "App, spreadsheet, guide and templates" → product descriptions on products.json (varies by product, hence "depending on the product"). "Stripe, download straight away" → live shop page. SOLO AI "in development", generative conversations not publicly enabled, no launch date announced → live homepage; "in development" only per the 16 Nov owner decision. AI Download Centre (free, searchable directory, official download links) and the pricing-tips sign-up → live homepage and shop. "No empty promises. Just practical technology and clear progress." → homepage and brand file voice line. Speaks as "we" (Instagram) → brand file. No worked-example sums.
+- Honest build-in-public angle: only decisions and facts from sources are stated; no invented anecdotes about the build process, no sales numbers or popularity claims.
+- Conflicts: `solo-ai.html` says "Android early access" (calendar item 4); not repeated. The live shop shows a "20% off with code LAUNCH20, ends 31 December 2026" offer not in the brand file; not repeated, owner to confirm. Link goes to the homepage root (per the calendar row), so no `#apps` or `#projects` anchor is used.
+- Review fixes applied: front-matter `link:` is now the bare URL; image brief has a "## Image brief" heading; hashtag is #SoleTrader.
+- Caption length: 1069 characters including hashtags (limit 2,200). Hashtags are optional and can be cut. Link goes in the bio, not the caption. Link checked 17 Nov 2026 (200).
+- Placeholders: none
 
 ## Review: 2026-11-16
 Status: NEEDS CHANGES

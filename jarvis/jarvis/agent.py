@@ -126,7 +126,9 @@ class Jarvis:
     # Used by specialists: their own instructions and tool allowlist instead of Jarvis's.
     persona: str | None = None
     tool_names: frozenset[str] | None = None
-    mcp_read_only: bool = False  # offer only the MCP tools their servers mark read-only
+    mcp_read_only: bool = False  # offer only the MCP tools their servers mark read-only...
+    mcp_write_servers: frozenset[str] = frozenset()  # ...except these servers' tools (e.g. a browser for Sentinel)
+    sentinel_mcp: frozenset[str] = frozenset()  # team mode: MCP servers whose write tools Sentinel may use
     # Wraps every built-in and MCP tool call: middleware(name, input, run) -> run() or a refusal.
     middleware: Callable[[str, Any, Callable[[], tuple[Any, bool]]], tuple[Any, bool]] | None = None
 
@@ -142,7 +144,8 @@ class Jarvis:
         builtin = [s for s in TOOL_SCHEMAS if self.tool_names is None or s["name"] in self.tool_names]
         mcp_tools = self.mcp.schemas() if self.mcp else []
         if self.mcp_read_only:
-            mcp_tools = [s for s in mcp_tools if self.mcp.is_read_only(s["name"])]
+            mcp_tools = [s for s in mcp_tools if self.mcp.is_read_only(s["name"])
+                         or _mcp_server(str(s["name"])) in self.mcp_write_servers]
         self._allowed = {str(s["name"]) for s in builtin + mcp_tools}
         self.usage: dict[str, int] = dict.fromkeys(USAGE_FIELDS, 0)
         self.team = crew.Team(self, models=self.team_models) if self.team_mode else None
@@ -289,6 +292,12 @@ class Jarvis:
                 return "The user declined this tool call.", False
             return self.mcp.call(name, tool_input)
         return execute(self.ctx, name, tool_input)
+
+
+def _mcp_server(tool: str) -> str:
+    """'mcp__playwright__click' -> 'playwright'."""
+    parts = tool.split("__")
+    return parts[1] if len(parts) >= 3 and parts[0] == "mcp" else ""
 
 
 def _preview(data: object, limit: int = 120) -> str:

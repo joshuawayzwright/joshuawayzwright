@@ -298,6 +298,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
     parser.add_argument("--team", action="store_true", default=os.environ.get("JARVIS_TEAM") == "1", help="Team mode: Jarvis becomes the chief of a seven-agent crew and delegates to six specialists (Scout, Architect, Medic, Forge, Sentinel, Herald). Also JARVIS_TEAM=1.")
+    parser.add_argument("--sentinel-mcp", default=os.environ.get("JARVIS_SENTINEL_MCP", ""), metavar="SERVERS", help="Team mode: MCP servers (comma-separated names from your MCP config) whose write tools Sentinel may use, e.g. 'playwright' for a browser. Other MCP tools are read-only for the crew. Also JARVIS_SENTINEL_MCP.")
     parser.add_argument("--team-models", default=os.environ.get("JARVIS_TEAM_MODELS", ""), metavar="SPEC", help="Team mode: models per specialist, e.g. 'scout=claude-sonnet-5-5,herald=claude-haiku-5-5'. 'economy' runs Scout, Medic and Herald on claude-sonnet-5-5 and can be combined: 'economy,forge=...'. Others use --model. Implies --team. Also JARVIS_TEAM_MODELS.")
     parser.add_argument("--budget", default=os.environ.get("JARVIS_BUDGET", ""), metavar="TOKENS", help="Stop when Jarvis and its specialists together have used this many tokens (input, cache and output), e.g. 500k or 2M. Also JARVIS_BUDGET. Default: no cap.")
     parser.add_argument("--selftest", action="store_true", help=f"Live end-to-end check of team mode: the crew fixes a planted bug in a local repository, then Jarvis verifies the result itself. Uses your API key; capped at {selftest.DEFAULT_BUDGET:,} tokens unless --budget is set. Needs no GitHub token.")
@@ -618,6 +619,7 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         autonomous=args.auto,
         team_mode=args.team,
         team_models=args.team_models,
+        sentinel_mcp=frozenset(n.strip() for n in getattr(args, "sentinel_mcp", "").split(",") if n.strip()),
         budget=Budget(args.budget) if args.budget else None,
         max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
         on_text=show_text,

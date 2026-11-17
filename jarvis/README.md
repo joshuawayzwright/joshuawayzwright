@@ -148,12 +148,23 @@ How the crew works:
 - **Parallel recon.** When Jarvis delegates to several of Scout, Architect and Medic in one step, they run at the same time. Forge, Sentinel and Herald change things, so they run one at a time, and two assignments for the *same* specialist always queue. Ctrl+C during a parallel step returns at once; the specialists stop before their next request.
 - **Failures stay contained.** A specialist that crashes, for example because the API is down, is rolled back to its last valid conversation, so its next assignment works. If Forge or Sentinel crashes, the gate is marked unverified.
 - **Memory per specialist.** Each specialist keeps its conversation across assignments in a session, so "now fix issue 2" works. Jarvis can pass `fresh: true` to start one over; `/reset` clears everyone.
-- **Quality gate, enforced on the code itself.** Jarvis fingerprints a repository by hashing every file except documentation, committed or not. Herald's `commit_changes` and `push_and_open_pr` go through only when that fingerprint matches either the default branch (only docs changed) or code that Sentinel passed. If code changes after verification by *any* route, it no longer matches and shipping is refused until Sentinel verifies again. Routes include a `sed` in `run_command`, an MCP tool, a run that crashed halfway, or edits left over after `/reset`. On `FAIL`, Jarvis sends the issues back to Forge and verifies again, up to three rounds.
+- **Quality gate, enforced on the code itself.** Jarvis fingerprints a repository by hashing every file except documentation, committed or not.
+  - `commit_changes` checks the files about to be committed; `push_and_open_pr` checks the commit actually being pushed (HEAD), not the files on disk.
+  - Either goes through only when the fingerprint matches the default branch (only docs changed) or code that Sentinel passed.
+  - If code changes after verification by *any* route, it no longer matches and shipping is refused until Sentinel verifies again. Routes include a `sed` in `run_command`, an MCP tool, a run that crashed halfway, or edits left over after `/reset`.
+  - **The base is pinned.** Jarvis records the default branch as the remote reports it, after a fetch, before any specialist command touches the repository. Moving a local ref later (for example `git fetch . X:refs/remotes/origin/main` or `git branch -f main`) can't make new code look like the base.
+  - On `FAIL`, Jarvis sends the issues back to Forge and verifies again, up to three rounds.
 - **A PASS needs proof.** Sentinel's report must end with `VERDICT: PASS`, and the verdict counts only if, in that same assignment:
-  - a real test, lint or type-check command exited 0, such as `pytest`, `npm test`, `go test`, `make check`, `ruff` or `tsc`. Installs, `true` or `ls` don't count, and neither do commands whose failure is hidden by `; true`, `|| true` or a pipe;
+  - a command that *invokes* a real test, lint or type-check runner exited 0. Examples: `pytest`, `python -m unittest`, `npm test`, `go test`, `cargo test`, `make check`, `ruff check`, `tsc`, or a project script such as `./scripts/test.sh`. It must be the last command, joined only by `&&`, as in `pip install -e . && pytest`. These don't count:
+    - commands that only mention a runner (`echo pytest`, `cat tests/x.py`) or print its version or test list (`--version`, `--collect-only`, `--if-present`);
+    - installs, or `cd` out of the repository;
+    - anything whose failure is hidden by `; true`, `|| true` or a pipe;
+  - Sentinel left the application code alone. Its edits are limited to tests, and a PASS from a Sentinel that changed non-test code is rejected;
   - the check ran on *exactly* the code present when Sentinel finished;
   - Sentinel ended normally. A PASS from a run cut short by the step limit or the budget is ignored.
-- **Scoped writes.** Sentinel can write only test files (`tests/`, `test_*`, `*.test.*` and similar), and Herald only documentation (README, CHANGELOG, `*.md`, text under `docs/`). Paths are normalised first, so `tests/../src/app.py` is refused. No specialist can commit, reset or push through `run_command`: history changes go through Herald's tools. Only Forge changes application code.
+- **Scoped writes.** Sentinel can write only test files (`tests/`, `test_*`, `*.test.*` and similar), and Herald only documentation (README, CHANGELOG, `*.md`, text under `docs/`). Paths are normalised first, so `tests/../src/app.py` is refused. `.mdx` files and `docs/requirements.txt` count as code. Specialists can't run git commands that commit, push or move refs (`commit`, `push`, `reset`, `stash`, `fetch`, `pull`, `branch`, `checkout`, `switch`, `symbolic-ref` and similar) through `run_command`; `status`, `diff`, `log` and `show` are fine. That rule is a speed bump; the pinned base and the HEAD check are what actually stop a disguised command. Only Forge changes application code.
+- **MCP tools.** The chief and the specialists get only the MCP tools their servers mark read-only. `--sentinel-mcp playwright` (or `JARVIS_SENTINEL_MCP`) also gives Sentinel the write tools of the servers you name, for example a browser to click through a UI. The fingerprint gate still covers anything those tools change in the repository.
+- **Known limit: gitignored files.** The fingerprint follows `.gitignore`, so a file it ignores (`.env`, `local_settings.py`, a patched `node_modules`) can make Sentinel's tests pass locally without being shipped. The PR then fails CI instead of being wrong silently, but review a PR that depends on local configuration with that in mind.
 - **Separation of duties.** Jarvis can't edit, run commands or ship in team mode, and every specialist is limited to its own tools: a call outside them is refused.
 - **Approvals.** Without `--yes` or `--auto`, each write, command and push still asks you, labelled with the specialist that wants it (`[Forge] Run in acme/api: pytest`). Approval prompts never overlap.
 - **Visibility.** Specialists' tool calls appear in the terminal, web page and run log, prefixed with their name (`Scout ▸ search_github_code ...`).
@@ -361,6 +372,7 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--auto` | off | Autonomous mode (implies `--yes`) |
 | `--team`, `JARVIS_TEAM=1` | off | Team mode: Jarvis leads six specialist agents |
 | `--team-models`, `JARVIS_TEAM_MODELS` | `--model` for all | Models per specialist, or `economy` |
+| `--sentinel-mcp`, `JARVIS_SENTINEL_MCP` | none | MCP servers whose write tools Sentinel may use (e.g. `playwright`) |
 | `--budget`, `JARVIS_BUDGET` | no cap | Stop after this many tokens across all agents (`500k`, `2M`) |
 | `--selftest` | | Live end-to-end team check on a local repository with a planted bug |
 | `--issues REPO ...`, `--label`, `--per-poll` | `jarvis`, 1 | Issue autopilot: the crew works labelled issues into draft PRs |

@@ -305,8 +305,9 @@ def sentinel_says(verdict_line: str, *commands: str) -> list[SimpleNamespace]:
 
 
 def herald_ships() -> list[SimpleNamespace]:
+    """Herald commits the working tree: the gate checks the files that would go into the commit."""
     return [
-        tool_turn(("h1", "push_and_open_pr", {"repo": "acme/app", "title": "t", "body": "b"})),
+        tool_turn(("h1", "commit_changes", {"repo": "acme/app", "message": "Ship it"})),
         text("Tried to ship."),
     ]
 
@@ -354,7 +355,7 @@ def test_quality_gate_blocks_shipping_until_sentinel_passes(tmp_path: Path) -> N
 
     jarvis.ask("ship")
     allowed = herald_result(fake, 5)
-    assert "Quality gate" not in allowed["content"]  # reaches the real tool (which fails: no remote)
+    assert "Quality gate" not in allowed["content"] and "Committed on branch" in allowed["content"]
     assert crew.gate == team.CLEAN
     assert crew.history == [("forge", "done"), ("herald", "done"), ("sentinel", "fail"), ("herald", "done"),
                             ("forge", "done"), ("sentinel", "pass"), ("herald", "done")]
@@ -506,9 +507,19 @@ def test_pass_needs_a_real_check_on_the_final_code(tmp_path: Path, sentinel: lis
     assert note in last_results(fake.requests("chief")[2])[0]["content"]
 
 
-def test_code_changed_after_the_passing_check_is_rejected(tmp_path: Path) -> None:
+def test_sentinel_changing_application_code_is_rejected(tmp_path: Path) -> None:
     project(tmp_path)
     sneaky = "python3 -c \"open('app.py','w').write('VALUE = 99')\""
+    jarvis, fake = run_crew(tmp_path, {"chief": [tool_turn(delegate("c1", "forge", "Build")),
+                                                 tool_turn(delegate("c2", "sentinel", "Verify")), text("ok")],
+                                       "forge": forge_writes(2), "sentinel": sentinel_says("VERDICT: PASS", sneaky, CHECK)})
+    assert jarvis.team.gate == team.UNVERIFIED  # type: ignore[union-attr]
+    assert "Sentinel changed application code" in last_results(fake.requests("chief")[2])[0]["content"]
+
+
+def test_code_changed_after_the_passing_check_is_rejected(tmp_path: Path) -> None:
+    project(tmp_path)
+    sneaky = "python3 -c \"open('test_app.py','a').write('# edited after the run')\""
     jarvis, fake = run_crew(tmp_path, {"chief": [tool_turn(delegate("c1", "forge", "Build")),
                                                  tool_turn(delegate("c2", "sentinel", "Verify")), text("ok")],
                                        "forge": forge_writes(2), "sentinel": sentinel_says("VERDICT: PASS", CHECK, sneaky)})
@@ -526,7 +537,7 @@ def test_code_changed_after_verification_blocks_shipping(tmp_path: Path) -> None
     assert jarvis.team.gate == team.PASSED  # type: ignore[union-attr]
     (repo / "app.py").write_text("VALUE = 7\n")  # e.g. an MCP tool or a stray command, after the PASS
     jarvis.ask("ship")
-    assert "changed after Sentinel verified it" in herald_result(fake, 1)["content"]
+    assert "isn't what Sentinel verified" in herald_result(fake, 1)["content"]
 
 
 def test_verified_code_ships_through_commit_and_push(tmp_path: Path) -> None:
@@ -641,7 +652,7 @@ def test_a_crashed_specialist_is_rolled_back_and_leaves_the_gate_unverified(tmp_
 def test_cancel_stops_specialists_before_their_next_request(tmp_path: Path) -> None:
     fake = CrewMessages({"scout": [text("never sent")]})
     jarvis, _ = chief(tmp_path, fake)
-    jarvis.team._cancel.set()  # type: ignore[union-attr]
+    jarvis.team._step.set()  # type: ignore[union-attr]  (Ctrl+C during this step)
     content, _ = jarvis.team.delegate({"agent": "scout", "task": "x"})  # type: ignore[union-attr]
     assert "cancelled" in content and fake.requests("scout") == []
 
@@ -669,4 +680,109 @@ def test_chief_gets_only_read_only_mcp_tools(tmp_path: Path) -> None:
     jarvis = Jarvis(ctx=ToolContext(workspace=tmp_path, approve=lambda _q: True), client=object(), team_mode=True, mcp=FakeMCP())
     assert "mcp__fs__read" in tool_names(jarvis) and "mcp__fs__write" not in tool_names(jarvis)
     sentinel = jarvis.team.member(team.ROLES["sentinel"])  # type: ignore[union-attr]
-    assert "mcp__fs__write" in tool_names(sentinel)  # e.g. a browser; the fingerprint gate still covers its writes
+    assert "mcp__fs__read" in tool_names(sentinel) and "mcp__fs__write" not in tool_names(sentinel)  # read-only by default
+    opted = Jarvis(ctx=ToolContext(workspace=tmp_path, approve=lambda _q: True), client=object(), team_mode=True,
+                   mcp=FakeMCP(), sentinel_mcp=frozenset({"fs"}))
+    assert "mcp__fs__write" in tool_names(opted.team.member(team.ROLES["sentinel"]))  # type: ignore[union-attr]
+    assert "mcp__fs__write" not in tool_names(opted.team.member(team.ROLES["scout"]))  # type: ignore[union-attr]
+
+
+
+# ---- Second review: attacks on the fingerprint gate (each reproduced the reviewer's exploit) ----------
+
+
+def with_origin(tmp_path: Path) -> Path:
+    """project() plus a bare 'origin' it was cloned from, as pull_repo would leave it."""
+    seed = project(tmp_path / "seed")
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "clone", "-q", "--bare", str(seed), str(origin)], check=True)
+    repo = tmp_path / "repos" / "acme" / "app"
+    subprocess.run(["git", "clone", "-q", str(origin), str(repo)], check=True)
+    return repo
+
+
+def forge_runs(*commands: str) -> list[SimpleNamespace]:
+    return [*(tool_turn((f"f{i}", "run_command", {"repo": "acme/app", "command": c})) for i, c in enumerate(commands)),
+            text("Done.")]
+
+
+def crew_in(workspace: Path, scripts: dict) -> tuple[Jarvis, CrewMessages]:
+    fake = CrewMessages(scripts)
+    jarvis, _ = chief(workspace, fake)
+    return jarvis, fake
+
+
+def test_moving_origin_main_does_not_make_unverified_code_look_like_the_base(tmp_path: Path) -> None:
+    repo = with_origin(tmp_path)
+    # The reviewer's exploit, minus the git commands the crew now refuses: move origin/main by hand.
+    jarvis, fake = crew_in(tmp_path / "repos", {
+        "chief": [tool_turn(delegate("c1", "forge", "Change")), text("ok"), tool_turn(delegate("c2", "herald", "Ship")), text("?")],
+        "forge": forge_writes(66),
+        "herald": herald_ships()})
+    jarvis.ask("change")  # Forge's first tool call pins the base before anything else runs
+    subprocess.run("git stash -q && git fetch -q . refs/stash:refs/remotes/origin/main && git stash pop -q",
+                   shell=True, cwd=repo, check=True)
+    assert "VALUE = 66" in subprocess.run(["git", "show", "origin/main:app.py"], cwd=repo, capture_output=True, text=True).stdout
+    jarvis.ask("ship")
+    assert "hasn't been verified" in herald_result(fake, 1)["content"]
+
+
+def test_pushing_a_head_that_differs_from_the_checked_files_is_blocked(tmp_path: Path) -> None:
+    repo = with_origin(tmp_path)
+    jarvis, fake = crew_in(tmp_path / "repos", {
+        "chief": [tool_turn(delegate("c1", "forge", "Change")), tool_turn(delegate("c2", "sentinel", "Verify")),
+                  text("ok"), tool_turn(delegate("c3", "herald", "Ship")), text("?")],
+        "forge": forge_writes(2), "sentinel": sentinel_says("VERDICT: PASS", CHECK),
+        "herald": [tool_turn(("h1", "push_and_open_pr", {"repo": "acme/app", "title": "t", "body": "b"})), text("?")]})
+    jarvis.ask("build and verify")
+    assert jarvis.team.gate == team.PASSED  # type: ignore[union-attr]
+    # Reviewer's exploit B: commit unverified code on a branch, point HEAD at it, restore the verified files.
+    subprocess.run("echo 'VALUE = 666' > app.py && git -c user.name=t -c user.email=t@e commit -qam evil && "
+                   "git branch -q evil && git checkout -q main -- app.py && echo 'VALUE = 2' > app.py && "
+                   "git symbolic-ref HEAD refs/heads/evil", shell=True, cwd=repo, check=True)
+    assert (repo / "app.py").read_text().strip() == "VALUE = 2"  # the files look verified...
+    jarvis.ask("ship")
+    result = herald_result(fake, 1)
+    assert result["is_error"] and "isn't what Sentinel verified" in result["content"]  # ...but HEAD isn't
+
+
+@pytest.mark.parametrize("command", [
+    "git stash", "git fetch . refs/stash:refs/remotes/origin/main", "git branch -f main HEAD~1",
+    "git symbolic-ref HEAD refs/heads/x", "git checkout main -- .", "git pull", "git switch -c x",
+])
+def test_ref_moving_git_commands_are_refused_for_specialists(tmp_path: Path, command: str) -> None:
+    project(tmp_path)
+    _, fake = run_crew(tmp_path, {"chief": [tool_turn(delegate("c1", "forge", "Do it")), text("ok")],
+                                  "forge": forge_runs(command)})
+    result = last_results(fake.requests("forge")[1])[0]
+    assert result["is_error"] and "Herald" in result["content"]
+
+
+def test_an_abandoned_step_stays_cancelled(tmp_path: Path) -> None:
+    jarvis, _ = chief(tmp_path, CrewMessages({}))
+    crew = jarvis.team
+    assert crew is not None
+    member = crew.member(team.ROLES["scout"])
+    old = crew._step
+    member.should_stop = old.is_set
+    old.set()  # Ctrl+C abandons this step's workers
+    crew.run_many([])  # the chief's next step gets a fresh token...
+    assert crew._step is not old and not crew._step.is_set()
+    assert member.should_stop()  # ...but the abandoned worker still sees its own, cancelled one
+
+
+@pytest.mark.parametrize(("path", "doc"), [("src/pages/index.mdx", False), ("docs/requirements.txt", False),
+                                           ("docs/guide.md", True), ("docs/diagram.svg", True), ("README.txt", True)])
+def test_doc_scope_excludes_executable_and_dependency_files(path: str, doc: bool) -> None:
+    from jarvis.integrity import is_doc
+    assert is_doc(path) is doc
+
+
+def test_fingerprint_sees_same_size_edits_made_in_the_same_second(tmp_path: Path) -> None:
+    """Regression: a copied index with a fresh timestamp hid racily-clean edits (VALUE = 1 -> VALUE = 2)."""
+    from jarvis.integrity import fingerprint
+    for attempt in range(30):
+        repo = project(tmp_path / str(attempt))
+        before = fingerprint(repo)
+        (repo / "app.py").write_text("VALUE = 2\n")  # same size, same second as the commit
+        assert fingerprint(repo) != before, f"missed the edit on attempt {attempt}"

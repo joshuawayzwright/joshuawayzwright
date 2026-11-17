@@ -536,7 +536,7 @@ BLOCKED_COMMANDS = [
     (re.compile(r"\b(mkfs|fdisk|diskpart|shutdown|reboot|halt|poweroff)\b|\bdd\s+if="), "disk or system commands"),
     (re.compile(r":\(\)\s*\{"), "fork bombs"),
     (re.compile(r"\b(curl|wget)\b[^|]*\|\s*(sudo\s+)?(ba|z)?sh\b"), "piping downloads into a shell"),
-    (re.compile(r"\bgit\s+push\b"), "git push (use push_and_open_pr, which never pushes the default branch)"),
+    (re.compile(r"\bgit\b(?:\s+(?:-[cC]\s+\S+|--?[\w-]+(?:=\S+)?))*\s+push\b"), "git push (use push_and_open_pr, which never pushes the default branch)"),
     (re.compile(r"\bgit\s+(reset\s+--hard\s+origin|clean\s+-\w*f\w*d)"), "destructive git resets"),
     (re.compile(r"\bgh\s+(repo\s+delete|pr\s+merge|release\s+delete)\b"), "deleting repos, merging or deleting releases"),
 ]
@@ -603,5 +603,5 @@ def execute(ctx: ToolContext, name: str, raw_input: object) -> tuple[Any, bool]:
         return HANDLERS[name](ctx, **args), False
     except (ToolError, GitHubError) as err:
         return f"Error: {err}", True
-    except OSError as err:
+    except (OSError, ValueError) as err:  # ValueError covers UnicodeDecodeError on binary files
         return f"Error: {err}", True

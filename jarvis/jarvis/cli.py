@@ -312,6 +312,7 @@ def main(argv: list[str] | None = None) -> int:
     group_auto = parser.add_argument_group("automation")
     group_auto.add_argument("--issues", nargs="+", metavar="REPO", help="Issue autopilot: the crew works open issues labelled --label in these repositories (owner/name) and opens a draft PR for each. Implies --team --auto. Uses --interval.")
     group_auto.add_argument("--label", default=autopilot.DEFAULT_LABEL, help=f"Issue autopilot: the label that hands an issue to Jarvis (default '{autopilot.DEFAULT_LABEL}').")
+    group_auto.add_argument("--any-author", action="store_true", help="Issue autopilot: also work labelled issues opened by people outside the repository (by default only owners, members and collaborators, because authors can edit an issue after it is labelled).")
     group_auto.add_argument("--per-poll", type=int, default=1, help="Issue autopilot: issues to work per round (default 1).")
     group_auto.add_argument("--notify", default=os.environ.get("JARVIS_NOTIFY", ""), metavar="URL", help="Send a summary when an autonomous run, self-test, watch fix or autopilot issue finishes: an ntfy topic URL, a Slack or a Discord webhook. Also JARVIS_NOTIFY.")
     parser.add_argument("--fix", action="store_true", help="Watch mode: when a build breaks, run an autonomous fix that opens a draft PR. Implies --auto.")
@@ -548,7 +549,11 @@ def make_notifier(args: argparse.Namespace) -> notify.Notifier | None:
 
 
 def run_issues(args: argparse.Namespace, jarvis: Jarvis, notifier: notify.Notifier | None) -> int:
-    ledger = autopilot.Ledger(args.workspace.parent / "autopilot.json")
+    try:
+        ledger = autopilot.Ledger(args.workspace.parent / "autopilot.json")
+    except autopilot.LedgerError as err:
+        print(f"Issue autopilot: {err}", file=sys.stderr)
+        return 1
 
     def work(issue: autopilot.Issue) -> str | None:
         jarvis.reset()
@@ -565,7 +570,8 @@ def run_issues(args: argparse.Namespace, jarvis: Jarvis, notifier: notify.Notifi
         autopilot.autopilot_loop(args.issues, args.label, ledger, work,
                                  report=lambda m: print(f"{DIM}{time.strftime('%H:%M')} {m}{RESET}"),
                                  notify=notifier.send if notifier else None,
-                                 interval_s=args.interval * 60, per_poll=args.per_poll)
+                                 interval_s=args.interval * 60, per_poll=args.per_poll,
+                                 any_author=getattr(args, "any_author", False))
     except KeyboardInterrupt:
         print()
     return 0

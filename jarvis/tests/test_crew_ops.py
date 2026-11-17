@@ -191,7 +191,7 @@ def test_selftest_end_to_end_with_a_scripted_crew(tmp_path: Path, capsys: pytest
     log = cli.RunLog(tmp_path / "runs")
     assert cli.finish_selftest(repo, jarvis, log) == 0
     out = capsys.readouterr().out
-    assert "SELF-TEST PASSED (6/6 checks)" in out and "forge → sentinel → herald" in out
+    assert "SELF-TEST PASSED (6/6 checks)" in out and "architect:done → forge:done → sentinel:pass → herald:done" in out
     assert "## Self-test" in log.path.read_text()
 
 
@@ -206,3 +206,31 @@ def test_selftest_flag_sets_up_an_isolated_team_run(monkeypatch: pytest.MonkeyPa
     assert repo.is_relative_to(tmp_path / "home" / "selftest") and (repo / "stats.py").exists()
     with pytest.raises(SystemExit):
         cli.main(["--selftest", "--no-mcp", "fix", "something"])
+
+
+@pytest.mark.parametrize(
+    ("history", "ok"),
+    [
+        ([("forge", "done"), ("sentinel", "pass"), ("herald", "done")], True),
+        ([("sentinel", "pass"), ("forge", "done"), ("herald", "done")], False),  # verified before the last change
+        ([("forge", "done"), ("sentinel", "fail"), ("herald", "done")], False),
+        ([("forge", "done"), ("sentinel", "rejected"), ("herald", "done")], False),
+        ([("forge", "done"), ("sentinel", "pass")], False),  # never shipped
+        ([("sentinel", "pass"), ("herald", "done")], False),  # no change from Forge
+        ([("forge", "done"), ("sentinel", "fail"), ("forge", "done"), ("sentinel", "pass"), ("herald", "done")], True),
+    ],
+)
+def test_crew_check_needs_the_real_order(history: list, ok: bool) -> None:
+    assert selftest.crew_check(history).ok is ok
+
+
+def test_a_fix_that_adds_a_module_still_passes_the_original_tests(tmp_path: Path) -> None:
+    repo = selftest.build_fixture(tmp_path)
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@e"]
+    (repo / "_median.py").write_text("def median2(o, m):\n    return o[m] if len(o) % 2 else (o[m - 1] + o[m]) / 2\n")
+    (repo / "stats.py").write_text(selftest.CODE.replace("    return ordered[middle]\n", "    from _median import median2\n    return median2(ordered, middle)\n"))
+    subprocess.run(["git", "checkout", "-qb", "fix"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run([*git, "commit", "-qm", "Fix"], cwd=repo, check=True)
+    checks = {c.name: c.ok for c in selftest.verify(repo)}
+    assert checks["Original tests pass on the new code"] is True

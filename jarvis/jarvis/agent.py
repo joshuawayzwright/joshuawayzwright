@@ -122,6 +122,7 @@ class Jarvis:
     team_mode: bool = False
     team_models: dict[str, str] = field(default_factory=dict)  # per-specialist model overrides
     budget: Budget | None = None  # shared token cap; specialists share the chief's
+    should_stop: Callable[[], bool] | None = None  # checked before each request (Ctrl+C in a parallel step)
     # Used by specialists: their own instructions and tool allowlist instead of Jarvis's.
     persona: str | None = None
     tool_names: frozenset[str] | None = None
@@ -134,8 +135,10 @@ class Jarvis:
             self.client = anthropic.Anthropic()
         # Fixed for the session, so the cached prompt prefix stays valid; new notes appear next session.
         self._memory_section = self.ctx.memory.prompt_section() if self.ctx.memory else ""
+        self.stop_reason = "idle"  # how the last ask() ended: end_turn, max_steps, budget, cancelled, ...
         if self.team_mode and self.tool_names is None:
             self.tool_names = crew.CHIEF_TOOLS
+            self.mcp_read_only = True  # the chief looks; writing MCP tools belong to the crew
         builtin = [s for s in TOOL_SCHEMAS if self.tool_names is None or s["name"] in self.tool_names]
         mcp_tools = self.mcp.schemas() if self.mcp else []
         if self.mcp_read_only:
@@ -186,9 +189,14 @@ class Jarvis:
         """Send one user turn and run tools until Claude finishes. Returns the final text."""
         self.messages.append({"role": "user", "content": prompt})
         final_text = ""
+        self.stop_reason = "running"
 
         for _ in range(self.max_steps):
+            if self.should_stop is not None and self.should_stop():
+                self.stop_reason = "cancelled"
+                return f"{final_text}\n\n[Stopped: cancelled.]".strip()
             if self.budget is not None and self.budget.exceeded():
+                self.stop_reason = "budget"
                 note = f"[Stopped: the token budget is spent ({self.budget.describe()}). Raise --budget to continue.]"
                 self.on_text(note)
                 return f"{final_text}\n\n{note}".strip()
@@ -204,14 +212,17 @@ class Jarvis:
                 final_text = texts[-1]
 
             if response.stop_reason == "refusal":
+                self.stop_reason = "refusal"
                 self.on_text("[Jarvis declined this request.]")
                 return final_text
             if response.stop_reason == "pause_turn":
                 continue
             if response.stop_reason == "max_tokens":
+                self.stop_reason = "max_tokens"
                 self.on_text("[Response hit the token limit; ask me to continue.]")
                 return final_text
             if response.stop_reason != "tool_use":
+                self.stop_reason = "end_turn"
                 return final_text
 
             calls = [b for b in response.content if b.type == "tool_use"]
@@ -225,6 +236,7 @@ class Jarvis:
             # All results for one assistant turn go back in a single user message.
             self.messages.append({"role": "user", "content": results})
 
+        self.stop_reason = "max_steps"
         self.on_text(f"[Stopped after {self.max_steps} steps. Ask me to continue if needed.]")
         return final_text
 

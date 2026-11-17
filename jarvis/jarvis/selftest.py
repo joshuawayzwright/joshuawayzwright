@@ -14,6 +14,7 @@ nothing to push to.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -143,19 +144,29 @@ def verify(repo: Path, gate_history: list[tuple[str, str]] | None = None) -> lis
     ok, detail = _tests_pass(repo)
     checks.append(Check("Suite passes on the branch", ok, detail))
     # Run the ORIGINAL tests against the new code, so a weakened or deleted test can't fake a pass.
+    # The whole repository is copied, so a fix that adds a module still counts.
     with tempfile.TemporaryDirectory() as tmp:
-        (Path(tmp) / "stats.py").write_text((repo / "stats.py").read_text())
-        (Path(tmp) / "test_stats.py").write_text(TESTS)
-        ok, detail = _tests_pass(Path(tmp))
+        copy = Path(tmp) / "repo"
+        shutil.copytree(repo, copy, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        (copy / "test_stats.py").write_text(TESTS)
+        ok, detail = _tests_pass(copy)
     checks.append(Check("Original tests pass on the new code", ok, detail))
 
     if gate_history is not None:
-        order = [key for key, outcome in gate_history if outcome == "done"]
-        sentinel_before_ship = "herald" in order and "sentinel" in order[: order.index("herald")]
-        forge_used = "forge" in order
-        checks.append(Check("Crew followed the gate", forge_used and sentinel_before_ship,
-                            "order: " + " → ".join(order) if order else "no specialist finished an assignment"))
+        checks.append(crew_check(gate_history))
     return checks
+
+
+def crew_check(history: list[tuple[str, str]]) -> Check:
+    """The last code change (Forge) was followed by an accepted Sentinel PASS, and Herald shipped after it."""
+    steps = " → ".join(f"{key}:{outcome}" for key, outcome in history) or "no assignments"
+    forge = [i for i, (key, outcome) in enumerate(history) if key == "forge" and outcome == "done"]
+    if not forge:
+        return Check("Crew followed the gate", False, f"Forge never finished a change ({steps})")
+    passed = [i for i, entry in enumerate(history) if entry == ("sentinel", "pass") and i > forge[-1]]
+    shipped = [i for i, entry in enumerate(history) if entry == ("herald", "done") and passed and i > passed[0]]
+    ok = bool(passed and shipped)
+    return Check("Crew followed the gate", ok, steps if ok else f"needs Forge → Sentinel pass → Herald; got {steps}")
 
 
 def report(checks: list[Check]) -> str:

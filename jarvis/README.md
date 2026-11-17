@@ -145,10 +145,15 @@ export JARVIS_TEAM=1                             # make team mode the default
 How the crew works:
 
 - **Delegation.** Jarvis calls `delegate(agent, task)` with everything the specialist needs, including findings from the others. Specialists don't see each other's reports unless Jarvis passes them on.
-- **Parallel recon.** When Jarvis delegates to several of Scout, Architect and Medic in one step, they run at the same time. Forge, Sentinel and Herald change things, so they run one at a time.
+- **Parallel recon.** When Jarvis delegates to several of Scout, Architect and Medic in one step, they run at the same time. Forge, Sentinel and Herald change things, so they run one at a time, and two assignments for the *same* specialist always queue. Ctrl+C during a parallel step returns at once; the specialists stop before their next request.
+- **Failures stay contained.** A specialist that crashes, for example because the API is down, is rolled back to its last valid conversation, so its next assignment works. If Forge or Sentinel crashes, the gate is marked unverified.
 - **Memory per specialist.** Each specialist keeps its conversation across assignments in a session, so "now fix issue 2" works. Jarvis can pass `fresh: true` to start one over; `/reset` clears everyone.
-- **Quality gate, enforced in code.** After Forge changes code, Herald's `commit_changes` and `push_and_open_pr` are refused until Sentinel passes the work. Sentinel's report must end with `VERDICT: PASS`, and a verdict alone isn't enough: in that same assignment, Sentinel must have run at least one check that exited 0, normally the test suite. A PASS without such a check is rejected. On `FAIL`, Jarvis sends the issues back to Forge and verifies again, up to three rounds.
-- **Verified code can't change on the way out.** Sentinel can write only test files (`tests/`, `test_*`, `*.test.*` and similar), and Herald only documentation (README, CHANGELOG, `docs/`, `*.md`). Any other write is refused, so the code Herald commits is the code Sentinel checked. Only Forge changes application code.
+- **Quality gate, enforced on the code itself.** Jarvis fingerprints a repository by hashing every file except documentation, committed or not. Herald's `commit_changes` and `push_and_open_pr` go through only when that fingerprint matches either the default branch (only docs changed) or code that Sentinel passed. If code changes after verification by *any* route, it no longer matches and shipping is refused until Sentinel verifies again. Routes include a `sed` in `run_command`, an MCP tool, a run that crashed halfway, or edits left over after `/reset`. On `FAIL`, Jarvis sends the issues back to Forge and verifies again, up to three rounds.
+- **A PASS needs proof.** Sentinel's report must end with `VERDICT: PASS`, and the verdict counts only if, in that same assignment:
+  - a real test, lint or type-check command exited 0, such as `pytest`, `npm test`, `go test`, `make check`, `ruff` or `tsc`. Installs, `true` or `ls` don't count, and neither do commands whose failure is hidden by `; true`, `|| true` or a pipe;
+  - the check ran on *exactly* the code present when Sentinel finished;
+  - Sentinel ended normally. A PASS from a run cut short by the step limit or the budget is ignored.
+- **Scoped writes.** Sentinel can write only test files (`tests/`, `test_*`, `*.test.*` and similar), and Herald only documentation (README, CHANGELOG, `*.md`, text under `docs/`). Paths are normalised first, so `tests/../src/app.py` is refused. No specialist can commit, reset or push through `run_command`: history changes go through Herald's tools. Only Forge changes application code.
 - **Separation of duties.** Jarvis can't edit, run commands or ship in team mode, and every specialist is limited to its own tools: a call outside them is refused.
 - **Approvals.** Without `--yes` or `--auto`, each write, command and push still asks you, labelled with the specialist that wants it (`[Forge] Run in acme/api: pytest`). Approval prompts never overlap.
 - **Visibility.** Specialists' tool calls appear in the terminal, web page and run log, prefixed with their name (`Scout ▸ search_github_code ...`).
@@ -174,7 +179,7 @@ jarvis --team --auto --budget 1.5M "..."     # also 500000 or 500k
 ```
 
 - Every token counts toward the cap: input, prompt-cache reads and writes, and output. That's deliberately conservative, because cache reads cost much less than fresh input.
-- Each agent checks the budget before each request. A specialist that hits the cap stops and reports what it has. Jarvis then stops before its next request and tells you how much was used. A request already in progress finishes, so a run can go over the cap by up to one response.
+- Each agent checks the budget before each request. A specialist that hits the cap stops and reports what it has. Jarvis then stops before its next request and tells you how much was used. A request already in progress finishes, so a run can go over the cap by up to one response per agent working at that moment, at most three in a parallel step.
 
 ### Crew panel in the browser
 
@@ -218,8 +223,9 @@ jarvis --issues acme/api --label ai-ready --per-poll 2 --interval 15 --budget 2M
 ```
 
 - **The label is the permission.** On GitHub only people with triage access or higher can add labels, so the crew only works issues a maintainer has approved.
+- **Only maintainers' issues, by default.** Authors can still edit an issue after it is labelled, so by default the autopilot works only issues opened by the repository's owners, members and collaborators. It records and skips others; `--any-author` includes them.
 - **Issue text is still treated as data.** The crew reads it as a description of the change, not as instructions about how Jarvis operates. It ignores requests to reveal secrets or to change credentials, CI, permissions or settings. If an issue is unclear, unsafe, or not a code change, the crew changes nothing and explains why.
-- **Each issue is worked once.** `~/.jarvis/autopilot.json` records every issue when it starts (`started`, then `done` or `failed`), so a restart never repeats work or spends twice. Delete an entry to retry that issue.
+- **Each issue is worked once.** `~/.jarvis/autopilot.json` records every issue when it starts (`started`, then `done`, `failed` or `skipped`), so a restart never repeats work or spends twice. Delete an entry to retry that issue. If the file is unreadable, the autopilot refuses to start rather than guess. Every labelled open issue is read, across all pages.
 - **Every safeguard of team mode applies.** That includes the evidence-backed quality gate, draft PRs only, and `--budget`, which applies to *each issue*. An issue that crashes is recorded and the autopilot moves on.
 
 **Get told when work finishes.** `--notify URL` (or `JARVIS_NOTIFY`) sends a summary when one of these finishes: an autonomous run, a self-test, a watch-mode fix or an autopilot issue.

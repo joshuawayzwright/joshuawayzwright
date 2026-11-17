@@ -17,15 +17,17 @@ until Sentinel has returned "VERDICT: PASS" on that work.
 
 from __future__ import annotations
 
-import fnmatch
 import re
 import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from .tools import ToolContext
+from . import github
+from .integrity import base_fingerprint, fingerprint, is_check_command, is_doc, is_test, rewrites_history
+from .tools import ToolContext, ToolError, repo_dir
 
 if TYPE_CHECKING:
     from .agent import Jarvis
@@ -182,7 +184,8 @@ Anything incomplete or uncertain.""",
 - Review git_diff line by line for correctness bugs, missed edge cases, error handling, and security issues (injection, secrets in code, unsafe input handling, path traversal).
 - Run the project's tests, linters and type checks with run_command. Use browser tools (mcp__ tools) to check a web UI when they are available.
 - You may add or fix tests with write_file and edit_file; writes outside test files are refused. Report problems in application code so Forge can fix them.
-- Your PASS counts only if, in this same assignment, you ran at least one check with run_command that exited 0 (the test suite, ideally). A PASS without one is rejected by the quality gate.
+- Your PASS counts only if, in this same assignment, a test or check command you ran with run_command exited 0 on the final code. Recognised checks are test runners, linters and type checkers (pytest, unittest, npm test, go test, cargo test, make test or check, jest, vitest, ruff, eslint, mypy, tsc and the like). The check must be the last command, joined only by && (e.g. `pip install -e . && pytest -q`); `; true`, `|| true` and pipes hide failures and don't count. Run the checks last: if the code changes after your last passing check, the PASS is rejected.
+- Don't commit, reset or otherwise change git history; Herald ships.
 - Never weaken, skip or delete a test to get a pass.
 
 Your report MUST end with exactly one of these lines:
@@ -204,7 +207,7 @@ Numbered, most severe first, each with path:line and the fix you expect. Write "
             effort="medium",
             max_steps=40,
             mission="""Your job: ship verified work and explain it well.
-- Review git_diff first. Update README, docs or CHANGELOG if the change affects how people use the project. You may only edit documentation; writes to code or config are refused, since that work would ship unverified.
+- Review git_diff first. Update README, docs or CHANGELOG if the change affects how people use the project. You may only edit documentation (README, CHANGELOG, *.md and similar, docs/ text); writes to code or config are refused, and shipping is refused if the code differs from what Sentinel verified.
 - commit_changes with a clear message (credit adapted sources), then push_and_open_pr.
 - The pull request description covers: what changed and why, how it was tested (from Sentinel's report), assumptions, and credits for adapted code.
 - Pull requests are drafts on feature branches. You never merge and never push the default branch.
@@ -227,7 +230,7 @@ How you run the crew:
 - You keep read-only tools to look around and check results yourself, but you do not edit files, run commands, commit or push in team mode. Hand that work to the right specialist.
 - Give each assignment everything the specialist needs: the repository, the goal, and the relevant findings from the others (they do not see each other's reports unless you pass them on). Specialists keep their own conversation across assignments in a session, so a follow-up can be short; set fresh=true to start one over.
 - To run independent assignments at the same time, call delegate several times in one step. Scout, Architect and Medic run in parallel; Forge, Sentinel and Herald run one at a time.
-- Quality gate: after Forge changes code, Herald cannot commit or push until Sentinel returns VERDICT: PASS on it, backed by a check Sentinel ran that succeeded in that same assignment. Sentinel may write only tests and Herald only documentation, so verified code can't change on the way out. If Sentinel fails the work, send the issues back to Forge, then to Sentinel again. After three failed rounds, stop and report the blocker.
+- Quality gate: Herald can commit or push a repository only when its code (every file except documentation) is unchanged from the default branch or is exactly the code Sentinel passed. Sentinel's VERDICT: PASS is accepted only when a real test or check command exited 0 on the final code in that same assignment. Sentinel may write only tests and Herald only documentation, and no specialist can commit through run_command. If code changes after a PASS, have Sentinel verify again. If Sentinel fails the work, send the issues back to Forge, then to Sentinel again. After three failed rounds, stop and report the blocker.
 - Check reports critically. If a specialist claims something you doubt, verify it with your own read-only tools or ask again.
 - Small questions you can answer yourself with your read-only tools need no delegation."""
 
@@ -270,6 +273,24 @@ VERDICT = re.compile(r"^\s*\**VERDICT:\s*(PASS|FAIL)\**\s*$", re.IGNORECASE | re
 # Quality-gate states.
 CLEAN, UNVERIFIED, PASSED, FAILED = "clean", "unverified", "passed", "failed"
 
+GATE_NOTES = {
+    UNVERIFIED: "Quality gate: unverified. Sentinel must pass this work before Herald can ship.",
+    FAILED: "Quality gate: FAILED. Send Sentinel's issues to Forge, then verify again.",
+    PASSED: "Quality gate: passed. Herald may ship.",
+    CLEAN: "Quality gate: clear.",
+}
+
+
+@dataclass(frozen=True)
+class Evidence:
+    """One command Sentinel ran: was it a real check, did it pass, and on exactly what code."""
+
+    repo: str
+    command: str
+    code: int | None
+    is_check: bool
+    fingerprint: str
+
 
 def roster() -> str:
     return "\n".join(f"- {r.key} ({r.name}, {r.title}): {r.summary}" for r in ROLES.values())
@@ -294,7 +315,10 @@ class Team:
         self.gate = CLEAN
         self.history: list[tuple[str, str]] = []  # (agent, outcome) per finished assignment
         self.active: set[str] = set()  # specialists working right now
-        self.evidence: list[tuple[str, int | None]] = []  # Sentinel's commands and exit codes, this assignment
+        self.evidence: list[Evidence] = []  # Sentinel's commands this assignment, with the code they ran on
+        self.verified: dict[str, set[str]] = {}  # repo -> fingerprints of code Sentinel passed
+        self._member_locks = {key: threading.Lock() for key in ROLES}
+        self._cancel = threading.Event()  # set on Ctrl+C: specialists stop before their next request
         self.last: dict[str, str] = {}  # one line on each specialist's latest assignment
         self._lock = threading.Lock()  # guards members, gate and history
         self._approval_lock = threading.Lock()  # one approval prompt on screen at a time
@@ -310,14 +334,24 @@ class Team:
         return bool(role and role.parallel)
 
     def run_many(self, calls: list[tuple[str, object]]) -> list[tuple[str, bool]]:
-        """Run delegate calls; parallel-safe ones together, others in order. Results keep the call order."""
+        """Run delegate calls; parallel-safe ones together, others in order. Results keep the call order.
+
+        Ctrl+C stops waiting at once: running specialists are told to stop before their next request.
+        """
+        self._cancel.clear()
         results: list[tuple[str, bool] | None] = [None] * len(calls)
         parallel = [i for i, (_, data) in enumerate(calls) if self.parallel_safe(data)]
         if len(parallel) > 1:
-            with ThreadPoolExecutor(max_workers=len(parallel), thread_name_prefix="jarvis-crew") as pool:
+            pool = ThreadPoolExecutor(max_workers=len(parallel), thread_name_prefix="jarvis-crew")
+            try:
                 futures = {i: pool.submit(self.delegate, calls[i][1]) for i in parallel}
                 for i, future in futures.items():
                     results[i] = future.result()
+            except BaseException:
+                self._cancel.set()
+                pool.shutdown(wait=False, cancel_futures=True)
+                raise
+            pool.shutdown(wait=True)
         for i, (_, data) in enumerate(calls):
             if results[i] is None:
                 results[i] = self.delegate(data)
@@ -340,69 +374,126 @@ class Team:
         if unexpected:
             return f"Error: unexpected field '{sorted(unexpected)[0]}'.", True
 
-        member = self.member(role, fresh=fresh)
-        with self._lock:
-            if role.key == "sentinel":
-                self.evidence = []  # this assignment's checks back this assignment's verdict
-            self.active.add(role.key)
-            self.last[role.key] = "Working: " + _first_line(task)
-        try:
-            report = member.ask(task)
-        except Exception as err:  # an API or network failure inside the specialist goes back to the chief
-            self._record(role, "error")
+        # One assignment at a time per specialist: two calls to the same one in a step queue up
+        # instead of sharing one conversation across threads.
+        with self._member_locks[role.key]:
+            member = self.member(role, fresh=fresh)
+            checkpoint = len(member.messages)
             with self._lock:
-                self.last[role.key] = f"Error: {type(err).__name__}"
-            return f"{role.name} could not finish: {type(err).__name__}: {err}", True
-        finally:
-            with self._lock:
-                self.active.discard(role.key)
+                if role.key == "sentinel":
+                    self.evidence = []  # this assignment's checks back this assignment's verdict
+                self.active.add(role.key)
+                self.last[role.key] = "Working: " + _first_line(task)
+            try:
+                report = member.ask(task)
+            except BaseException as err:
+                # Roll the specialist back to a valid conversation (no tool_use left without its result).
+                del member.messages[checkpoint:]
+                with self._lock:
+                    self.last[role.key] = f"Error: {type(err).__name__}"
+                    if role.key in ("forge", "sentinel"):
+                        self.gate = UNVERIFIED  # it may have changed files before failing
+                self._record(role, "error")
+                if not isinstance(err, Exception):
+                    raise  # Ctrl+C and friends still stop Jarvis
+                return f"{role.name} could not finish: {type(err).__name__}: {err}", True
+            finally:
+                with self._lock:
+                    self.active.discard(role.key)
 
-        if not report.strip():
-            report = f"{role.name} finished without a written report."
-        with self._lock:
-            self.last[role.key] = _summary(report)
-        outcome = self._after(role, report)
+            if not report.strip():
+                report = f"{role.name} finished without a written report."
+            with self._lock:
+                self.last[role.key] = _summary(report)
+            outcome = self._after(role, member, report)
         return f"## {role.name} report\n\n{report}\n\n_{outcome}_", False
 
-    def _after(self, role: Role, report: str) -> str:
-        rejected = ""
+    def _after(self, role: Role, member: Jarvis, report: str) -> str:
+        if role.key == "sentinel":
+            return self._judge(member, report)
         with self._lock:
             if role.key == "forge":
                 self.gate = UNVERIFIED
-            elif role.key == "sentinel":
-                found = verdict(report)
-                if found == "PASS" and any(code == 0 for _, code in self.evidence):
-                    self.gate = PASSED
-                elif found == "PASS":
-                    self.gate = UNVERIFIED
-                    rejected = (" Sentinel said PASS but ran no check that succeeded in this assignment, so the "
-                                "verdict was not accepted. Ask Sentinel to run the tests and show the result.")
-                elif found == "FAIL":
-                    self.gate = FAILED
             elif role.key == "herald" and self.gate == PASSED:
                 self.gate = CLEAN
             gate = self.gate
         self._record(role, "done")
-        notes = {
-            UNVERIFIED: "Quality gate: unverified. Sentinel must pass this work before Herald can ship.",
-            FAILED: "Quality gate: FAILED. Send Sentinel's issues to Forge, then verify again.",
-            PASSED: "Quality gate: passed. Herald may ship.",
-            CLEAN: "Quality gate: clear.",
-        }
-        return (f"Quality gate: unverified.{rejected}" if rejected else notes[gate])
+        return GATE_NOTES[gate]
+
+    def _judge(self, member: Jarvis, report: str) -> str:
+        """Accept Sentinel's verdict only when the evidence backs it."""
+        # A run cut short (step limit, budget, Ctrl+C) may end on an earlier, stale "PASS".
+        found = verdict(report) if member.stop_reason == "end_turn" else None
+        with self._lock:
+            evidence = list(self.evidence)
+        if found == "FAIL":
+            with self._lock:
+                self.gate = FAILED
+            self._record(ROLES["sentinel"], "fail")
+            return GATE_NOTES[FAILED]
+        if found != "PASS":
+            self._record(ROLES["sentinel"], "no-verdict")
+            with self._lock:
+                gate = self.gate
+            return "Sentinel gave no final VERDICT line, so nothing changed. " + GATE_NOTES[gate]
+
+        passing = [e for e in evidence if e.code == 0 and e.is_check and e.fingerprint]
+        verified = []
+        for item in passing:
+            try:
+                if fingerprint(self._repo_path(item.repo)) == item.fingerprint:
+                    verified.append(item)
+            except Exception:  # noqa: BLE001 - an unreadable repository verifies nothing
+                continue
+        if verified:
+            with self._lock:
+                for item in verified:
+                    self.verified.setdefault(item.repo, set()).add(item.fingerprint)
+                self.gate = PASSED
+            self._record(ROLES["sentinel"], "pass")
+            checks = "; ".join(sorted({f"{e.repo}: {e.command}" for e in verified}))[:300]
+            return f"{GATE_NOTES[PASSED]} Verified by: {checks}."
+        with self._lock:
+            self.gate = UNVERIFIED
+        self._record(ROLES["sentinel"], "rejected")
+        if not passing:
+            why = ("ran no recognised test or check command that succeeded in this assignment (installs and "
+                   "commands like `true` or `ls` don't count)")
+        else:
+            why = "changed the code after its last passing check, so that check no longer covers it"
+        return (f"Quality gate: unverified. Sentinel said PASS but {why}, so the verdict was not accepted. "
+                "Ask Sentinel to run the test suite on the final code and report the result.")
 
     def _record(self, role: Role, outcome: str) -> None:
         with self._lock:
             self.history.append((role.key, outcome))
 
-    def ship_blocked(self) -> str | None:
+    def _repo_path(self, repo: str) -> Path:
+        return repo_dir(self.chief.ctx, repo)
+
+    def ship_blocked(self, repo: str) -> str | None:
+        """None if the repository's code is unchanged from its default branch or exactly what Sentinel verified."""
+        try:
+            path = self._repo_path(repo)
+            current = fingerprint(path)
+            base = base_fingerprint(path, github.default_branch(path))
+        except ToolError:
+            return None  # not cloned: the tool itself reports that
+        except Exception as err:  # noqa: BLE001 - fail closed
+            return f"Quality gate: couldn't check the code in {repo} ({type(err).__name__}), so shipping is blocked."
+        if current == base:
+            return None  # only documentation changed
         with self._lock:
+            if current in self.verified.get(repo, set()):
+                return None
             gate = self.gate
-        if gate == UNVERIFIED:
-            return "Quality gate: Forge changed code that Sentinel has not verified yet. Ask Jarvis to run Sentinel first."
         if gate == FAILED:
-            return "Quality gate: Sentinel failed the latest change. Forge must fix it and Sentinel must pass it before shipping."
-        return None
+            return ("Quality gate: Sentinel failed the latest change. Forge must fix it and Sentinel must pass it "
+                    "before shipping.")
+        if self.verified.get(repo):
+            return ("Quality gate: the code in this repository changed after Sentinel verified it. "
+                    "Ask Jarvis to have Sentinel verify the current code.")
+        return "Quality gate: this code hasn't been verified. Ask Jarvis to run Sentinel first."
 
     # ---- members ----------------------------------------------------------------------------
 
@@ -449,18 +540,21 @@ class Team:
             on_tool=on_tool,
             on_result=on_result,
             middleware=lambda name, data, run, role=role: self._guard(role, name, data, run),
+            should_stop=self._cancel.is_set,
             budget=chief.budget,
         )
 
     def _guard(self, role: Role, name: str, data: Any, run: Callable[[], tuple[Any, bool]]) -> tuple[Any, bool]:
         """Wraps every specialist tool call.
 
-        - Herald can't ship unverified work, and may only touch documentation.
-        - Sentinel may only write tests; Forge alone changes application code.
-        - Sentinel's successful check commands are recorded as evidence for its verdict.
+        - Herald ships only code that is unchanged or exactly what Sentinel verified (fingerprints).
+        - Sentinel may only write tests and Herald only documentation; Forge alone changes code.
+        - No specialist rewrites git history through run_command: commits go through Herald's tool.
+        - Sentinel's commands and the code they ran against are recorded as evidence for its verdict.
         - Parallel specialists clone one repository at a time.
         """
-        if name in SHIP and (blocked := self.ship_blocked()):
+        repo = str(data.get("repo", "")) if isinstance(data, dict) else ""
+        if name in SHIP and (blocked := self.ship_blocked(repo)):
             return f"Error: {blocked}", True
         if name in WRITE and isinstance(data, dict):
             path = str(data.get("path", ""))
@@ -468,15 +562,23 @@ class Team:
             if allowed is not None and not allowed[1](path):
                 return (f"Error: {role.name} may only change {allowed[0]}; '{path}' is not one. "
                         "Report the change you need so Jarvis can route it to Forge."), True
+        if name == "run_command" and isinstance(data, dict) and rewrites_history(str(data.get("command", ""))):
+            return ("Error: in team mode, git history changes (commit, push, reset, rebase, merge, tag...) go "
+                    "through Herald's commit_changes and push_and_open_pr, after Sentinel verifies the code."), True
         if name == "pull_repo":
             with self._pull_lock:
                 return run()
         result = run()
-        if role.key == "sentinel" and name == "run_command":
+        if role.key == "sentinel" and name == "run_command" and isinstance(data, dict):
             content, is_error = result
-            exit_code = _exit_code(content) if not is_error else None
+            command = str(data.get("command", ""))
+            code = _exit_code(content) if not is_error else None
+            try:
+                print_ = fingerprint(self._repo_path(repo)) if code is not None else ""
+            except Exception:  # noqa: BLE001 - no fingerprint, no evidence
+                print_ = ""
             with self._lock:
-                self.evidence.append((str(data.get("command", "")) if isinstance(data, dict) else "", exit_code))
+                self.evidence.append(Evidence(repo, command, code, is_check_command(command), print_))
         return result
 
     def _serialised(self, role: Role) -> Callable[[str], bool]:
@@ -497,6 +599,7 @@ class Team:
             self.gate = CLEAN
             self.history.clear()
             self.last.clear()
+            self.verified.clear()  # left-over edits on disk need verifying again
 
     def snapshot(self) -> dict[str, Any]:
         """The crew's state as JSON-ready data, for the web panel."""
@@ -617,33 +720,6 @@ def _exit_code(output: object) -> int | None:
     """The exit code from run_command's output, or None if the command didn't run (declined, timed out)."""
     found = _EXIT.search(output) if isinstance(output, str) else None
     return int(found.group(1)) if found else None
-
-
-DOC_SUFFIXES = (".md", ".mdx", ".rst", ".txt", ".adoc")
-DOC_NAMES = ("README", "CHANGELOG", "CHANGES", "HISTORY", "CONTRIBUTING", "LICENSE", "NOTICE", "AUTHORS")
-TEST_PATTERNS = ("test_*", "*_test.*", "*_tests.*", "*.test.*", "*.spec.*", "conftest.py")
-TEST_DIRS = ("test", "tests", "__tests__", "spec", "specs", "testdata", "fixtures")
-
-
-def _parts(path: str) -> list[str]:
-    return [p for p in path.replace("\\", "/").split("/") if p and p != "."]
-
-
-def is_doc(path: str) -> bool:
-    parts = _parts(path)
-    if not parts:
-        return False
-    name = parts[-1]
-    return (name.lower().endswith(DOC_SUFFIXES) or name.split(".")[0].upper() in DOC_NAMES
-            or parts[0].lower() in ("docs", "doc"))
-
-
-def is_test(path: str) -> bool:
-    parts = _parts(path)
-    if not parts:
-        return False
-    return (any(fnmatch.fnmatch(parts[-1].lower(), pattern) for pattern in TEST_PATTERNS)
-            or any(part.lower() in TEST_DIRS for part in parts[:-1]))
 
 
 # Who may write what. Roles not listed (Forge) may write anywhere in the repository.

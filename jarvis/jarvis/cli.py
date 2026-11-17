@@ -12,7 +12,7 @@ from pathlib import Path
 
 import anthropic
 
-from . import github, mcp_bridge, selftest, team, voice, wake, watch, web
+from . import autopilot, github, mcp_bridge, notify, selftest, team, voice, wake, watch, web
 from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Budget, Jarvis, parse_tokens
 from .memory import Memory
 from .tools import ToolContext
@@ -305,6 +305,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
     parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account.")
     parser.add_argument("--interval", type=float, default=5, help="Watch mode: minutes between checks (default 5).")
+    group_auto = parser.add_argument_group("automation")
+    group_auto.add_argument("--issues", nargs="+", metavar="REPO", help="Issue autopilot: the crew works open issues labelled --label in these repositories (owner/name) and opens a draft PR for each. Implies --team --auto. Uses --interval.")
+    group_auto.add_argument("--label", default=autopilot.DEFAULT_LABEL, help=f"Issue autopilot: the label that hands an issue to Jarvis (default '{autopilot.DEFAULT_LABEL}').")
+    group_auto.add_argument("--per-poll", type=int, default=1, help="Issue autopilot: issues to work per round (default 1).")
+    group_auto.add_argument("--notify", default=os.environ.get("JARVIS_NOTIFY", ""), metavar="URL", help="Send a summary when an autonomous run, self-test, watch fix or autopilot issue finishes: an ntfy topic URL, a Slack or a Discord webhook. Also JARVIS_NOTIFY.")
     parser.add_argument("--fix", action="store_true", help="Watch mode: when a build breaks, run an autonomous fix that opens a draft PR. Implies --auto.")
     group_web = parser.add_argument_group("web and phone")
     group_web.add_argument("--web", action="store_true", help="Serve a chat page with streaming replies, approvals and browser voice. Opens on this computer only unless --web-host is set.")
@@ -342,6 +347,21 @@ def main(argv: list[str] | None = None) -> int:
         args.auto = args.team = True
         args.budget = args.budget or selftest.DEFAULT_BUDGET
         args.prompt = [selftest.GOAL]
+    if args.notify:
+        try:
+            notify.validate_url(args.notify)
+        except ValueError as err:
+            parser.error(f"--notify: {err}")
+    if args.issues:
+        if args.prompt or args.watch is not None or args.web or args.brief is not None or args.selftest:
+            parser.error("--issues runs on its own; drop the prompt, --watch, --web, --brief and --selftest")
+        if args.per_poll < 1:
+            parser.error("--per-poll must be at least 1")
+        try:
+            args.issues = [github.validate_repo(r) for r in args.issues]
+        except github.GitHubError as err:
+            parser.error(f"--issues: {err}")
+        args.auto = args.team = True
     if args.fix:
         if args.watch is None:
             parser.error("--fix works with --watch")
@@ -447,7 +467,8 @@ def run_web(args: argparse.Namespace, jarvis: Jarvis) -> int:
     return 0
 
 
-def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> int:
+def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None,
+              notifier: notify.Notifier | None = None) -> int:
     repos = [t for t in args.watch if "/" in t]
     owners = [t for t in args.watch if "/" not in t]
     if not args.watch:
@@ -471,8 +492,14 @@ def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> i
     def fix(alert: watch.Alert) -> None:
         print(f"{DIM}Starting an autonomous fix for {alert.repo} ({alert.workflow})...{RESET}")
         jarvis.reset()
-        if run_turn(jarvis, watch.fix_prompt(alert)) is None:
+        if jarvis.budget is not None:
+            jarvis.budget.reset()
+        reply = run_turn(jarvis, watch.fix_prompt(alert))
+        if reply is None:
             print(f"{DIM}The fix attempt stopped with an error; watching continues.{RESET}")
+        if notifier:
+            notifier.send(f"Jarvis fix {'finished' if reply is not None else 'failed'}: {alert.repo} {alert.workflow}",
+                          reply or "The fix attempt stopped with an error; see the run log.")
 
     print(f"{CYAN}Jarvis is watching{RESET} {', '.join(repos + owners)} every {args.interval:g} min. Ctrl+C stops.")
     try:
@@ -483,7 +510,7 @@ def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> i
     return 0
 
 
-def finish_selftest(repo: Path, jarvis: Jarvis, log: RunLog | None) -> int:
+def finish_selftest(repo: Path, jarvis: Jarvis, log: RunLog | None, notifier: notify.Notifier | None = None) -> int:
     """Check the crew's work in the repository itself and print the verdict."""
     checks = selftest.verify(repo, jarvis.team.history if jarvis.team else None)
     summary = selftest.report(checks)
@@ -495,7 +522,39 @@ def finish_selftest(repo: Path, jarvis: Jarvis, log: RunLog | None) -> int:
     if log:
         log.section("Self-test", summary)
         print(f"{DIM}Full run log: {log.path}{RESET}")
+    if notifier:
+        notifier.send("Jarvis self-test " + ("passed" if passed else "FAILED"), summary)
     return 0 if passed else 1
+
+
+def make_notifier(args: argparse.Namespace) -> notify.Notifier | None:
+    if not getattr(args, "notify", ""):
+        return None
+    return notify.Notifier(args.notify, report=lambda m: print(f"{DIM}{m}{RESET}", file=sys.stderr))
+
+
+def run_issues(args: argparse.Namespace, jarvis: Jarvis, notifier: notify.Notifier | None) -> int:
+    ledger = autopilot.Ledger(args.workspace.parent / "autopilot.json")
+
+    def work(issue: autopilot.Issue) -> str | None:
+        jarvis.reset()
+        if jarvis.budget is not None:
+            jarvis.budget.reset()  # each issue gets the full --budget
+        reply = run_turn(jarvis, autopilot.issue_prompt(issue))
+        if jarvis.team:
+            print(jarvis.team.status())
+        return reply
+
+    print(f"{CYAN}Issue autopilot:{RESET} working issues labelled '{args.label}' in {', '.join(args.issues)} "
+          f"every {args.interval:g} min, {args.per_poll} per round. Ledger: {ledger.path}. Ctrl+C stops.")
+    try:
+        autopilot.autopilot_loop(args.issues, args.label, ledger, work,
+                                 report=lambda m: print(f"{DIM}{time.strftime('%H:%M')} {m}{RESET}"),
+                                 notify=notifier.send if notifier else None,
+                                 interval_s=args.interval * 60, per_poll=args.per_poll)
+    except KeyboardInterrupt:
+        print()
+    return 0
 
 
 def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordListener | None,
@@ -552,8 +611,11 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
               f"Destructive commands are blocked, and it never pushes the default branch or merges. Ctrl+C stops it.")
         print(f"{DIM}Run log: {log.path}{RESET}" if log else "")
 
+    notifier = make_notifier(args)
+    if args.issues:
+        return run_issues(args, jarvis, notifier)
     if args.watch is not None:
-        return run_watch(args, jarvis, io)
+        return run_watch(args, jarvis, io, notifier)
     if args.web:
         return run_web(args, jarvis)
 
@@ -572,7 +634,10 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         if log and jarvis.team:
             log.crew(jarvis.team.status())
         if args.selftest_repo is not None:
-            return finish_selftest(args.selftest_repo, jarvis, log)
+            return finish_selftest(args.selftest_repo, jarvis, log, notifier)
+        if notifier and args.auto:
+            notifier.send("Jarvis finished" if reply is not None else "Jarvis stopped with an error",
+                          (reply or "See the run log.") + (f"\n\nRun log: {log.path}" if log else ""))
         return 0 if reply is not None else 1
 
     if io and listener:

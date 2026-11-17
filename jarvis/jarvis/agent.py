@@ -77,6 +77,10 @@ class Budget:
         with self._lock:
             return self.used >= self.limit
 
+    def reset(self) -> None:
+        with self._lock:
+            self.used = 0
+
     def describe(self) -> str:
         with self._lock:
             return f"{self.used:,} of {self.limit:,} tokens used"

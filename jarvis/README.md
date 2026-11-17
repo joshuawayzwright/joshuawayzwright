@@ -189,6 +189,35 @@ jarvis --selftest --team-models economy --budget 1M
 
 It prints `SELF-TEST PASSED` or `FAILED` with each check and the crew table, and exits 0 or 1. The full run log is in the same folder. The self-test needs no GitHub token, and it uses its own memory file, so your notes are left alone.
 
+## Issue autopilot and notifications
+
+**Hand Jarvis an issue by labelling it.** The crew works each open issue labelled `jarvis` and opens a draft pull request that starts with `Closes #N`:
+
+```bash
+jarvis --issues acme/api acme/web                       # checks every 5 minutes, one issue per round
+jarvis --issues acme/api --label ai-ready --per-poll 2 --interval 15 --budget 2M
+```
+
+- **The label is the permission.** On GitHub only people with triage access or higher can add labels, so the crew only works issues a maintainer has approved.
+- **Issue text is still treated as data.** The crew reads it as a description of the change, not as instructions about how Jarvis operates. It ignores requests to reveal secrets or to change credentials, CI, permissions or settings. If an issue is unclear, unsafe, or not a code change, the crew changes nothing and explains why.
+- **Each issue is worked once.** `~/.jarvis/autopilot.json` records every issue when it starts (`started`, then `done` or `failed`), so a restart never repeats work or spends twice. Delete an entry to retry that issue.
+- **Every safeguard of team mode applies.** That includes the evidence-backed quality gate, draft PRs only, and `--budget`, which applies to *each issue*. An issue that crashes is recorded and the autopilot moves on.
+
+**Get told when work finishes.** `--notify URL` (or `JARVIS_NOTIFY`) sends a summary when one of these finishes: an autonomous run, a self-test, a watch-mode fix or an autopilot issue.
+
+| URL | Sent as |
+|---|---|
+| `https://ntfy.sh/<your-topic>` (or your own ntfy server) | Phone push notification, with the title in a header |
+| `https://hooks.slack.com/services/...` | Slack message (`{"text": ...}`) |
+| `https://discord.com/api/webhooks/...` | Discord message (`{"content": ...}`) |
+
+```bash
+export JARVIS_NOTIFY=https://ntfy.sh/my-jarvis-7f3k   # pick a hard-to-guess topic: ntfy topics are public
+jarvis --issues acme/api
+```
+
+Only the summary is sent, capped at 1,800 characters. URLs must use `https://`; `http://` is accepted only for localhost. A failed notification is reported and never stops the run.
+
 ## Plug in tools from GitHub (MCP)
 
 Jarvis can use any [Model Context Protocol](https://modelcontextprotocol.io) server, local or hosted: the open-source tool ecosystem on GitHub. That includes browsers, documentation lookup, databases, Slack, Sentry, Figma, cloud consoles and thousands more. It reads the standard `mcpServers` config used by Claude Desktop, Cursor and most server READMEs, so you can paste a server's documented config in as-is.
@@ -309,6 +338,8 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--team-models`, `JARVIS_TEAM_MODELS` | `--model` for all | Models per specialist, or `economy` |
 | `--budget`, `JARVIS_BUDGET` | no cap | Stop after this many tokens across all agents (`500k`, `2M`) |
 | `--selftest` | | Live end-to-end team check on a local repository with a planted bug |
+| `--issues REPO ...`, `--label`, `--per-poll` | `jarvis`, 1 | Issue autopilot: the crew works labelled issues into draft PRs |
+| `--notify`, `JARVIS_NOTIFY` | off | ntfy, Slack or Discord message when a run finishes |
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--brief [OWNER]` | | Morning briefing across your repositories |

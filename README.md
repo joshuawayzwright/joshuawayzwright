@@ -8,6 +8,7 @@ Gold Coast, Queensland, Australia · Studying Computer Science at Griffith Unive
 
 <a href="https://www.linkedin.com/in/joshuawright-solo"><img src="https://img.shields.io/badge/LinkedIn-joshuawright--solo-0087FF?style=for-the-badge&logo=linkedin&logoColor=white&labelColor=0A0A0A" alt="LinkedIn" /></a>
 <a href="https://github.com/joshuawayzwright"><img src="https://img.shields.io/badge/GitHub-joshuawayzwright-8A8F98?style=for-the-badge&logo=github&logoColor=white&labelColor=0A0A0A" alt="GitHub" /></a>
+<a href="https://www.tiktok.com/@joshwrightwayz"><img src="https://img.shields.io/badge/TikTok-%40joshwrightwayz-0087FF?style=for-the-badge&logo=tiktok&logoColor=white&labelColor=0A0A0A" alt="TikTok" /></a>
 <a href="mailto:superadmin2712@gmail.com"><img src="https://img.shields.io/badge/Email-Get_in_touch-D4AF37?style=for-the-badge&logo=gmail&logoColor=white&labelColor=0A0A0A" alt="Email" /></a>
 
 </div>
@@ -38,7 +39,7 @@ I build things end to end, test them properly, and say clearly what each product
 | **Threads** | [@soloservicepro](https://www.threads.com/@soloservicepro) | |
 | **Facebook** | [The Solo Service Provider](https://www.facebook.com/share/1ZSV63yiV3/) | [WrightWayz](https://www.facebook.com/people/Wrightwayz/61592187395142/) |
 
-Personal: [LinkedIn](https://www.linkedin.com/in/joshuawright-solo) · [GitHub](https://github.com/joshuawayzwright)
+Personal: [LinkedIn](https://www.linkedin.com/in/joshuawright-solo) · [TikTok @joshwrightwayz](https://www.tiktok.com/@joshwrightwayz) · [GitHub](https://github.com/joshuawayzwright)
 
 ## The Solo Service Provider
 

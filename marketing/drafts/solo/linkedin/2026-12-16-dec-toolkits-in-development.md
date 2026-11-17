@@ -11,7 +11,7 @@ sources:
   - https://thesoloserviceprovider.com.au/shop/
   - https://thesoloserviceprovider.com.au/shop/products.json
   - https://thesoloserviceprovider.com.au/
-status: draft
+status: approved
 ---
 
 # The SOLO range, now on sale
@@ -56,3 +56,14 @@ Status: NEEDS CHANGES
 - Passed: first person; no prices, dates or flagship; length 1,014 characters including link and hashtags (limit 3,000); 2 hashtags; UTM correct (linkedin/social/solo-dec-toolkits-in-development); no banned words; Australian English.
 - Owner escalations: (1) the live shop selling at unapproved prices, including the A$79 bundle the brand file says never to repeat. This blocks this draft. (2) The homepage (link target) links "EXPLORE SOLO AI" to solo-ai.html, which recruits Android early-access testers ("Testers get a free account with daily messages"), against the 16 Nov "in development only" decision. Doesn't block this draft. (3) The homepage sign-up links the calculator page, which still shows "All ten SOLO toolkits for A$79". Doesn't block this draft on its own.
 - Verified: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-toolkits-in-development (200); https://thesoloserviceprovider.com.au/shop/ (200) plus shop.js and products.json; brand file product range; calendar Owner decisions.
+
+## Review: 2026-11-17 (re-review)
+Status: APPROVED
+- Previous blocker cleared: the post now says the range is on sale, which matches solo.md (17 Nov) and products.json (`salesOpen: true`). Every price quoted matches both the approved table and live priceLabels: A$29 ×3, A$19 ×4, A$15, A$12, A$9, DIY Kit A$39, four Trade Editions A$49, Complete Toolkit A$79. "Sixteen" is correct. "A$199 if bought separately" is verified: 29×3 + 19×4 + 15 + 12 + 9 = 199, and the bundle includes exactly those ten. solo.md approves the comparison.
+- Fair range: the ten toolkits are grouped by price, and the bundle is listed last as an option with no "best value" or flagship wording. No sales, popularity or "bestseller" claims, and "no track record to quote yet" is honest. The AI Marketing Kit isn't mentioned. LAUNCH20 isn't mentioned. "Most … quoting, invoicing, bookings, cashflow and admin; a few … job hunting and launching a digital product" holds up against the products.json descriptions (11 of 16 fit).
+- Checked: the AUD, one-off, no-GST, instant-download and 30-day guarantee wording sits "alongside your consumer guarantees under Australian Consumer Law" (solo.md). 1,423 published characters: over the 1,300 ideal (note only), limit 3,000. One link, 2 hashtags, UTM linkedin/social/solo-dec-toolkits-in-development. First person, Australian English, no banned words.
+- Before publishing: re-check products.json. If any price has changed, recompute the A$199 figure or remove it (solo.md rule). Don't paste the H1 as the first line.
+- Note (not a fail): the visible UTM campaign slug reads "toolkits-in-development" on a post saying "now on sale". It's harmless for tracking, but the orchestrator may rename the campaign, for example `solo-dec-range`, if it's renamed consistently.
+- Owner escalation (post can still go out): the shop page, the calculator page and /shop/solo-complete-toolkit-bundle.html show "Launch offer: 20% off everything with code LAUNCH20 … Ends 31 December 2026". Not confirmed in solo.md. The draft doesn't mention it (correct). The owner should confirm it or remove it from the site.
+- Owner escalation (post can still go out): shop.js tags the Complete Toolkit "BEST VALUE · ALL TEN" and sorts it first (code comment: "it is the best value and the clearest offer"). That conflicts with solo.md's "Don't make one product look like the flagship. The bundle is a convenience option". The AI Workflow Starter Pack copy ("save hours every week") is also an unsubstantiated outcome claim (ACL). Reword both on the site.
+- Verified: https://thesoloserviceprovider.com.au/shop/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-toolkits-in-development (200), https://thesoloserviceprovider.com.au/shop/products.json (200; salesOpen true; all 16 priceLabels match the approved table; ten toolkit prices sum to A$199; bundle `includes` = the ten toolkits), https://thesoloserviceprovider.com.au/shop/ and shop/shop.js (200; "not on sale" block stays hidden while salesOpen is true), https://thesoloserviceprovider.com.au/shop/solo-complete-toolkit-bundle.html (200), marketing/brands/solo.md approved table, calendar Owner decisions (17 Nov).

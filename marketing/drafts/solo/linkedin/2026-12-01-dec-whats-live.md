@@ -14,7 +14,7 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - marketing/calendar/2026-12-solo.md
-status: draft
+status: approved
 ---
 
 # What's live and what isn't at SOLO this December
@@ -24,7 +24,7 @@ What's live at SOLO this December, and what isn't.
 I'd rather you hear it from me than guess from the website.
 
 Live now:
-- Digital toolkits: 16 products for sole traders, covering quotes and invoices, cashflow, bookings and more, plus trade editions for cleaners, handyman, lawn and gardening, and mobile dog grooming. One-off prices from A$9 to A$79, no GST charged, with a 30-day money-back guarantee alongside your consumer rights.
+- Digital toolkits: 16 products for sole traders, covering quotes and invoices, cashflow, bookings and more, plus trade editions for cleaners, handymen, lawn and gardening, and mobile dog grooming. One-off prices from A$9 to A$79, no GST charged, with a 30-day money-back guarantee alongside your consumer rights.
 - AI Download Centre: a free, searchable directory of AI tools and models. Hand-picked listings link to the official source.
 - A free hourly rate calculator for sole traders.
 - Revenue Rescue: a service that helps local businesses turn website visitors into paid jobs.
@@ -72,3 +72,13 @@ Status: APPROVED
 ## Review: 2026-11-16 (orchestrator follow-up)
 Status: NEEDS CHANGES
 - The earlier approval depended on nothing being on sale. Verified at 22:49 GMT: `https://thesoloserviceprovider.com.au/shop/products.json` (last modified 16 Nov 2026 17:21 GMT) has `"salesOpen": true` and lists 16 products with BUY NOW buttons. "The ten digital toolkits. Nothing is on sale yet." is now false → rewrite once the owner confirms whether sales are open and which prices are approved.
+
+## Review: 2026-11-17 (re-review)
+Status: APPROVED
+- Previous issue fixed: the toolkits now sit under "Live now" with the approved range "from A$9 to A$79" (lowest A$9 AI Workflow Starter Pack, highest A$79 Complete Toolkit; both match products.json). No GST, one-off, 30-day guarantee "alongside your consumer rights" matches solo.md and the shop. SOLO AI is "in development" only, with no tester or early-access mention. The calculator and Revenue Rescue are described but not linked, so the Revenue Rescue price placeholder isn't triggered, and no service price is quoted. LAUNCH20 isn't mentioned.
+- Small fix made: "trade editions for cleaners, handyman, lawn and gardening" → "handymen" (grammar, matches the shop's "handymen").
+- Note (not a fail): "16 products … plus trade editions" could be read as 16 + 4. Optional: "16 products for sole traders, including trade editions for…".
+- Checked: 1,076 published characters including the link and hashtags (limit 3,000). One link at the end, 2 hashtags, UTM linkedin/social/solo-dec-whats-live. First person, Australian English, no banned words, single brand.
+- Owner escalation (post can still go out): the homepage meta/og:description, which LinkedIn uses for the link preview, still says "…and the SOLO AI app for Android". That will appear beside a post saying SOLO AI is in development. The homepage `#apps` section still lists the AI Download Centre as "in development and … not available". The `#projects` card says "with links to their official download sources" (overstated; see ai-download-center.md). "EXPLORE SOLO AI →" goes to solo-ai.html ("Android early access", "BECOME A TESTER"), which conflicts with the 16 Nov "in development only" decision. The homepage also has social links (YouTube, X, Threads, Instagram, Facebook) that aren't in solo.md's verified list.
+- Owner escalation (post can still go out): the shop page, the calculator page and /shop/solo-complete-toolkit-bundle.html show "Launch offer: 20% off everything with code LAUNCH20 … Ends 31 December 2026". Not confirmed in solo.md. The draft doesn't mention it (correct). The owner should confirm it or remove it from the site.
+- Verified: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-whats-live (200), https://thesoloserviceprovider.com.au/shop/products.json (200; salesOpen true; all 16 priceLabels match the approved table; ten toolkit prices sum to A$199; bundle `includes` = the ten toolkits), https://thesoloserviceprovider.com.au/shop/ and shop/shop.js (200; "not on sale" block stays hidden while salesOpen is true), https://thesoloserviceprovider.com.au/rate-calculator.html (200), https://thesoloserviceprovider.com.au/revenue-rescue.html (200), https://joshuawayzwright.github.io/ai-download-center/ (200; "Hand-picked listings link to the official source"), https://thesoloserviceprovider.com.au/solo-ai.html (200), marketing/brands/solo.md (17 Nov), calendar Owner decisions (16 and 17 Nov).

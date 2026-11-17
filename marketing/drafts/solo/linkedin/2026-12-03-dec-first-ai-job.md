@@ -12,7 +12,7 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - marketing/calendar/2026-12-solo.md
-status: draft
+status: approved
 ---
 
 # Which admin job should you hand to AI first?
@@ -56,3 +56,11 @@ Status: NEEDS CHANGES
 - Checked and OK: the AI workflow is general, names no tool and makes no safety claim about any tool. The privacy check is present. No client data is used. First person, Australian English, no banned words, one link at the end, 2 hashtags, UTM tags in the right order before the fragment. Length is under 1,000 characters including the link (limit 3,000). No advice disclaimer is needed, since these are general data-handling habits, not tax, financial or legal advice.
 - Owner escalation (post can go out once the anchor is fixed): the homepage `#apps` copy calls the AI Download Centre "in development", which contradicts "LIVE DIRECTORY". The homepage og:description says toolkits and "the SOLO AI app for Android" are offered. See the 2026-12-01 review for the full list.
 - Verified: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-first-ai-job#apps (200; anchor content checked), https://joshuawayzwright.github.io/ai-download-center/ (200), https://thesoloserviceprovider.com.au/shop/ (200), marketing/brands/solo.md, marketing/brands/ai-download-center.md, marketing/compliance.md, marketing/channels.md.
+
+## Review: 2026-11-17 (re-review)
+Status: APPROVED
+- Previous issue fixed: the link now uses `#projects` in both the front matter and the body. The live homepage has `id="projects"` containing the "LIVE DIRECTORY · AI DOWNLOAD CENTRE" card. The UTM query comes before the fragment.
+- Checked: "free directory of AI tools and models. Hand-picked listings link to the official source" matches the live AI Download Center. The workflow is general, names no tool, includes the privacy check and uses no client data. 1,002 published characters (limit 3,000), one link, 2 hashtags, UTM linkedin/social/solo-dec-first-ai-job. First person, Australian English, no banned words. No advice disclaimer needed.
+- Owner escalation (post can still go out): the homepage meta/og:description, which LinkedIn uses for the link preview, still says "…and the SOLO AI app for Android". That will appear beside a post saying SOLO AI is in development. The homepage `#apps` section still lists the AI Download Centre as "in development and … not available". The `#projects` card says "with links to their official download sources" (overstated; see ai-download-center.md). "EXPLORE SOLO AI →" goes to solo-ai.html ("Android early access", "BECOME A TESTER"), which conflicts with the 16 Nov "in development only" decision. The homepage also has social links (YouTube, X, Threads, Instagram, Facebook) that aren't in solo.md's verified list.
+- Calendar row solo-2026-12-03 already lists the `#projects` target, so no change is needed.
+- Verified: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-first-ai-job#projects (200; anchor content checked), https://joshuawayzwright.github.io/ai-download-center/ (200), marketing/brands/solo.md, marketing/brands/ai-download-center.md.

@@ -108,7 +108,9 @@ def check_draft(path: Path, errors: list[str]) -> None:
     if status in {"approved", "needs-changes", "published"} and "## Review:" not in text:
         errors.append(f"{rel}: marked {status} without a review block")
     if status in {"approved", "published"}:
-        if PLACEHOLDER.search(text):
+        # Review blocks are history and may quote placeholders they once flagged;
+        # only the publishable content and Writer notes must be clear.
+        if PLACEHOLDER.search(text.split("## Review:")[0]):
             errors.append(f"{rel}: marked {status} but still contains a blocking placeholder")
         if channel == "email" and "[UNSUBSCRIBE LINK]" not in text:
             errors.append(f"{rel}: approved email has no [UNSUBSCRIBE LINK] merge field")

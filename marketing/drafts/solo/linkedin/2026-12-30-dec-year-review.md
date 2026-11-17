@@ -11,7 +11,7 @@ sources:
   - https://thesoloserviceprovider.com.au/
   - https://thesoloserviceprovider.com.au/shop/
   - https://thesoloserviceprovider.com.au/revenue-rescue.html
-status: draft
+status: approved
 ---
 
 # An honest look at where SOLO is at, end of 2026
@@ -20,7 +20,7 @@ Year-end check-in, with no spin: what's live at The Solo Service Provider, and w
 
 Live now:
 - The shop: 16 digital products for Australian sole traders, from A$9, with a 30-day money-back guarantee. It opened on 16 November.
-- The AI Download Centre, a free, searchable directory of AI tools and models with links to their official download sources.
+- The AI Download Centre, a free, searchable directory of AI tools and models. Hand-picked listings link to the official source.
 - A free hourly rate calculator for sole traders.
 - A pricing-tips email list, with short, practical emails on pricing, quoting and getting paid.
 - Revenue Rescue, a fixed-scope service that helps service businesses turn website visitors into paying customers.
@@ -52,3 +52,12 @@ Status: NEEDS CHANGES
 - Passed: AI Download Centre description, SOLO AI "in development… isn't available as a public service… No launch date has been announced" (homepage), pricing-tips list and Revenue Rescue match the live pages. The calculator is named but not linked (acceptable). Length 1,201 characters (limit 3,000); 2 hashtags; UTM correct (linkedin/social/solo-dec-year-review); first person; "Centre" matches the SOLO site, per ai-download-center.md; no banned words.
 - Owner escalations: (1) the shop is on sale at unapproved prices. Blocks this draft. (2) solo-ai.html, linked from the homepage, says "SOLO AI for Android is in early-access testing… BECOME A TESTER", which conflicts with "isn't available as a public service" and the 16 Nov decision. Doesn't block, but the owner should align that page. (3) The calculator page's A$79 offer is reachable from the homepage. Doesn't block (not linked here).
 - Verified: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-year-review (200); https://thesoloserviceprovider.com.au/shop/ plus products.json; https://thesoloserviceprovider.com.au/revenue-rescue.html; https://thesoloserviceprovider.com.au/solo-ai.html; brand file; calendar Owner decisions.
+
+## Review: 2026-11-17 (re-review)
+Status: APPROVED
+- Previous issues resolved: the shop is now "Live now", with "16 digital products … from A$9, with a 30-day money-back guarantee. It opened on 16 November". This matches solo.md and products.json (lowest priceLabel A$9). Scheduling: the 17 Nov owner default keeps 30 Dec, pre-scheduled by the owner, so the "closed until Monday 4 January 2027" line is correct.
+- Small fix made: "with links to their official download sources" → "Hand-picked listings link to the official source." This matches the live AI Download Center wording and ai-download-center.md ("never say every link is official"). The homepage card's phrase overstates it.
+- Checked: SOLO AI is "in development" only, with no launch date. Revenue Rescue is described as a "fixed-scope service" turning "website visitors into paying customers" (page: "path from website visitor to paying customer"). It isn't linked and has no price. The homepage target doesn't link revenue-rescue.html, so no service-price placeholder is needed. The calculator is named but not linked. There's no sales or popularity claim and no LAUNCH20. About 1,240 published characters after the fix (limit 3,000). One link, 2 hashtags, UTM linkedin/social/solo-dec-year-review. First person, Australian English, no banned words.
+- Owner escalation (post can still go out): the homepage meta/og:description, which LinkedIn uses for the link preview, still says "…and the SOLO AI app for Android". That will appear beside a post saying SOLO AI is in development. The homepage `#apps` section still lists the AI Download Centre as "in development and … not available". The `#projects` card says "with links to their official download sources" (overstated; see ai-download-center.md). "EXPLORE SOLO AI →" goes to solo-ai.html ("Android early access", "BECOME A TESTER"), which conflicts with the 16 Nov "in development only" decision. The homepage also has social links (YouTube, X, Threads, Instagram, Facebook) that aren't in solo.md's verified list.
+- Owner escalation (post can still go out): the shop page, the calculator page and /shop/solo-complete-toolkit-bundle.html show "Launch offer: 20% off everything with code LAUNCH20 … Ends 31 December 2026". Not confirmed in solo.md. The draft doesn't mention it (correct). The owner should confirm it or remove it from the site. The offer ends the day after this post. The post doesn't mention it.
+- Verified: https://thesoloserviceprovider.com.au/?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-year-review (200), https://thesoloserviceprovider.com.au/shop/products.json (200; salesOpen true; all 16 priceLabels match the approved table; ten toolkit prices sum to A$199; bundle `includes` = the ten toolkits), https://thesoloserviceprovider.com.au/shop/ and shop/shop.js (200; "not on sale" block stays hidden while salesOpen is true), https://thesoloserviceprovider.com.au/revenue-rescue.html (200), https://joshuawayzwright.github.io/ai-download-center/ (200), https://thesoloserviceprovider.com.au/solo-ai.html (200), marketing/brands/solo.md, calendar Owner decisions (16 and 17 Nov).

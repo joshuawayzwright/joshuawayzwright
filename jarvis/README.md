@@ -100,7 +100,26 @@ Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call
 - **Licenses:** Jarvis checks licenses and credits sources. It won't copy GPL code into a project with a different license, or code with no license at all.
 - `--max-steps` caps the run (default 250 in auto mode, 60 otherwise). Ctrl+C stops it at any time.
 
-> **Run it somewhere disposable.** Autonomous mode runs commands from repositories it pulls, including their install scripts and tests, without asking. Use a container, VM or cloud dev box rather than your main machine, and a GitHub token limited to the repositories you want it to change.
+> **Run it somewhere disposable, or use `--sandbox`.** Autonomous mode runs commands from repositories it pulls, including their install scripts and tests, without asking. Use `--sandbox` (below), or a container, VM or cloud dev box rather than your main machine. Either way, use a GitHub token limited to the repositories you want it to change.
+
+### Sandboxed commands
+
+```bash
+jarvis --team --auto --sandbox "..."                  # or JARVIS_SANDBOX=1
+jarvis --issues acme/api --sandbox --sandbox-network none
+```
+
+With `--sandbox`, every `run_command`, Jarvis's own and every specialist's, runs in a fresh Docker container that is removed afterwards:
+
+- **It sees only the repository**, mounted at `/work`. It never sees your home directory, SSH keys or environment variables, so `GITHUB_TOKEN` and `ANTHROPIC_API_KEY` stay out.
+- **It's locked down:** it runs as your user ID, so files it creates are yours. Every Linux capability is dropped, `no-new-privileges` is set, and memory, CPU and process count are limited (4 GB, 2 CPUs, 512 processes).
+- **Installs are cached per repository** in `~/.jarvis/sandbox-home/<repo>`, the container's home folder, so `pip install --user` or npm caches survive between commands.
+- **Network:** `bridge` by default, so dependencies install; `--sandbox-network none` cuts it off completely.
+- **Image:** `node:22-bookworm` by default (Node 22, Python 3, git, make and a C toolchain). Change it with `--sandbox-image` or `JARVIS_SANDBOX_IMAGE`. Jarvis pulls it on first use.
+- **Timeouts kill the container**, not just the client.
+- **What stays on the host:** the blocked-command list is still checked first, and Jarvis's own git operations (commit, push) still run on the host with the token only Jarvis holds.
+
+It needs Docker (Docker Desktop, or Engine on Linux). If Docker isn't running, Jarvis says so and exits rather than falling back to running commands on your machine.
 
 ## Team mode: Jarvis and six specialists
 
@@ -340,6 +359,7 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--selftest` | | Live end-to-end team check on a local repository with a planted bug |
 | `--issues REPO ...`, `--label`, `--per-poll` | `jarvis`, 1 | Issue autopilot: the crew works labelled issues into draft PRs |
 | `--notify`, `JARVIS_NOTIFY` | off | ntfy, Slack or Discord message when a run finishes |
+| `--sandbox`, `--sandbox-image`, `--sandbox-network` | off, `node:22-bookworm`, `bridge` | Run commands in a locked-down Docker container |
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--brief [OWNER]` | | Morning briefing across your repositories |

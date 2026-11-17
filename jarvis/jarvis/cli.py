@@ -12,7 +12,7 @@ from pathlib import Path
 
 import anthropic
 
-from . import autopilot, github, mcp_bridge, notify, selftest, team, voice, wake, watch, web
+from . import autopilot, github, mcp_bridge, notify, sandbox, selftest, team, voice, wake, watch, web
 from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Budget, Jarvis, parse_tokens
 from .memory import Memory
 from .tools import ToolContext
@@ -305,6 +305,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
     parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account.")
     parser.add_argument("--interval", type=float, default=5, help="Watch mode: minutes between checks (default 5).")
+    group_box = parser.add_argument_group("sandbox")
+    group_box.add_argument("--sandbox", action="store_true", default=os.environ.get("JARVIS_SANDBOX") == "1", help="Run every run_command in a throwaway Docker container that sees only the repository: no home directory, keys or environment variables, all capabilities dropped, resource limits. Also JARVIS_SANDBOX=1.")
+    group_box.add_argument("--sandbox-image", default=os.environ.get("JARVIS_SANDBOX_IMAGE", sandbox.DEFAULT_IMAGE), help=f"Image for sandboxed commands (default {sandbox.DEFAULT_IMAGE}: Node, Python 3, git, build tools).")
+    group_box.add_argument("--sandbox-network", default="bridge", choices=sandbox.NETWORKS, help="Sandbox networking: bridge (default, so installs work) or none.")
     group_auto = parser.add_argument_group("automation")
     group_auto.add_argument("--issues", nargs="+", metavar="REPO", help="Issue autopilot: the crew works open issues labelled --label in these repositories (owner/name) and opens a draft PR for each. Implies --team --auto. Uses --interval.")
     group_auto.add_argument("--label", default=autopilot.DEFAULT_LABEL, help=f"Issue autopilot: the label that hands an issue to Jarvis (default '{autopilot.DEFAULT_LABEL}').")
@@ -381,6 +385,16 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     args.workspace.mkdir(parents=True, exist_ok=True)
+    args.sandbox_box = None
+    if args.sandbox:
+        try:
+            args.sandbox_box = sandbox.Sandbox(home_root=args.workspace.parent / "sandbox-home",
+                                               image=args.sandbox_image, network=args.sandbox_network)
+            print(f"{DIM}Preparing the sandbox (the first run may pull {args.sandbox_image})...{RESET}")
+            print(f"{DIM}{args.sandbox_box.check()}{RESET}")
+        except sandbox.SandboxError as err:
+            print(f"Sandbox unavailable: {err}", file=sys.stderr)
+            return 2
     mcp = None if args.no_mcp else start_mcp(args.mcp_config, args.workspace.parent / "logs")
     try:
         return run(args, io, listener, mcp)
@@ -589,6 +603,7 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
             approve=make_approver(args.yes or args.auto),
             memory=None if args.no_memory else Memory(args.workspace.parent / "memory.md"),
             confirm_private=make_approver(False),  # screenshots always ask; refused when nobody can answer
+            sandbox=getattr(args, "sandbox_box", None),
         ),
         mcp=mcp,
         model=args.model,

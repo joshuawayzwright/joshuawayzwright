@@ -425,6 +425,7 @@ class Team:
             approve=self._serialised(role),
             memory=chief.ctx.memory,
             confirm_private=None,
+            sandbox=chief.ctx.sandbox,  # Forge's and Sentinel's commands run where the chief's would
         )
         tag = role.name
 

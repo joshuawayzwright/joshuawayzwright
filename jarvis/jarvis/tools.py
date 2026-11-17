@@ -36,6 +36,8 @@ class ToolContext:
     memory: Memory | None = None
     # Asks the person in front of the screen even when other tools are auto-approved (--yes, --auto).
     confirm_private: Approver | None = None
+    # Runs run_command inside a Docker container instead of on this machine (--sandbox).
+    sandbox: Any = None
 
 
 def _str(description: str) -> dict[str, object]:
@@ -553,10 +555,14 @@ def run_command(ctx: ToolContext, repo: str, command: str, timeout_seconds: int 
     if reason:
         raise ToolError(f"Blocked for safety: {reason}. Find another way to do this.")
     timeout = max(10, min(timeout_seconds, 900))
-    if not ctx.approve(f"Run in {repo}: {command}"):
+    where = f"{repo} (sandbox: {ctx.sandbox.image})" if ctx.sandbox is not None else repo
+    if not ctx.approve(f"Run in {where}: {command}"):
         return "The user declined this command."
     try:
-        result = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True, timeout=timeout)
+        if ctx.sandbox is not None:
+            result = ctx.sandbox.run(root, repo, command, timeout)
+        else:
+            result = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return f"Command timed out after {timeout} seconds."
     output = f"exit code {result.returncode}\n--- stdout ---\n{result.stdout}\n--- stderr ---\n{result.stderr}"

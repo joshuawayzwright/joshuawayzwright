@@ -4,14 +4,14 @@ channel: facebook
 calendar_id: solo-2026-12-16
 campaign: dec-ai-payment-reminder
 publish_on: 2026-12-17
-link: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-ai-payment-reminder#apps
+link: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-ai-payment-reminder#projects
 sources:
   - marketing/calendar/2026-12-solo.md
   - marketing/brands/solo.md
   - marketing/channels.md
   - marketing/compliance.md
-  - https://thesoloserviceprovider.com.au/ (section id="apps", AI Download Centre card)
-status: needs-changes
+  - https://thesoloserviceprovider.com.au/ (section id="projects", AI Download Centre card)
+status: draft
 ---
 
 # A polite payment reminder, without the awkwardness
@@ -27,17 +27,19 @@ Here's one way to use an AI chat tool for it, safely:
 
 Keep the reminder short: what's owing, since when, how to pay, and a friendly line to get in touch if there's an issue.
 
-If you're looking for AI tools to try, our AI Download Centre is a free, searchable directory of AI tools and models with links to their official download sources.
+If you're looking for AI tools to try, our AI Download Centre is a free, searchable directory of AI tools and models.
 
-Have a look: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-ai-payment-reminder#apps
+Have a look: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-ai-payment-reminder#projects
 
 General information only, not financial or legal advice.
 
 ## Writer notes
-- Facts used: AI Download Centre described as "A free, searchable directory of AI tools and models with links to their official download sources", status "LIVE DIRECTORY" → live homepage #apps section (curl, 16 Nov 2026); brand file status table. Privacy-check workflow → marketing/brands/solo.md pillar ("safe, specific AI workflows with privacy checks"). No SOLO AI mention, so the "in development only" rule is not engaged.
-- Conflicts: none. (Open owner item 4 on solo-ai.html wording is avoided by not mentioning SOLO AI.)
+- Revision 17 Nov 2026: applied the 16 Nov review. Anchor changed to #projects (link and body); the "official download sources" clause is cut, so the post doesn't characterise the directory's links.
+- Facts used: AI Download Centre is "A free, searchable directory of AI tools and models", status "LIVE DIRECTORY" → live homepage section id="projects" (curl, 17 Nov 2026); brand file status table (link to `#projects`, not `#apps`). Privacy-check workflow → marketing/brands/solo.md pillar ("safe, specific AI workflows with privacy checks"). No SOLO AI mention, so the "in development only" rule is not engaged.
+- Conflicts: the homepage card still says "links to their official download sources", which conflicts with the AI Download Center rule; the post doesn't repeat it. The calendar row's link target still says `#apps` and needs updating to `#projects` (orchestrator). Homepage `#apps` is the SOLO AI "coming soon" section.
 - Placeholders: none. The square-bracket blanks are template fields for the reader, not writer placeholders.
-- UTM goes before the #apps fragment so the tags are kept.
+- UTM goes before the #projects fragment so the tags are kept.
+- Link re-checked live with curl, 17 Nov 2026: homepage 200; `id="projects"` holds the AI Download Centre card.
 - Length: about 190 words (limit 80 to 250). Image: none requested.
 
 ## Review: 2026-11-16

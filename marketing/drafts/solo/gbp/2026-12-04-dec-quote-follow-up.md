@@ -11,12 +11,14 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - https://thesoloserviceprovider.com.au/shop/
-status: needs-changes
+  - https://thesoloserviceprovider.com.au/shop/products.json
+  - https://support.google.com/business/answer/6103862
+status: draft
 ---
 
 # Quotes that go quiet: a simple follow-up routine
 
-Sent a quote to a Gold Coast customer and heard nothing back? It happens to most trades. A short, steady follow-up routine often helps more than another discount.
+Sent a quote to a Gold Coast customer and heard nothing back? It happens. A short, steady follow-up routine can help.
 
 Here's a simple one:
 
@@ -38,14 +40,17 @@ Image brief
 - Approved asset(s) to use: ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png (business emblem only, do not upscale: the crop is 285x282; use it small, as a corner mark)
 - Palette: charcoal #0A0A0A background, steel #8A8F98 secondary text, burnished gold #D4AF37 accent, electric blue #0087FF sparingly
 - Text on image: "Quotes that go quiet?" (Montra Bold, headline); optional subline "A simple follow-up routine" (Rajdhani Semibold)
-- Sizes: 1080x1080 (feed). GBP also accepts 1200x900 (4:3); [NEEDS INFO: confirm GBP preferred post image size in the dashboard]
+- Sizes: 1080x1080 (square), JPG or PNG, 10 KB to 5 MB. Google's general Business Profile photo guidance recommends 720x720 px (https://support.google.com/business/answer/6103862); Google states no separate post size.
 - Alt text: "The Solo Service Provider emblem beside the words Quotes that go quiet? on a dark charcoal background."
 
 ## Writer notes
 - Facts used: free pricing-tips sign-up with short practical emails on pricing, quoting and getting paid, unsubscribe any time → https://thesoloserviceprovider.com.au/shop/ (live, 16 Nov 2026). Gold Coast, Queensland, sole-trader business → marketing/brands/solo.md. GBP is solo only, local Gold Coast angle → channels.md. The follow-up timings ("a few days", "about a week") are general suggestions, not statistics. No numbers or results claimed.
-- Conflicts: none for this post. Shop says no products are on sale, so none are mentioned.
-- Placeholders: [name] and [job] inside the sample message are intentional fill-ins for the reader, not writer placeholders. One [NEEDS INFO] in the image brief (GBP image size), non-content.
-- Length: about 1,150 characters including the link (limit 1,500). GBP button suggestion: "Learn more" to the same link.
+- Revision 17 Nov 2026: applied the 16 Nov review ("most trades" and "often helps more than another discount" removed; image size placeholder replaced with Google's general photo guidance; the unsourced 1200x900 line deleted).
+- Image guidance: JPG or PNG, 10 KB to 5 MB, recommended 720x720 px -> Google Business Profile Help, https://support.google.com/business/answer/6103862 (as quoted in the 16 Nov review and in the calendar's 17 Nov defaults; the page returns 200 on 17 Nov but its text is script-rendered, so curl couldn't re-read the figures).
+- Link re-checked live with curl, 17 Nov 2026: shop returns 200 with the pricing-tips sign-up and unsubscribe wording. `products.json` has `salesOpen: true`; the "not on sale yet" panel in the HTML is `hidden` and only shown when `salesOpen` is false.
+- Conflicts: none for this post. The shop is open, but the post doesn't mention toolkits or prices. The shop page shows a "LAUNCH20" 20% launch offer that isn't in the brand file, so it isn't mentioned (owner to confirm).
+- Placeholders: [name] and [job] inside the sample message are intentional fill-ins for the reader, not writer placeholders. No writer placeholders.
+- Length: about 1,100 characters including the link (limit 1,500). GBP button suggestion: "Learn more" to the same link.
 - Calendar note: the row's date column is 2026-12-04.
 
 ## Review: 2026-11-16

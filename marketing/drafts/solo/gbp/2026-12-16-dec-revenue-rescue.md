@@ -9,14 +9,15 @@ sources:
   - https://thesoloserviceprovider.com.au/revenue-rescue.html
   - marketing/brands/solo.md
   - marketing/calendar/2026-12-solo.md
-status: needs-changes
+  - https://support.google.com/business/answer/6103862
+status: draft
 ---
 
 # Is your website turning visitors into paid jobs?
 
 Is your website turning visitors into paid jobs?
 
-A lot of Gold Coast service businesses get visitors and still lose the job. It usually comes down to one of three things: the offer is hard to understand, proof of your work shows up too late, or an enquiry goes quiet after the first reply.
+A website can get real visitors and still lose the job. Three leaks to check: the offer is hard to understand, proof of your work shows up too late, or an enquiry goes quiet after the first reply.
 
 A quick self-check:
 - On a phone, can a stranger tell who you help and what to do next?
@@ -34,17 +35,19 @@ The Solo Service Provider, Gold Coast
 
 Image brief
 - Purpose: GBP post image for a Gold Coast local post about turning website visitors into paid jobs. Simple, calm, no results implied.
-- Approved asset(s) to use: business emblem (gold and steel angular-S) from ai-download-center/powerhouse-website/assets/approved-stage/ business emblem confirmed: `ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png` (285×282, confirmed 16 Nov 2026). Don't redraw, recolour or upscale it (the crop is 285x282, so keep it small).
+- Approved asset(s) to use: `ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png` (gold and steel angular-S business emblem, 285×282). Don't redraw, recolour or upscale it; keep it small.
 - Palette: charcoal #0A0A0A background, steel #8A8F98 secondary text, burnished gold #D4AF37 accent, electric blue #0087FF for one highlight line only
 - Text on image: Visitors, but no enquiries?
-- Sizes: 1200x627 (link/landscape). Check GBP's current image requirements before upload.
+- Sizes: 1200x627 (landscape), JPG or PNG, 10 KB to 5 MB. This meets Google's general Business Profile photo guidance (recommended 720x720 px; Google states no separate post size): https://support.google.com/business/answer/6103862
 - Alt text: Dark graphic with the text "Visitors, but no enquiries?" and the small gold and steel emblem of The Solo Service Provider.
 
 ## Writer notes
 - Facts used: Revenue Rescue is fixed-scope, delivered remotely across Australia, client work is reviewed and edited by a person, offers a 15-minute fit call, and gives no revenue or ranking guarantee, with results depending on traffic, demand and implementation → https://thesoloserviceprovider.com.au/revenue-rescue.html (read 16 Nov 2026). Three leak types (unclear offer, proof too late, quiet enquiries) → same page. Closed Thu 24 Dec 2026, back Mon 4 Jan 2027 → calendar Owner decisions (16 Nov 2026). Gold Coast based → brand file. No worked-example sums.
-- [NEEDS OWNER APPROVAL: link target revenue-rescue.html shows unapproved prices (A$395, A$1,250, from A$2,500) with Stripe buy buttons, and links to a "SOLO Revenue Rescue DIY Kit (A$39)" page with a "BUY NOW · A$39" button, while the shop says digital products are not on sale]
-- Conflicts: the live Revenue Rescue page lists prices and Stripe buy buttons, but the brand file has no approved prices. No price is quoted, and the CTA is the fit call, not a purchase. The post links to a page that shows prices, so the owner should confirm that is acceptable (calendar item 5). Live page and brand file otherwise agree.
-- Placeholders: business emblem confirmed: `ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png` (285×282, confirmed 16 Nov 2026). Body is about 1,150 characters including the link, under the 1,500 limit.
+- [NEEDS OWNER APPROVAL: Revenue Rescue service prices] The link target (revenue-rescue.html) displays the three service package prices with Stripe buy buttons, and those prices aren't approved yet. The post quotes no price. Owner to approve the prices for public display, or confirm the page can be linked as it is.
+- Revision 17 Nov 2026: applied the 16 Nov review. The "A lot of Gold Coast service businesses... usually" claim is replaced with the page's wording plus "Three leaks to check". The image brief's duplicated asset line is tidied and the size line now cites Google's general photo guidance. The earlier approval flag about the A$39 DIY Kit and "not on sale" is resolved: the shop is open (`products.json` salesOpen true, checked 17 Nov) and the A$39 Revenue Rescue DIY Kit is an approved price. The DIY Kit isn't mentioned in the post, so the single CTA stays the fit call.
+- Facts used: Revenue Rescue is fixed-scope, delivered remotely across Australia, client work is reviewed and edited by a person, offers a 15-minute fit call, and gives no revenue or ranking guarantee, with results depending on traffic, demand, pricing, competition and implementation -> https://thesoloserviceprovider.com.au/revenue-rescue.html (re-read with curl 17 Nov 2026). Three leak types (unclear offer, proof too late, quiet enquiries) -> same page. Closed Thu 24 Dec 2026, back Mon 4 Jan 2027 -> calendar Owner decisions (16 Nov 2026). Gold Coast based -> brand file. Image guidance -> https://support.google.com/business/answer/6103862. No worked-example sums.
+- Conflicts: none on facts. The live page prices (A$395, A$1,250, from A$2,500) aren't approved, so none are repeated. The page also lists a phone number (0452 272 820) that isn't in the brand file; not used.
+- Placeholders: [NEEDS OWNER APPROVAL: Revenue Rescue service prices]. Body is about 1,150 characters including the link, under the 1,500 limit.
 
 ## Review: 2026-11-16
 Status: NEEDS CHANGES

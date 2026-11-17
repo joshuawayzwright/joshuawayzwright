@@ -4,14 +4,14 @@ channel: facebook
 calendar_id: solo-2026-12-21
 campaign: dec-break-follow-up-list
 publish_on: 2026-12-23
-link: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-break-follow-up-list#apps
+link: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-break-follow-up-list#projects
 sources:
   - marketing/calendar/2026-12-solo.md (Owner decisions, 16 Nov 2026)
   - marketing/brands/solo.md
   - marketing/channels.md
   - marketing/compliance.md
-  - https://thesoloserviceprovider.com.au/ (section id="apps", AI Download Centre card)
-status: needs-changes
+  - https://thesoloserviceprovider.com.au/ (section id="projects", AI Download Centre card)
+status: draft
 ---
 
 # One job to get done before the break
@@ -29,13 +29,14 @@ Then save the list somewhere you'll find it on the first morning back.
 
 A quick note from us: we're closed from Thursday 24 December and back on Monday 4 January. Thanks for following along this year, and have a safe and relaxing break.
 
-If you want to explore AI tools, our AI Download Centre is a free directory of AI tools and models with links to their official download sources: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-break-follow-up-list#apps
+If you want to explore AI tools, our AI Download Centre is a free directory of AI tools and models: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-break-follow-up-list#projects
 
 ## Writer notes
-- Facts used: shutdown "closed Thursday 24 December 2026, back Monday 4 January 2027" → calendar Owner decisions (16 Nov 2026); 24 Dec 2026 is a Thursday and 4 Jan 2027 a Monday (derived, checked with date arithmetic). AI Download Centre description → live homepage #apps. Privacy-check approach → brand file pillar.
-- Conflicts: none. Calendar "Needs owner decision" item 7 (confirm shutdown dates) is now answered by the Owner decisions section; the post uses those dates. No promise about email reply times is made.
+- Facts used: shutdown "closed Thursday 24 December 2026, back Monday 4 January 2027" → calendar Owner decisions (16 Nov 2026); 24 Dec 2026 is a Thursday and 4 Jan 2027 a Monday (derived, checked with date arithmetic). AI Download Centre description ("free, searchable directory of AI tools and models") → live homepage section id="projects" (curl, 17 Nov 2026). Privacy-check approach → brand file pillar.
+- Revision 17 Nov 2026: applied the 16 Nov review. Anchor changed to #projects (link and body); the "official download sources" clause is cut.
+- Conflicts: the homepage card still says "links to their official download sources"; the post doesn't repeat it. The calendar row's link target still says `#apps` and needs updating to `#projects` (orchestrator). Calendar "Needs owner decision" item 7 (confirm shutdown dates) is now answered by the Owner decisions section; the post uses those dates. No promise about email reply times is made.
 - Placeholders: none
-- No SOLO AI mention. UTM goes before the #apps fragment.
+- No SOLO AI mention. UTM goes before the #projects fragment.
 - Length: about 195 words (limit 80 to 250). Image: none requested. No advice disclaimer added since there is no tax or financial tip.
 
 ## Review: 2026-11-16

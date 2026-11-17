@@ -7,10 +7,11 @@ publish_on: 2026-12-22
 link: https://thesoloserviceprovider.com.au/shop/?utm_source=email&utm_medium=email&utm_campaign=solo-dec-year-end-admin
 sources:
   - https://thesoloserviceprovider.com.au/shop/
+  - https://thesoloserviceprovider.com.au/shop/products.json
   - marketing/brands/solo.md
   - marketing/compliance.md
   - marketing/calendar/2026-12-solo.md
-status: needs-changes
+status: draft
 ---
 
 # Year-end admin checklist (email to consented subscribers)
@@ -38,7 +39,7 @@ Before things go quiet, three jobs are worth ten minutes each. Doing them now me
 If you want a hand with pricing for the new year, our free pricing tips are short and practical. If you know another sole trader who'd find them useful, send them the sign-up page:
 https://thesoloserviceprovider.com.au/shop/?utm_source=email&utm_medium=email&utm_campaign=solo-dec-year-end-admin
 
-Our shutdown: we're closed from Thursday 24 December 2026 and back on Monday 4 January 2027. Emails sent in that time will be answered once we're back.
+Our shutdown: we're closed from Thursday 24 December 2026 and back on Monday 4 January 2027.
 
 Have a safe and restful break.
 
@@ -57,8 +58,10 @@ Unsubscribe: [UNSUBSCRIBE LINK]
 
 ## Writer notes
 - Facts used: Sender name, ABN 63 638 672 067, Gold Coast QLD and contact email → brand file. Free pricing-tips sign-up is live on the shop page → https://thesoloserviceprovider.com.au/shop/. Shutdown: closed Thu 24 Dec 2026, back Mon 4 Jan 2027 → calendar Owner decisions (16 Nov 2026). Sign-up wording "I can unsubscribe at any time" → shop page. Checklist items (invoices out, quotes followed up, costs logged) → calendar row. No worked-example sums and no numbers beyond dates.
-- Conflicts: none. The shop page says digital products aren't on sale yet, so the email doesn't mention toolkits or prices.
-- Placeholders: [UNSUBSCRIBE LINK] (merge field). Send only to consented subscribers. Whether the sign-up form records consent isn't visible from the page, so the owner should confirm the list source before sending. [POSTAL ADDRESS] isn't included, since it's only needed where a law or platform requires it; the platform may add it. Phone number is on the live site but not in the brand file, so it isn't used. The "answered once we're back" line is a reasonable reading of the closure, but the owner should confirm it.
+- Revision 17 Nov 2026: applied the 16 Nov review (deleted the sentence promising replies to emails sent during the break).
+- Link re-checked live with curl, 17 Nov 2026: shop returns 200 with the sign-up and consent wording. `products.json` has `salesOpen: true`; the "not on sale yet" panel is `hidden`.
+- Conflicts: none affecting this email. The shop is open, but the email doesn't mention toolkits or prices. The shop page shows a "LAUNCH20" 20% launch offer that isn't in the brand file, so it isn't mentioned (owner to confirm).
+- Placeholders: [UNSUBSCRIBE LINK] (merge field). Send only to consented subscribers. Whether the sign-up form records consent isn't visible from the page, so the owner should confirm the list source before sending. [POSTAL ADDRESS] isn't included, since it's only needed where a law or platform requires it; the platform may add it. Phone number is on the live site but not in the brand file, so it isn't used. The promise that emails sent during the break will be answered is removed (calendar Owner decisions, 17 Nov).
 - Subject length: 41 characters (limit 50).
 
 ## Review: 2026-11-16

@@ -103,3 +103,23 @@ def test_auto_approve_still_asks_for_screenshots(tmp_path: Path) -> None:
     session = web.WebSession(jarvis, auto_approve=True)
     assert session.approve_tool("Run tests?") is True
     assert session.confirm_private("Take a screenshot?") is False  # no browser attached: declined
+
+
+def test_codespaces_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    from jarvis.cli import codespaces_url
+
+    monkeypatch.delenv("CODESPACE_NAME", raising=False)
+    assert codespaces_url(8765) is None
+    monkeypatch.setenv("CODESPACE_NAME", "fuzzy-guide")
+    monkeypatch.setenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
+    assert codespaces_url(8765) == "https://fuzzy-guide-8765.app.github.dev"
+
+
+def test_jarvis_github_token_takes_priority(monkeypatch: pytest.MonkeyPatch) -> None:
+    from jarvis import github
+
+    monkeypatch.setenv("GITHUB_TOKEN", "codespace-scoped")
+    monkeypatch.delenv("JARVIS_GITHUB_TOKEN", raising=False)
+    assert github.github_token() == "codespace-scoped"
+    monkeypatch.setenv("JARVIS_GITHUB_TOKEN", "personal")
+    assert github.github_token() == "personal"

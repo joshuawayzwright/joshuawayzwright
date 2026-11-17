@@ -28,7 +28,9 @@ class GitHubError(Exception):
 
 
 def github_token() -> str | None:
-    return os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
+    # JARVIS_GITHUB_TOKEN wins: in GitHub Codespaces, GITHUB_TOKEN is set automatically and only reaches
+    # the codespace's own repository, and secrets named GITHUB_* can't be overridden.
+    return os.environ.get("JARVIS_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
 
 
 def validate_repo(repo: str) -> str:

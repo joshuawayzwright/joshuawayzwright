@@ -52,6 +52,23 @@ you › pull octocat/Hello-World and summarise it
 | `commit_changes` | Commits on a feature branch. On the default branch it creates `jarvis/<summary>`; it never commits to `main` or `master` | **Yes** |
 | `push_and_open_pr` | Pushes the feature branch and opens a **draft** pull request. Never pushes the default branch, never force-pushes, never merges | **Yes** |
 
+## Use it from your phone (no computer needed)
+
+Jarvis can run in **GitHub Codespaces**, a Linux machine in the cloud that you open in your phone's browser. You then chat with Jarvis, by voice too, on its web page.
+
+1. **Save your key as a Codespaces secret** (one time). On GitHub, open **Settings > Codespaces > Secrets > New secret**:
+   - Name: `ANTHROPIC_API_KEY`. Value: your key from platform.claude.com. Repository access: `joshuawayzwright/joshuawayzwright`.
+   - Optional: `JARVIS_GITHUB_TOKEN`, a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with **Contents** and **Pull requests** set to read and write, for the repositories you want Jarvis to work on. Without it, Jarvis can only reach this repository.
+2. **Start a codespace.** Open **https://codespaces.new/joshuawayzwright/joshuawayzwright** and tap **Create codespace**. Jarvis installs itself automatically (about two minutes the first time).
+3. **Start Jarvis.** In the terminal at the bottom, type:
+   ```bash
+   jarvis --web
+   ```
+4. **Tap the link it prints**, which looks like `https://<name>-8765.app.github.dev/?token=...`. It's HTTPS, so the 🎙 microphone works. Tick **Speak replies** to hear the answers.
+5. **When you're done**, stop the codespace (github.com/codespaces > ⋯ > **Stop codespace**). Personal accounts get a free monthly allowance of Codespaces hours, and a stopped codespace doesn't use any.
+
+The forwarded address is private: only your signed-in GitHub account can open it, and Jarvis's own token protects it as well.
+
 ## Setup
 
 Requires Python 3.10 or later and `git`.

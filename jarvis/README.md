@@ -91,7 +91,7 @@ What it does:
 5. **Ships** by committing to a feature branch and opening a draft pull request that lists what changed, how it was tested, its assumptions, and credits for adapted code.
 6. **Reports** the PR link and anything left undone.
 
-Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call and result, and Jarvis's messages. Long runs keep going past the context limit because the API summarises earlier context automatically (compaction).
+Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call and result, Jarvis's messages and the outcome. A `<timestamp>.json` summary beside it records the status, steps, pull requests opened, tokens and estimated cost; the web dashboard lists these. Long runs keep going past the context limit because the API summarises earlier context automatically (compaction).
 
 **Guardrails stay on in autonomous mode:**
 
@@ -202,8 +202,12 @@ jarvis --web --watch my-org acme/api --interval 10
 - **Fix with Jarvis:** on a failing workflow, opens the chat with a fix request filled in. You read it and press Send, so nothing runs until you do.
 - **Activity:** what Jarvis is doing right now: your requests, each tool call, approvals and how each turn ended. When Jarvis is waiting for an approval, the status at the top reads **Needs your approval** and opens the chat.
 - **Alerts:** builds that broke or recovered since the dashboard started.
-- **Session:** model, effort, approval mode, tools (including MCP), whether Jarvis is working, and tokens used this session (input, output and cached).
+- **Autonomous runs:** the latest 10 runs started with `--auto` or `--watch --fix`, from any session: goal, status (running, done, failed, or stalled when a run stopped updating for 30 minutes), steps, tool errors, estimated cost, pull requests opened, and the log file name in `~/.jarvis/runs/`.
+- **Session:** model, effort, approval mode, tools (including MCP), whether Jarvis is working, tokens used this session (input, output and cached) and their **estimated cost**.
+- **Notifications:** tap 🔔 to get a browser notification when a build breaks or recovers while the dashboard is open. Browsers allow this only over HTTPS or on `localhost`, as with the microphone. The tab title also shows how many workflows are failing.
 - **Memory:** the most recent long-term notes.
+
+Cost estimates use Anthropic's list prices for Claude Fable 5.2, Opus 5.5, Sonnet 5.5 and Haiku 5.5, with cache writes at the 5-minute rate ([`jarvis/pricing.py`](jarvis/pricing.py)). They don't include discounts, Bedrock or Vertex AI pricing, or Haiku 5.5's higher rate above 100K-token prompts; other models show no estimate. Check your bill in the Claude Console for actual charges.
 
 The dashboard reads GitHub through your `GITHUB_TOKEN` (two requests per repository per check) and never calls Claude, so viewing it costs no tokens. It refreshes every 15 seconds while open. Without `--watch`, it shows the session and memory panels only. `--fix` is terminal-only; on the web, use the Fix with Jarvis button.
 

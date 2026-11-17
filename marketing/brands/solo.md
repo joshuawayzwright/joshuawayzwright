@@ -2,7 +2,7 @@
 
 Brand key: `solo`. Every content agent reads this file before writing for this brand. If a fact you need isn't here or on a source below, don't invent it. Write `[NEEDS INFO: ...]` instead.
 
-Last checked: 16 November 2026, against the live website.
+Last checked: 17 November 2026, against the live website and `shop/products.json`. Prices confirmed by the owner on 17 Nov 2026.
 
 ## The business
 
@@ -21,32 +21,48 @@ Last checked: 16 November 2026, against the live website.
 
 ## What is live, and what isn't
 
-Check the live site before you write about availability. The status changes.
+Check the live site before you write about availability. The status changes. The shop's source of truth is https://thesoloserviceprovider.com.au/shop/products.json (`salesOpen` and `priceLabel`).
 
-| Offer | Status on 16 Nov 2026 | How to describe it |
+| Offer | Status on 17 Nov 2026 | How to describe it |
 | --- | --- | --- |
-| Digital toolkits (shop) | **Not on sale.** The shop says "Digital products are not on sale yet". | "In development." Never write "buy now", quote prices, or say "available". |
-| Free hourly rate calculator | Live: https://thesoloserviceprovider.com.au/rate-calculator.html | Free tool for sole traders. Safe to promote. |
-| Revenue Rescue | Service listed on the site: https://thesoloserviceprovider.com.au/revenue-rescue.html | Helps local businesses turn website visitors into paid jobs. Don't promise results. |
+| Digital toolkits (shop) | **On sale.** The owner opened sales on 16 Nov 2026 and confirmed the live prices on 17 Nov. 16 products, one-off payment through Stripe, instant download. | "Available now" is fine. Quote only the prices in the table below, and re-check `products.json` before publishing. |
+| Free hourly rate calculator | Live: https://thesoloserviceprovider.com.au/rate-calculator.html | Free tool for sole traders. Safe to promote. Its "All ten SOLO toolkits for A$79" offer is now approved. |
+| Revenue Rescue (done-for-you service) | Listed at https://thesoloserviceprovider.com.au/revenue-rescue.html, with A$395, A$1,250 and "from A$2,500" packages | Describe the service. **The service package prices are not approved yet**: don't quote them, and any draft linking to this page carries `[NEEDS OWNER APPROVAL: Revenue Rescue service prices]`. Don't promise results. |
 | Pricing-tips email list | Live sign-up on the shop page | Safe to promote. |
-| SOLO AI | In development. "Not available as a public SOLO AI service yet. No launch date has been announced." | Build-in-public updates only. No launch dates, no feature claims beyond the site. |
-| AI Download Centre | Live, free (see `ai-download-center.md`) | Can be linked as a SOLO project. |
+| SOLO AI | In development. "Not available as a public SOLO AI service yet. No launch date has been announced." | **"In development" only** (owner decision, 16 Nov 2026). Never mention testers or early access, even though `solo-ai.html` does. |
+| AI Download Centre | Live, free (see `ai-download-center.md`) | Can be linked as a SOLO project. Link to the homepage `#projects` card, not `#apps`, because the `#apps` section calls it "in development". |
 
-**Known conflict:** the profile `README.md` says the shop has 16 live toolkits. The live shop says nothing is on sale. Follow the live site, and flag the README to the owner.
+### Approved product range and prices (confirmed by the owner, 17 Nov 2026)
 
-**Known conflict:** the live rate calculator page shows "Get the toolkit → … All ten SOLO toolkits for A$79", but the shop says nothing is on sale and no price is approved. Never repeat that offer.
+All prices are in AUD, one-off, with no GST charged (not GST-registered). There is a 30-day money-back guarantee on every product, alongside the consumer guarantees under Australian Consumer Law.
 
-Until the owner resolves this, every draft that links to the calculator gets this line in Writer notes: `[NEEDS OWNER APPROVAL: calculator page shows unapproved A$79 offer]`.
+| Product | Price |
+| --- | --- |
+| SOLO Cashflow Control | A$29 |
+| SOLO Quote & Invoice Builder | A$29 |
+| SOLO Small Business Operations Hub | A$29 |
+| SOLO Client Booking & Follow-Up | A$19 |
+| SOLO Content Repurposing Studio | A$19 |
+| SOLO Customer Support Desk | A$19 |
+| SOLO Digital Product Launch System | A$19 |
+| SOLO Business Research Dashboard | A$15 |
+| SOLO Job Application Command Centre | A$12 |
+| SOLO AI Workflow Starter Pack | A$9 |
+| SOLO Revenue Rescue DIY Kit | A$39 |
+| SOLO Trade Edition: Cleaners | A$49 |
+| SOLO Trade Edition: Handyman & Home Maintenance | A$49 |
+| SOLO Trade Edition: Lawn Mowing & Gardening | A$49 |
+| SOLO Trade Edition: Mobile Dog Grooming | A$49 |
+| SOLO Complete Toolkit (all ten toolkits) | A$79 |
 
-### The planned product range
+**Bundle saving claim:** "A$199 if bought separately, you save A$120" is accurate, because the ten toolkit prices above add up to A$199. You may use it only while all ten are on sale at those prices. If any individual price changes, recompute before using it. Never invent "was" prices or time-limited discounts.
 
-From `ai-download-center/docs/SOLO-10-PRODUCT-RESET.md` (27 October 2026). All ten are in development, with provisional prices that aren't approved for publishing:
+**Presenting the range:**
 
-SOLO Cashflow Control · Quote & Invoice Builder · Client Booking & Follow-Up · Job Application Command Centre · Content Repurposing Studio · Customer Support Desk · Small Business Operations Hub · Digital Product Launch System · Business Research Dashboard · AI Workflow Starter Pack.
-
-- Present the range fairly. Don't make one product look like the flagship.
+- Present the range fairly. Don't make one product look like the flagship. The bundle is a convenience option, not the "real" product.
 - The **AI Marketing Kit is retired**. Never promote it.
-- Don't publish prices until the owner approves them: `[NEEDS OWNER APPROVAL: price]`.
+- Any price not in the table above is unapproved: `[NEEDS OWNER APPROVAL: price]`.
+- Don't claim sales numbers, popularity or "bestseller" status. The shop opened on 16 Nov 2026 and has no sales history to cite.
 
 ## Audience
 

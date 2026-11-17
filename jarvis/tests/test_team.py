@@ -271,6 +271,12 @@ def test_verdict_parsing(report: str, expected: str | None) -> None:
     assert team.verdict(report) == expected
 
 
+def git_repo(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=path, check=True)
+    return path
+
+
 def herald_ships() -> list[SimpleNamespace]:
     return [
         tool_turn(("h1", "push_and_open_pr", {"repo": "acme/app", "title": "t", "body": "b"})),
@@ -294,10 +300,13 @@ def test_quality_gate_blocks_shipping_until_sentinel_passes(tmp_path: Path) -> N
                 tool_turn(delegate("c7", "herald", "Ship")), text("shipped"),
             ],
             "forge": [text("Built it."), text("Fixed it.")],
-            "sentinel": [text("Bug at a.py:3\nVERDICT: FAIL"), text("Clean.\nVERDICT: PASS")],
+            "sentinel": [text("Bug at a.py:3\nVERDICT: FAIL"),
+                         tool_turn(("s1", "run_command", {"repo": "acme/app", "command": "true"})),
+                         text("Clean.\nVERDICT: PASS")],
             "herald": herald_ships() + herald_ships() + herald_ships(),
         }
     )
+    git_repo(tmp_path / "acme" / "app")
     jarvis, _ = chief(tmp_path, fake)
     crew = jarvis.team
     assert crew is not None and crew.gate == team.CLEAN
@@ -434,3 +443,64 @@ def test_run_log_records_the_crew(tmp_path: Path) -> None:
     log.crew(jarvis.team.status())  # type: ignore[union-attr]
     body = log.path.read_text()
     assert "## Crew" in body and "Sentinel" in body and "Total" in body
+
+
+
+# ---- Evidence-backed verdicts and write boundaries --------------------------------------------
+
+
+def sentinel_run(command: str, verdict_line: str) -> list[SimpleNamespace]:
+    return [tool_turn(("s1", "run_command", {"repo": "acme/app", "command": command})), text(f"Checked.\n{verdict_line}")]
+
+
+@pytest.mark.parametrize(
+    ("sentinel", "gate", "note"),
+    [
+        ([text("Looks fine.\nVERDICT: PASS")], team.UNVERIFIED, "ran no check that succeeded"),
+        (sentinel_run("false", "VERDICT: PASS"), team.UNVERIFIED, "ran no check that succeeded"),
+        (sentinel_run("true", "VERDICT: PASS"), team.PASSED, "Herald may ship"),
+        (sentinel_run("true", "VERDICT: FAIL"), team.FAILED, "FAILED"),
+    ],
+)
+def test_pass_needs_a_successful_check_in_the_same_assignment(
+    tmp_path: Path, sentinel: list[SimpleNamespace], gate: str, note: str
+) -> None:
+    git_repo(tmp_path / "acme" / "app")
+    fake = CrewMessages({"chief": [tool_turn(delegate("c1", "forge", "Build")), tool_turn(delegate("c2", "sentinel", "Verify")), text("ok")],
+                         "forge": [text("Built.")], "sentinel": sentinel})
+    jarvis, _ = chief(tmp_path, fake)
+    jarvis.ask("go")
+    assert jarvis.team.gate == gate  # type: ignore[union-attr]
+    assert note in last_results(fake.requests("chief")[2])[0]["content"]
+
+
+def test_old_evidence_does_not_carry_over(tmp_path: Path) -> None:
+    git_repo(tmp_path / "acme" / "app")
+    fake = CrewMessages({"chief": [tool_turn(delegate("c1", "sentinel", "Verify")), tool_turn(delegate("c2", "forge", "Change")),
+                                   tool_turn(delegate("c3", "sentinel", "Verify again")), text("ok")],
+                         "forge": [text("Changed.")],
+                         "sentinel": sentinel_run("true", "VERDICT: PASS") + [text("Still fine.\nVERDICT: PASS")]})
+    jarvis, _ = chief(tmp_path, fake)
+    jarvis.ask("go")
+    assert jarvis.team.gate == team.UNVERIFIED  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize(
+    ("agent", "path", "allowed"),
+    [
+        ("herald", "README.md", True), ("herald", "docs/guide/setup.py", True), ("herald", "CHANGELOG", True),
+        ("herald", "src/app.py", False), ("herald", "package.json", False),
+        ("sentinel", "tests/test_app.py", True), ("sentinel", "src/app.test.ts", True), ("sentinel", "test_app.py", True),
+        ("sentinel", "src/app.py", False), ("sentinel", "README.md", False),
+        ("forge", "src/app.py", True),
+    ],
+)
+def test_who_may_write_what(tmp_path: Path, agent: str, path: str, allowed: bool) -> None:
+    repo = git_repo(tmp_path / "acme" / "app")
+    fake = CrewMessages({"chief": [tool_turn(delegate("c1", agent, "Write it")), text("ok")],
+                         agent: [tool_turn(("w1", "write_file", {"repo": "acme/app", "path": path, "content": "x"})), text("done")]})
+    jarvis, _ = chief(tmp_path, fake)
+    jarvis.ask("go")
+    result = last_results(fake.requests(agent)[1])[0]
+    assert (repo / path).exists() is allowed
+    assert ("may only change" in result["content"]) is (not allowed)

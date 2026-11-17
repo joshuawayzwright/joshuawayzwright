@@ -17,6 +17,7 @@ until Sentinel has returned "VERDICT: PASS" on that work.
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import threading
 from collections.abc import Callable
@@ -180,7 +181,8 @@ Anything incomplete or uncertain.""",
             mission="""Your job: decide whether the change is ready to ship, and prove it.
 - Review git_diff line by line for correctness bugs, missed edge cases, error handling, and security issues (injection, secrets in code, unsafe input handling, path traversal).
 - Run the project's tests, linters and type checks with run_command. Use browser tools (mcp__ tools) to check a web UI when they are available.
-- You may add or fix tests with write_file and edit_file. Do not change application code: report the problem so Forge can fix it.
+- You may add or fix tests with write_file and edit_file; writes outside test files are refused. Report problems in application code so Forge can fix them.
+- Your PASS counts only if, in this same assignment, you ran at least one check with run_command that exited 0 (the test suite, ideally). A PASS without one is rejected by the quality gate.
 - Never weaken, skip or delete a test to get a pass.
 
 Your report MUST end with exactly one of these lines:
@@ -202,7 +204,7 @@ Numbered, most severe first, each with path:line and the fix you expect. Write "
             effort="medium",
             max_steps=40,
             mission="""Your job: ship verified work and explain it well.
-- Review git_diff first. Update README, docs or CHANGELOG if the change affects how people use the project.
+- Review git_diff first. Update README, docs or CHANGELOG if the change affects how people use the project. You may only edit documentation; writes to code or config are refused, since that work would ship unverified.
 - commit_changes with a clear message (credit adapted sources), then push_and_open_pr.
 - The pull request description covers: what changed and why, how it was tested (from Sentinel's report), assumptions, and credits for adapted code.
 - Pull requests are drafts on feature branches. You never merge and never push the default branch.
@@ -225,7 +227,7 @@ How you run the crew:
 - You keep read-only tools to look around and check results yourself, but you do not edit files, run commands, commit or push in team mode. Hand that work to the right specialist.
 - Give each assignment everything the specialist needs: the repository, the goal, and the relevant findings from the others (they do not see each other's reports unless you pass them on). Specialists keep their own conversation across assignments in a session, so a follow-up can be short; set fresh=true to start one over.
 - To run independent assignments at the same time, call delegate several times in one step. Scout, Architect and Medic run in parallel; Forge, Sentinel and Herald run one at a time.
-- Quality gate: after Forge changes code, Herald cannot commit or push until Sentinel returns VERDICT: PASS on it. If Sentinel fails the work, send the issues back to Forge, then to Sentinel again. After three failed rounds, stop and report the blocker.
+- Quality gate: after Forge changes code, Herald cannot commit or push until Sentinel returns VERDICT: PASS on it, backed by a check Sentinel ran that succeeded in that same assignment. Sentinel may write only tests and Herald only documentation, so verified code can't change on the way out. If Sentinel fails the work, send the issues back to Forge, then to Sentinel again. After three failed rounds, stop and report the blocker.
 - Check reports critically. If a specialist claims something you doubt, verify it with your own read-only tools or ask again.
 - Small questions you can answer yourself with your read-only tools need no delegation."""
 
@@ -292,6 +294,7 @@ class Team:
         self.gate = CLEAN
         self.history: list[tuple[str, str]] = []  # (agent, outcome) per finished assignment
         self.active: set[str] = set()  # specialists working right now
+        self.evidence: list[tuple[str, int | None]] = []  # Sentinel's commands and exit codes, this assignment
         self.last: dict[str, str] = {}  # one line on each specialist's latest assignment
         self._lock = threading.Lock()  # guards members, gate and history
         self._approval_lock = threading.Lock()  # one approval prompt on screen at a time
@@ -339,6 +342,8 @@ class Team:
 
         member = self.member(role, fresh=fresh)
         with self._lock:
+            if role.key == "sentinel":
+                self.evidence = []  # this assignment's checks back this assignment's verdict
             self.active.add(role.key)
             self.last[role.key] = "Working: " + _first_line(task)
         try:
@@ -360,13 +365,18 @@ class Team:
         return f"## {role.name} report\n\n{report}\n\n_{outcome}_", False
 
     def _after(self, role: Role, report: str) -> str:
+        rejected = ""
         with self._lock:
             if role.key == "forge":
                 self.gate = UNVERIFIED
             elif role.key == "sentinel":
                 found = verdict(report)
-                if found == "PASS":
+                if found == "PASS" and any(code == 0 for _, code in self.evidence):
                     self.gate = PASSED
+                elif found == "PASS":
+                    self.gate = UNVERIFIED
+                    rejected = (" Sentinel said PASS but ran no check that succeeded in this assignment, so the "
+                                "verdict was not accepted. Ask Sentinel to run the tests and show the result.")
                 elif found == "FAIL":
                     self.gate = FAILED
             elif role.key == "herald" and self.gate == PASSED:
@@ -379,7 +389,7 @@ class Team:
             PASSED: "Quality gate: passed. Herald may ship.",
             CLEAN: "Quality gate: clear.",
         }
-        return notes[gate]
+        return (f"Quality gate: unverified.{rejected}" if rejected else notes[gate])
 
     def _record(self, role: Role, outcome: str) -> None:
         with self._lock:
@@ -437,18 +447,36 @@ class Team:
             on_text=lambda _text: None,  # the chief relays the final report
             on_tool=on_tool,
             on_result=on_result,
-            middleware=self._guard,
+            middleware=lambda name, data, run, role=role: self._guard(role, name, data, run),
             budget=chief.budget,
         )
 
-    def _guard(self, name: str, run: Callable[[], tuple[Any, bool]]) -> tuple[Any, bool]:
-        """Wraps every specialist tool call: the quality gate on shipping, and one clone at a time."""
+    def _guard(self, role: Role, name: str, data: Any, run: Callable[[], tuple[Any, bool]]) -> tuple[Any, bool]:
+        """Wraps every specialist tool call.
+
+        - Herald can't ship unverified work, and may only touch documentation.
+        - Sentinel may only write tests; Forge alone changes application code.
+        - Sentinel's successful check commands are recorded as evidence for its verdict.
+        - Parallel specialists clone one repository at a time.
+        """
         if name in SHIP and (blocked := self.ship_blocked()):
             return f"Error: {blocked}", True
+        if name in WRITE and isinstance(data, dict):
+            path = str(data.get("path", ""))
+            allowed = WRITABLE.get(role.key)
+            if allowed is not None and not allowed[1](path):
+                return (f"Error: {role.name} may only change {allowed[0]}; '{path}' is not one. "
+                        "Report the change you need so Jarvis can route it to Forge."), True
         if name == "pull_repo":
             with self._pull_lock:
                 return run()
-        return run()
+        result = run()
+        if role.key == "sentinel" and name == "run_command":
+            content, is_error = result
+            exit_code = _exit_code(content) if not is_error else None
+            with self._lock:
+                self.evidence.append((str(data.get("command", "")) if isinstance(data, dict) else "", exit_code))
+        return result
 
     def _serialised(self, role: Role) -> Callable[[str], bool]:
         def ask(question: str) -> bool:
@@ -579,3 +607,46 @@ def _summary(report: str) -> str:
 
 def _last_outcome(history: list[tuple[str, str]], key: str) -> str:
     return next((outcome for k, outcome in reversed(history) if k == key), "")
+
+
+_EXIT = re.compile(r"^exit code (-?\d+)", re.MULTILINE)
+
+
+def _exit_code(output: object) -> int | None:
+    """The exit code from run_command's output, or None if the command didn't run (declined, timed out)."""
+    found = _EXIT.search(output) if isinstance(output, str) else None
+    return int(found.group(1)) if found else None
+
+
+DOC_SUFFIXES = (".md", ".mdx", ".rst", ".txt", ".adoc")
+DOC_NAMES = ("README", "CHANGELOG", "CHANGES", "HISTORY", "CONTRIBUTING", "LICENSE", "NOTICE", "AUTHORS")
+TEST_PATTERNS = ("test_*", "*_test.*", "*_tests.*", "*.test.*", "*.spec.*", "conftest.py")
+TEST_DIRS = ("test", "tests", "__tests__", "spec", "specs", "testdata", "fixtures")
+
+
+def _parts(path: str) -> list[str]:
+    return [p for p in path.replace("\\", "/").split("/") if p and p != "."]
+
+
+def is_doc(path: str) -> bool:
+    parts = _parts(path)
+    if not parts:
+        return False
+    name = parts[-1]
+    return (name.lower().endswith(DOC_SUFFIXES) or name.split(".")[0].upper() in DOC_NAMES
+            or parts[0].lower() in ("docs", "doc"))
+
+
+def is_test(path: str) -> bool:
+    parts = _parts(path)
+    if not parts:
+        return False
+    return (any(fnmatch.fnmatch(parts[-1].lower(), pattern) for pattern in TEST_PATTERNS)
+            or any(part.lower() in TEST_DIRS for part in parts[:-1]))
+
+
+# Who may write what. Roles not listed (Forge) may write anywhere in the repository.
+WRITABLE: dict[str, tuple[str, Callable[[str], bool]]] = {
+    "herald": ("documentation (README, CHANGELOG, docs/, *.md and similar)", is_doc),
+    "sentinel": ("test files (tests/, test_*.py, *.test.ts and similar)", is_test),
+}

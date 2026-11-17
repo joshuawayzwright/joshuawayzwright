@@ -122,8 +122,8 @@ class Jarvis:
     persona: str | None = None
     tool_names: frozenset[str] | None = None
     mcp_read_only: bool = False  # offer only the MCP tools their servers mark read-only
-    # Wraps every built-in and MCP tool call: middleware(name, run) -> run() or a refusal.
-    middleware: Callable[[str, Callable[[], tuple[Any, bool]]], tuple[Any, bool]] | None = None
+    # Wraps every built-in and MCP tool call: middleware(name, input, run) -> run() or a refusal.
+    middleware: Callable[[str, Any, Callable[[], tuple[Any, bool]]], tuple[Any, bool]] | None = None
 
     def __post_init__(self) -> None:
         if self.client is None:
@@ -261,7 +261,7 @@ class Jarvis:
         if name not in self._allowed:
             return f"Error: tool '{name}' is not available to this agent.", True
         if self.middleware is not None:
-            return self.middleware(name, lambda: self._call(name, tool_input))
+            return self.middleware(name, tool_input, lambda: self._call(name, tool_input))
         return self._call(name, tool_input)
 
     def _call(self, name: str, tool_input: Any) -> tuple[Any, bool]:

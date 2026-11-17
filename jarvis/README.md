@@ -188,6 +188,25 @@ Jarvis prints a link that contains a secret token. Open it in any browser:
 - Phones allow the microphone only over HTTPS. Over plain `http://` on your network, typing works but the mic button won't. For HTTPS, use a certificate with `--web-cert` and `--web-key` (`mkcert` makes locally trusted ones), or put Jarvis behind a tunnel that provides HTTPS, such as Tailscale Serve.
 - Treat the link like a password. Anyone with it can ask Jarvis to act on your machine, subject to the same approvals.
 
+### Dashboard
+
+Add `--watch` to get a live dashboard next to the chat. Jarvis prints its link (`/dashboard?token=…`), and the chat page links to it.
+
+```bash
+jarvis --web --watch                              # your account's repositories active in the last 30 days
+jarvis --web --watch my-org acme/api --interval 10
+```
+
+- **CI on default branches:** every watched repository with the latest result of each workflow, failing ones first, and links to the run logs. Each workflow shows its last 10 results and pass rate, so you can see a flaky workflow from one that is newly broken. Jarvis checks every `--interval` minutes; **Check now** checks at once.
+- **Open pull requests:** across the watched repositories, most recently updated first, with drafts marked.
+- **Fix with Jarvis:** on a failing workflow, opens the chat with a fix request filled in. You read it and press Send, so nothing runs until you do.
+- **Activity:** what Jarvis is doing right now: your requests, each tool call, approvals and how each turn ended. When Jarvis is waiting for an approval, the status at the top reads **Needs your approval** and opens the chat.
+- **Alerts:** builds that broke or recovered since the dashboard started.
+- **Session:** model, effort, approval mode, tools (including MCP), whether Jarvis is working, and tokens used this session (input, output and cached).
+- **Memory:** the most recent long-term notes.
+
+The dashboard reads GitHub through your `GITHUB_TOKEN` (two requests per repository per check) and never calls Claude, so viewing it costs no tokens. It refreshes every 15 seconds while open. Without `--watch`, it shows the session and memory panels only. `--fix` is terminal-only; on the web, use the Fix with Jarvis button.
+
 ## Screen vision
 
 Ask about what's on your screen: "what's this error?", "why does this page look broken?", "match this design".
@@ -221,7 +240,7 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--brief [OWNER]` | | Morning briefing across your repositories |
-| `--watch [TARGET ...]`, `--interval`, `--fix` | 5 min | Watch default-branch builds; optionally auto-fix |
+| `--watch [TARGET ...]`, `--interval`, `--fix` | 5 min | Watch default-branch builds; optionally auto-fix. With `--web`, feeds the dashboard |
 | `--web`, `--web-host`, `--web-port`, `--web-cert`, `--web-key` | localhost:8765 | Browser and phone interface |
 | `--max-steps` | 60, or 250 with `--auto` | Agent steps per request |
 

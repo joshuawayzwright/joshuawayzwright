@@ -1,4 +1,5 @@
-"""Web and phone interface: chat with Jarvis in a browser, with streaming replies, approvals and voice.
+"""Web and phone interface: chat with Jarvis in a browser, with streaming replies, approvals and voice,
+plus a dashboard of CI health, alerts and session stats at /dashboard.
 
 Voice uses the browser's own speech recognition and speech synthesis (Web Speech API), so a phone
 works as a microphone and speaker with nothing installed. Every request needs the secret token
@@ -12,7 +13,9 @@ import json
 import queue
 import secrets
 import threading
+import time
 import uuid
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -20,8 +23,11 @@ from urllib.parse import parse_qs, urlparse
 import anthropic
 
 from .agent import Jarvis
+from .dashboard import Dashboard
 
 APPROVAL_TIMEOUT_S = 300
+MAX_ACTIVITY = 40
+ACTIVITY_TEXT = 160
 MAX_BODY = 64_000
 
 
@@ -34,11 +40,25 @@ class WebSession:
         self.lock = threading.Lock()
         self.events: queue.Queue[dict[str, Any] | None] | None = None
         self.pending: dict[str, tuple[threading.Event, list[bool]]] = {}
+        # What Jarvis has been doing, newest first, for the dashboard's activity feed.
+        self.activity: deque[dict[str, Any]] = deque(maxlen=MAX_ACTIVITY)
         jarvis.ctx.approve = self.approve_tool
         jarvis.ctx.confirm_private = self.confirm_private
         jarvis.on_delta = lambda text: self._emit({"type": "delta", "text": text})
         jarvis.on_text = lambda text: self._emit({"type": "block_end"})
-        jarvis.on_tool = lambda line: self._emit({"type": "tool", "line": line})
+        jarvis.on_tool = self._on_tool
+
+    def _record(self, kind: str, text: str) -> None:
+        text = " ".join(text.split())
+        self.activity.appendleft({"time": time.time(), "kind": kind,
+                                  "text": text[:ACTIVITY_TEXT] + ("…" if len(text) > ACTIVITY_TEXT else "")})
+
+    def recent_activity(self) -> list[dict[str, Any]]:
+        return list(self.activity)
+
+    def _on_tool(self, line: str) -> None:
+        self._record("tool", line)
+        self._emit({"type": "tool", "line": line})
 
     def _emit(self, event: dict[str, Any]) -> None:
         if self.events is not None:
@@ -50,9 +70,11 @@ class WebSession:
         approval_id = uuid.uuid4().hex
         done, answer = threading.Event(), [False]
         self.pending[approval_id] = (done, answer)
+        self._record("approval", question)
         self._emit({"type": "approval", "id": approval_id, "question": question})
         done.wait(APPROVAL_TIMEOUT_S)  # unanswered approvals are declined
         self.pending.pop(approval_id, None)
+        self._record("allowed" if answer[0] else "declined", question)
         return answer[0]
 
     def approve_tool(self, question: str) -> bool:
@@ -75,17 +97,21 @@ class WebSession:
             return None
         events: queue.Queue[dict[str, Any] | None] = queue.Queue()
         self.events = events
+        self._record("ask", message)
 
         def work() -> None:
             checkpoint = len(self.jarvis.messages)
             try:
                 reply = self.jarvis.ask(message)
+                self._record("done", reply or "(no reply text)")
                 events.put({"type": "done", "reply": reply})
             except anthropic.APIError as err:
                 del self.jarvis.messages[checkpoint:]
+                self._record("error", f"Claude API error: {getattr(err, 'message', err)}")
                 events.put({"type": "error", "message": f"Claude API error: {getattr(err, 'message', err)}"})
             except Exception as err:  # noqa: BLE001 - report anything to the browser rather than hang
                 del self.jarvis.messages[checkpoint:]
+                self._record("error", f"{type(err).__name__}: {err}")
                 events.put({"type": "error", "message": f"{type(err).__name__}: {err}"})
             finally:
                 events.put(None)
@@ -96,7 +122,7 @@ class WebSession:
         return events
 
 
-def make_handler(session: WebSession, token: str) -> type[BaseHTTPRequestHandler]:
+def make_handler(session: WebSession, token: str, dashboard: Dashboard) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         server_version = "Jarvis"
 
@@ -125,13 +151,19 @@ def make_handler(session: WebSession, token: str) -> type[BaseHTTPRequestHandler
             return data
 
         def do_GET(self) -> None:  # noqa: N802
-            if urlparse(self.path).path != "/":
+            path = urlparse(self.path).path
+            pages = {"/": PAGE, "/dashboard": DASHBOARD_PAGE}
+            if path not in pages and path != "/api/dashboard":
                 self._json(404, {"error": "not found"})
                 return
             if not self._authorised():
                 self._json(401, {"error": "Open the URL with the token Jarvis printed at start-up."})
                 return
-            body = PAGE.encode()
+            if path == "/api/dashboard":
+                self._json(200, dashboard.snapshot(busy=session.lock.locked(), activity=session.recent_activity(),
+                                                   waiting=len(session.pending)))
+                return
+            body = pages[path].encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -153,6 +185,9 @@ def make_handler(session: WebSession, token: str) -> type[BaseHTTPRequestHandler
             if path == "/api/approve":
                 ok = session.answer(str(data.get("id", "")), bool(data.get("approved")))
                 self._json(200 if ok else 404, {"ok": ok})
+            elif path == "/api/dashboard/refresh":
+                ok = dashboard.refresh()
+                self._json(200 if ok else 409, {"ok": ok} if ok else {"error": "No repositories are being watched. Start Jarvis with --web --watch."})
             elif path == "/api/reset":
                 if session.lock.locked():
                     self._json(409, {"error": "Jarvis is busy."})
@@ -193,9 +228,11 @@ def make_handler(session: WebSession, token: str) -> type[BaseHTTPRequestHandler
     return Handler
 
 
-def serve(session: WebSession, host: str = "127.0.0.1", port: int = 8765, token: str | None = None) -> tuple[ThreadingHTTPServer, str]:
+def serve(session: WebSession, host: str = "127.0.0.1", port: int = 8765, token: str | None = None,
+          dashboard: Dashboard | None = None) -> tuple[ThreadingHTTPServer, str]:
     token = token or secrets.token_urlsafe(24)
-    server = ThreadingHTTPServer((host, port), make_handler(session, token))
+    dashboard = dashboard or Dashboard(session.jarvis, auto_approve=session.auto_approve)
+    server = ThreadingHTTPServer((host, port), make_handler(session, token, dashboard))
     server.daemon_threads = True
     return server, token
 
@@ -232,6 +269,7 @@ PAGE = r"""<!doctype html>
   .approval div { margin-top:8px; display:flex; gap:8px; }
   form { display:flex; gap:8px; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--panel); }
   textarea { flex:1; resize:none; font:inherit; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--text); min-height:44px; max-height:160px; }
+  .navlink { color:var(--accent); text-decoration:none; font-size:15px; }
   #mic.on { background:var(--warn); border-color:var(--warn); color:#fff; }
 </style>
 </head>
@@ -239,6 +277,7 @@ PAGE = r"""<!doctype html>
 <header>
   <h1>Jarvis</h1>
   <label><input type="checkbox" id="speak"> Speak replies</label>
+  <a id="dash" class="navlink" href="#">Dashboard</a>
   <button id="reset" type="button">New chat</button>
 </header>
 <main id="log" aria-live="polite"></main>
@@ -251,6 +290,11 @@ PAGE = r"""<!doctype html>
 const token = new URLSearchParams(location.search).get("token") || "";
 const log = document.getElementById("log"), input = document.getElementById("input");
 const send = document.getElementById("send"), mic = document.getElementById("mic"), speakBox = document.getElementById("speak");
+document.getElementById("dash").href = "/dashboard?token=" + encodeURIComponent(token);
+// The dashboard's "Fix with Jarvis" opens the chat with the request filled in (in the fragment, never sent to
+// the server); you read it and press Send.
+const asked = new URLSearchParams(location.hash.slice(1)).get("ask");
+if (asked) { document.getElementById("input").value = asked; history.replaceState(null, "", location.pathname + location.search); }
 const api = (path, body) => fetch(path, {method: "POST", headers: {"Content-Type": "application/json", "X-Jarvis-Token": token}, body: JSON.stringify(body || {})});
 
 function add(cls, text) { const el = document.createElement("div"); el.className = cls; el.textContent = text || ""; log.appendChild(el); log.scrollTop = log.scrollHeight; return el; }
@@ -328,6 +372,242 @@ else {
   rec.onend = () => { listening = false; mic.classList.remove("on"); const t = input.value.trim(); if (t && !send.disabled) { speakBox.checked = true; chat(t); } };
   mic.onclick = () => { if (listening) { rec.stop(); return; } speechSynthesis && speechSynthesis.cancel(); input.value = ""; listening = true; mic.classList.add("on"); rec.start(); };
 }
+</script>
+</body>
+</html>
+"""
+
+
+DASHBOARD_PAGE = r"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jarvis Dashboard</title>
+<style>
+  :root { --bg:#f6f7f9; --panel:#ffffff; --text:#14171c; --muted:#5d6673; --accent:#0b6bcb; --line:#dde1e7;
+          --ok:#1a7f4b; --bad:#c2321f; --warn:#b4530f; --chip:#eef1f5; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1216; --panel:#171b21; --text:#e7eaee; --muted:#98a2ae; --accent:#5aa9ff; --line:#2a3039;
+            --ok:#4cc38a; --bad:#ff6b5a; --warn:#f0a35e; --chip:#222831; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position:sticky; top:0; z-index:1; display:flex; align-items:center; gap:12px; padding:12px 16px;
+           border-bottom:1px solid var(--line); background:var(--panel); }
+  header h1 { font-size:18px; margin:0; flex:1; letter-spacing:.02em; }
+  a { color:var(--accent); text-decoration:none; }
+  button { font:inherit; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); padding:6px 12px; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled { opacity:.5; cursor:default; }
+  main { max-width:1100px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; }
+  .kpi, section { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+  .kpi .label { color:var(--muted); font-size:13px; }
+  .kpi .value { font-size:28px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .kpi .sub { color:var(--muted); font-size:12px; }
+  .bad { color:var(--bad); } .ok { color:var(--ok); }
+  h2 { font-size:15px; margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+  h2 .meta { margin-left:auto; color:var(--muted); font-weight:400; font-size:13px; }
+  .cols { display:grid; grid-template-columns:2fr 1fr; gap:16px; align-items:start; }
+  @media (max-width: 820px) { .cols { grid-template-columns:1fr; } }
+  .repos { display:grid; gap:10px; }
+  .repo { border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .repo.failing { border-color:var(--bad); }
+  .repo-head { display:flex; gap:8px; align-items:center; font-weight:600; overflow-wrap:anywhere; }
+  .repo-head .count { margin-left:auto; font-weight:400; font-size:13px; color:var(--muted); white-space:nowrap; }
+  .wf { display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .wf:first-of-type { border-top:0; }
+  .dot { width:10px; height:10px; border-radius:50%; flex:none; background:var(--ok); }
+  .dot.failing { background:var(--bad); }
+  .wf .name { flex:1; min-width:120px; overflow-wrap:anywhere; }
+  .chip { background:var(--chip); border-radius:999px; padding:1px 8px; font-size:12px; color:var(--muted); font-family:ui-monospace, monospace; }
+  .muted { color:var(--muted); }
+  ul.list { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+  ul.list li { font-size:14px; overflow-wrap:anywhere; }
+  ul.list .when { color:var(--muted); font-size:12px; display:block; }
+  dl { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; margin:0; font-size:14px; }
+  dt { color:var(--muted); } dd { margin:0; overflow-wrap:anywhere; }
+  .empty { color:var(--muted); font-size:14px; }
+  .errors li { color:var(--warn); }
+  .stack { display:grid; gap:16px; }
+  .pill { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .pill.busy { color:var(--warn); border-color:var(--warn); }
+  a.pill.busy { font-weight:600; }
+  header h1 { white-space:nowrap; }
+  @media (max-width: 480px) { header .wide { display:none; } header { gap:8px; } }
+  .hist { display:inline-flex; gap:2px; align-items:flex-end; }
+  .hist i { width:6px; height:14px; border-radius:2px; background:var(--ok); opacity:.85; }
+  .hist i.failing { background:var(--bad); } .hist i.other { background:var(--line); height:8px; }
+  .rate { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; min-width:34px; text-align:right; }
+  .tag { font-size:11px; border:1px solid var(--line); border-radius:6px; padding:0 5px; color:var(--muted); margin-left:4px; }
+  .act { display:grid; grid-template-columns:auto 1fr; gap:2px 8px; align-items:baseline; }
+  .act .kind { font-size:12px; font-family:ui-monospace, monospace; color:var(--muted); min-width:58px; }
+  .act .kind.error, .act .kind.declined { color:var(--bad); } .act .kind.approval { color:var(--warn); }
+  .act .kind.done, .act .kind.allowed { color:var(--ok); }
+  .act .when { grid-column:2; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Jarvis<span class="wide"> · Dashboard</span></h1>
+  <a id="state" class="pill">…</a>
+  <button id="refresh" type="button">Check now</button>
+  <a id="chat" href="#">Chat</a>
+</header>
+<main>
+  <div class="kpis" id="kpis"></div>
+  <div class="cols">
+    <div class="stack">
+    <section>
+      <h2>CI on default branches <span class="meta" id="checked"></span></h2>
+      <div id="repos" class="repos"></div>
+      <ul id="errors" class="list errors"></ul>
+    </section>
+    <section><h2>Open pull requests <span class="meta" id="prcount"></span></h2><ul id="pulls" class="list"></ul></section>
+    </div>
+    <div class="stack">
+      <section><h2>Activity</h2><ul id="activity" class="list"></ul></section>
+      <section><h2>Alerts</h2><ul id="alerts" class="list"></ul></section>
+      <section><h2>Session</h2><dl id="session"></dl></section>
+      <section><h2>Memory <span class="meta" id="memcount"></span></h2><ul id="memory" class="list"></ul></section>
+    </div>
+  </div>
+</main>
+<script>
+const token = new URLSearchParams(location.search).get("token") || "";
+const headers = {"X-Jarvis-Token": token};
+document.getElementById("chat").href = "/?token=" + encodeURIComponent(token);
+const $ = id => document.getElementById(id);
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function link(url, text) {   // only GitHub-style https links become clickable
+  if (typeof url === "string" && url.startsWith("https://")) { const a = el("a", "", text); a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer"; return a; }
+  return el("span", "muted", text);
+}
+const plural = (n, word) => n + " " + word + (n === 1 ? "" : "s");
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? Math.round(n / 1e3) + "k" : n.toLocaleString();
+function ago(t, now) {
+  if (!t) return "never"; const s = Math.max(0, Math.round(now - t));
+  return s < 60 ? s + "s ago" : s < 3600 ? Math.floor(s / 60) + " min ago" : Math.floor(s / 3600) + " h ago";
+}
+function agoIso(iso, now) { const t = Date.parse(iso); return isNaN(t) ? "unknown" : ago(t / 1000, now); }
+function kpi(label, value, sub, cls) {
+  const box = el("div", "kpi"); box.append(el("div", "label", label), el("div", "value " + (cls || ""), value));
+  if (sub) box.append(el("div", "sub", sub)); return box;
+}
+function fixLink(prompt) {
+  const b = el("button", "primary", "Fix with Jarvis");
+  b.onclick = () => { location.href = "/?token=" + encodeURIComponent(token) + "#ask=" + encodeURIComponent(prompt); };
+  return b;
+}
+
+function render(d) {
+  const ci = d.ci, s = d.session, u = s.usage || {};
+  const state = $("state");
+  if (s.waiting_for_approval) {   // an approval is waiting in the chat: make it obvious and one tap away
+    state.textContent = "Needs your approval"; state.className = "pill busy"; state.href = $("chat").href;
+  } else { state.textContent = s.busy ? "Working" : "Idle"; state.className = "pill" + (s.busy ? " busy" : ""); state.removeAttribute("href"); }
+  const tokens = (u.input_tokens || 0) + (u.output_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+  const k = $("kpis"); k.textContent = "";
+  if (ci.enabled) {
+    k.append(kpi("Failing workflows", String(ci.totals.failing), ci.totals.failing ? "needs attention" : "all green", ci.totals.failing ? "bad" : "ok"),
+             kpi("Passing workflows", String(ci.totals.passing), "of " + ci.totals.workflows),
+             kpi("Repositories", String(ci.totals.repos), "watched"),
+             kpi("Open pull requests", String(ci.pulls.length), plural(ci.pulls.filter(p => p.draft).length, "draft")));
+  } else {
+    k.append(kpi("CI watch", "Off", "start with --web --watch"));
+  }
+  k.append(kpi("Tokens this session", fmt(tokens), plural(u.requests || 0, "request") + " · " + plural(s.turns, "turn")));
+
+  const repos = $("repos"); repos.textContent = "";
+  $("refresh").disabled = !ci.enabled || ci.checking;
+  if (!ci.enabled) {
+    repos.append(el("p", "empty", "Not watching any repositories. Start Jarvis with “jarvis --web --watch” (your account) or “jarvis --web --watch owner owner/repo”."));
+    $("checked").textContent = "";
+  } else {
+    $("checked").textContent = ci.checking ? "checking…" : "checked " + ago(ci.last_checked, d.now) + " · every " + Math.round(ci.interval_s / 60) + " min";
+    if (!ci.repos.length) repos.append(el("p", "empty", ci.last_checked ? "No completed workflow runs found on the watched default branches." : "First check in progress…"));
+    for (const r of ci.repos) {
+      const card = el("div", "repo" + (r.failing ? " failing" : ""));
+      const head = el("div", "repo-head"); head.append(link("https://github.com/" + r.repo, r.repo),
+        el("span", "count " + (r.failing ? "bad" : "ok"), r.failing ? r.failing + " failing" : "healthy"));
+      card.append(head);
+      for (const w of r.workflows) {
+        const row = el("div", "wf");
+        row.append(el("span", "dot " + w.status), el("span", "name", w.workflow));
+        const h = w.history || [], graded = h.filter(x => x !== "other");
+        if (h.length > 1) {
+          const strip = el("span", "hist"); strip.title = "Last " + h.length + " runs, oldest first";
+          for (const x of h) strip.append(el("i", x));
+          const rate = graded.length ? Math.round(100 * graded.filter(x => x === "passing").length / graded.length) + "%" : "–";
+          row.append(strip, el("span", "rate", rate));
+        }
+        row.append(el("span", "chip", w.commit), link(w.url, w.status === "failing" ? "logs" : "run"));
+        if (w.fix_prompt) row.append(fixLink(w.fix_prompt));
+        card.append(row);
+      }
+      repos.append(card);
+    }
+  }
+  const errors = $("errors"); errors.textContent = "";
+  for (const e of (ci.errors || [])) errors.append(el("li", "", e));
+
+  const pulls = $("pulls"); pulls.textContent = "";
+  $("prcount").textContent = ci.enabled ? String(ci.pulls.length) : "";
+  if (!ci.enabled || !ci.pulls.length) pulls.append(el("li", "empty", ci.enabled ? "No open pull requests in the watched repositories." : "Pull requests appear when CI watch is on."));
+  else for (const pr of [...ci.pulls].sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))) {
+    const li = el("li"); li.append(el("span", "when", pr.repo + " · " + (pr.author || "unknown") + " · updated " + agoIso(pr.updated_at, d.now)),
+      link(pr.url, "#" + pr.number + " " + pr.title));
+    if (pr.draft) li.append(el("span", "tag", "draft"));
+    pulls.append(li);
+  }
+
+  const act = $("activity"); act.textContent = "";
+  if (!s.activity.length) act.append(el("li", "empty", "Nothing yet. Requests, tool calls and approvals from the chat show up here."));
+  for (const a of s.activity.slice(0, 12)) {
+    const li = el("li", "act"); li.append(el("span", "kind " + a.kind, a.kind), el("span", "", a.text), el("span", "when", ago(a.time, d.now)));
+    act.append(li);
+  }
+
+  const alerts = $("alerts"); alerts.textContent = "";
+  if (!ci.enabled || !ci.alerts.length) alerts.append(el("li", "empty", ci.enabled ? "No alerts yet. Builds that break or recover show up here." : "Alerts appear when CI watch is on."));
+  else for (const a of ci.alerts) {
+    const li = el("li"); li.append(el("span", "when", ago(a.time, d.now)), el("strong", a.kind === "failing" ? "bad" : "ok", a.kind === "failing" ? "Broke " : "Recovered "),
+      document.createTextNode(a.repo + " · " + a.workflow + " "), el("span", "chip", a.commit));
+    alerts.append(li);
+  }
+
+  const sess = $("session"); sess.textContent = "";
+  const rows = [["Model", s.model], ["Effort", s.effort], ["Mode", s.autonomous ? "Autonomous" : s.auto_approve ? "Auto-approve" : "Asks before changes"],
+                ["Tools", s.tools + (s.mcp ? " (MCP: " + s.mcp + ")" : "")], ["Up since", ago(s.started_at, d.now)],
+                ["Tokens", fmt(u.input_tokens || 0) + " in · " + fmt(u.output_tokens || 0) + " out · " + fmt(u.cache_read_input_tokens || 0) + " cached"]];
+  for (const [a, b] of rows) sess.append(el("dt", "", a), el("dd", "", String(b)));
+
+  const mem = $("memory"); mem.textContent = "";
+  $("memcount").textContent = s.memory.enabled ? plural(s.memory.count, "note") : "off";
+  if (!s.memory.recent.length) mem.append(el("li", "empty", s.memory.enabled ? "Nothing remembered yet." : "Memory is off (--no-memory)."));
+  for (const n of s.memory.recent) mem.append(el("li", "", n));
+}
+
+let timer = null;
+async function load() {
+  clearTimeout(timer);
+  try {
+    const res = await fetch("/api/dashboard", {headers});
+    if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+    const data = await res.json(); render(data);
+    timer = setTimeout(load, data.ci.checking ? 2000 : 15000);
+  } catch (err) {
+    $("state").textContent = "Offline"; $("state").className = "pill busy";
+    timer = setTimeout(load, 15000);
+  }
+}
+$("refresh").onclick = async () => {
+  $("refresh").disabled = true;
+  await fetch("/api/dashboard/refresh", {method: "POST", headers: {...headers, "Content-Type": "application/json"}, body: "{}"});
+  setTimeout(load, 800);
+};
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+load();
 </script>
 </body>
 </html>

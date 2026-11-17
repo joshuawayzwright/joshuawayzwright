@@ -14,6 +14,7 @@ import anthropic
 
 from . import github, mcp_bridge, voice, wake, watch, web
 from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
+from .dashboard import Dashboard
 from .memory import Memory
 from .tools import ToolContext
 
@@ -290,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
     parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
     parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
-    parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account.")
+    parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account. With --web, shows them on the web dashboard instead.")
     parser.add_argument("--interval", type=float, default=5, help="Watch mode: minutes between checks (default 5).")
     parser.add_argument("--fix", action="store_true", help="Watch mode: when a build breaks, run an autonomous fix that opens a draft PR. Implies --auto.")
     group_web = parser.add_argument_group("web and phone")
@@ -312,6 +313,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.fix:
         if args.watch is None:
             parser.error("--fix works with --watch")
+        if args.web:
+            parser.error("--fix works in the terminal; on the web dashboard, use the Fix with Jarvis button")
         args.auto = True
 
     io: VoiceIO | None = None
@@ -381,15 +384,30 @@ def _lan_address() -> str:
         return "your-computer-ip"
 
 
+def make_watcher(targets: list[str]) -> watch.Watcher:
+    """Repositories (owner/name) and owners to watch; none means the GitHub token's own account."""
+    repos = [t for t in targets if "/" in t]
+    owners = [t for t in targets if "/" not in t] if targets else [github.authenticated_login()]
+    return watch.Watcher(repos, owners)
+
+
 def run_web(args: argparse.Namespace, jarvis: Jarvis) -> int:
     import ssl
 
     if bool(args.web_cert) != bool(args.web_key):
         print("--web-cert and --web-key go together.", file=sys.stderr)
         return 2
-    session = web.WebSession(jarvis, auto_approve=args.yes or args.auto)
+    auto_approve = args.yes or args.auto
+    session = web.WebSession(jarvis, auto_approve=auto_approve)
+    watcher = None
+    if args.watch is not None:
+        try:
+            watcher = make_watcher(args.watch)
+        except github.GitHubError as err:
+            print(f"Dashboard CI watch is off: it needs targets or a GitHub token. ({err})", file=sys.stderr)
+    dashboard = Dashboard(jarvis, watcher, interval_s=args.interval * 60, auto_approve=auto_approve)
     try:
-        server, token = web.serve(session, args.web_host, args.web_port)
+        server, token = web.serve(session, args.web_host, args.web_port, dashboard=dashboard)
     except OSError as err:
         print(f"Can't listen on {args.web_host}:{args.web_port}: {err}", file=sys.stderr)
         return 1
@@ -402,31 +420,27 @@ def run_web(args: argparse.Namespace, jarvis: Jarvis) -> int:
     host = _lan_address() if args.web_host in ("0.0.0.0", "::") else args.web_host
     print(f"{CYAN}Jarvis web is running.{RESET} Open this link (it contains your secret token, keep it private):")
     print(f"  {scheme}://{host}:{args.web_port}/?token={token}")
+    print(f"{DIM}Dashboard: {scheme}://{host}:{args.web_port}/dashboard?token={token}"
+          f"{'' if watcher else ' (add --watch to monitor CI)'}{RESET}")
     if args.web_host not in ("127.0.0.1", "localhost", "::1"):
         print(f"{DIM}Reachable from other devices on your network."
               f"{'' if scheme == 'https' else ' Without --web-cert the connection is unencrypted and phones block the microphone.'}{RESET}")
+    dashboard.start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print()
     finally:
+        dashboard.stop()
         server.server_close()
     return 0
 
 
 def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> int:
-    repos = [t for t in args.watch if "/" in t]
-    owners = [t for t in args.watch if "/" not in t]
-    if not args.watch:
-        try:
-            owners = [github.authenticated_login()]
-        except github.GitHubError as err:
-            print(f"Watch mode needs targets or a GitHub token: {err}", file=sys.stderr)
-            return 1
     try:
-        watcher = watch.Watcher(repos, owners)
+        watcher = make_watcher(args.watch)
     except github.GitHubError as err:
-        print(str(err), file=sys.stderr)
+        print(f"Watch mode needs targets or a GitHub token: {err}", file=sys.stderr)
         return 1
 
     def announce(alert: watch.Alert) -> None:
@@ -441,7 +455,7 @@ def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> i
         if run_turn(jarvis, watch.fix_prompt(alert)) is None:
             print(f"{DIM}The fix attempt stopped with an error; watching continues.{RESET}")
 
-    print(f"{CYAN}Jarvis is watching{RESET} {', '.join(repos + owners)} every {args.interval:g} min. Ctrl+C stops.")
+    print(f"{CYAN}Jarvis is watching{RESET} {', '.join(watcher.repos + watcher.owners)} every {args.interval:g} min. Ctrl+C stops.")
     try:
         watch.watch_loop(watcher, announce, report=lambda m: print(f"{DIM}{m}{RESET}"),
                          interval_s=args.interval * 60, on_failure=fix if args.fix else None)
@@ -499,10 +513,10 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
               f"Destructive commands are blocked, and it never pushes the default branch or merges. Ctrl+C stops it.")
         print(f"{DIM}Run log: {log.path}{RESET}" if log else "")
 
-    if args.watch is not None:
-        return run_watch(args, jarvis, io)
     if args.web:
         return run_web(args, jarvis)
+    if args.watch is not None:
+        return run_watch(args, jarvis, io)
 
     if args.brief is not None:
         try:

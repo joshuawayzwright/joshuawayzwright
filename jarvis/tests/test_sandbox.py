@@ -157,3 +157,16 @@ def test_real_timeout_leaves_no_container(tmp_path: Path) -> None:
     assert "timed out after 10 seconds" in out
     listing = subprocess.run(["docker", "ps", "-q", "--filter", "name=jarvis-"], capture_output=True, text=True)
     assert listing.stdout.strip() == ""
+
+
+@needs_docker
+def test_real_container_cannot_touch_git_metadata(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    box = sandbox.Sandbox(home_root=tmp_path / "homes", image=TEST_IMAGE, network="none")
+    ctx = ToolContext(workspace=tmp_path, approve=lambda _q: True, sandbox=box)
+    script = ("echo '[core] hooksPath = /tmp' >> .git/config && echo CONFIG; "
+              "echo x > .git/hooks/pre-push && echo HOOK; echo ok > src.txt && echo WORKTREE")
+    out, _ = execute(ctx, "run_command", {"repo": "acme/app", "command": script})
+    assert "CONFIG" not in out and "HOOK" not in out and "WORKTREE" in out  # code yes, .git no
+    assert "hooksPath" not in (repo / ".git" / "config").read_text()
+    assert not (repo / ".git" / "hooks" / "pre-push").exists() and (repo / "src.txt").exists()

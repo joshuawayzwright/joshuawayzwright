@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import os
 import re
 import subprocess
 from collections.abc import Callable
@@ -549,6 +550,17 @@ def blocked_reason(command: str) -> str | None:
     return None
 
 
+_SECRET_NAME = re.compile(r"TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|ACCESS_KEY|PRIVATE_KEY|CREDENTIAL|AUTH", re.IGNORECASE)
+
+
+def scrubbed_env() -> dict[str, str]:
+    """The environment for repository commands, minus anything that looks like a secret (GITHUB_TOKEN,
+    ANTHROPIC_API_KEY, AWS_SECRET_ACCESS_KEY ...), so code from a repository can't use or leak Jarvis's keys."""
+    env = {k: v for k, v in os.environ.items() if not _SECRET_NAME.search(k)}
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    return env
+
+
 def run_command(ctx: ToolContext, repo: str, command: str, timeout_seconds: int = 120) -> str:
     root = repo_dir(ctx, repo)
     reason = blocked_reason(command)
@@ -562,7 +574,8 @@ def run_command(ctx: ToolContext, repo: str, command: str, timeout_seconds: int 
         if ctx.sandbox is not None:
             result = ctx.sandbox.run(root, repo, command, timeout)
         else:
-            result = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True, timeout=timeout)
+            result = subprocess.run(command, shell=True, cwd=root, capture_output=True, text=True, timeout=timeout,
+                                    env=scrubbed_env())
     except subprocess.TimeoutExpired:
         return f"Command timed out after {timeout} seconds."
     output = f"exit code {result.returncode}\n--- stdout ---\n{result.stdout}\n--- stderr ---\n{result.stderr}"

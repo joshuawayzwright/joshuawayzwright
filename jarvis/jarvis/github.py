@@ -432,10 +432,15 @@ def _git_auth_args() -> list[str]:
     return ["-c", f"http.https://github.com/.extraheader=Authorization: Basic {basic}"]
 
 
+# Repository-controlled config must not run code inside Jarvis's own git calls: no hooks, no fsmonitor,
+# no ext:: transport.
+SAFE_GIT = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "protocol.ext.allow=never"]
+
+
 def run_git(args: list[str], cwd: Path | None = None, timeout: int = 300) -> str:
     try:
         result = subprocess.run(
-            ["git", *_git_auth_args(), *args],
+            ["git", *SAFE_GIT, *_git_auth_args(), *args],
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -543,6 +548,7 @@ def push_and_open_pr(target: Path, repo: str, title: str, body: str) -> str:
     ahead = run_git(["rev-list", "--count", f"origin/{base}..HEAD"], cwd=target).strip()
     if ahead == "0":
         raise GitHubError(f"Branch {branch} has no commits ahead of {base}. Nothing to propose.")
-    run_git(["push", "-u", "origin", f"HEAD:refs/heads/{branch}"], cwd=target)
+    # Push to the repository's canonical URL, not to whatever the local `origin` config says.
+    run_git(["push", clone_url(repo), f"HEAD:refs/heads/{branch}"], cwd=target)
     pr = create_pull_request(repo, head=branch, base=base, title=title, body=body)
     return f"Pushed {branch} ({ahead} commit(s)) and opened draft PR #{pr['number']}: {pr['url']}"

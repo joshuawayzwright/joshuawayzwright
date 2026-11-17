@@ -185,7 +185,7 @@ Anything incomplete or uncertain.""",
             mission="""Your job: decide whether the change is ready to ship, and prove it.
 - Review git_diff line by line for correctness bugs, missed edge cases, error handling, and security issues (injection, secrets in code, unsafe input handling, path traversal).
 - Run the project's tests, linters and type checks with run_command. Use browser tools (mcp__ tools) to check a web UI when they are available.
-- You may add or fix tests with write_file and edit_file; writes outside test files are refused. Report problems in application code so Forge can fix them.
+- You may add or fix test files (test_*.py, *.test.ts, *_test.go and similar) with write_file and edit_file; writes to anything else are refused, including conftest.py, test helpers, fixtures and runner config, which count as code. Report problems in application code so Forge can fix them.
 - Your PASS counts only if, in this same assignment, a test or check command you ran with run_command exited 0 on the final code. Recognised checks are test runners, linters and type checkers (pytest, unittest, npm test, go test, cargo test, make test or check, jest, vitest, ruff, eslint, mypy, tsc and the like). The check must be the last command, joined only by && (e.g. `pip install -e . && pytest -q`); `; true`, `|| true` and pipes hide failures and don't count. Run the checks last: if the code changes after your last passing check, the PASS is rejected.
 - Don't commit, reset or otherwise change git history; Herald ships.
 - Never weaken, skip or delete a test to get a pass.
@@ -290,6 +290,7 @@ class Base:
     branch: str
     commit: str | None
     fingerprint: str
+    from_remote: bool  # read from the canonical remote, not from local refs that repository code could move
 
 
 @dataclass(frozen=True)
@@ -503,44 +504,78 @@ class Team:
     def _repo_path(self, repo: str) -> Path:
         return repo_dir(self.chief.ctx, repo)
 
-    def pin(self, repo: str) -> Base | None:
-        """The default branch as it is on the remote, recorded the first time the crew touches the repository.
-
-        Pinned before any specialist command runs, so moving a local ref later (`git fetch . X:origin/main`,
-        `git branch -f main`) can't make unverified code look like the base.
-        """
-        with self._lock:
-            if repo in self.bases:
-                return self.bases[repo]
+    @staticmethod
+    def key(repo: str) -> str:
+        """One canonical name per repository: 'o/r', 'o/r.git' and 'https://github.com/o/r' are the same."""
         try:
-            path = self._repo_path(repo)
+            return github.validate_repo(repo)
+        except github.GitHubError:
+            return repo
+
+    def pin(self, repo: str, require_remote: bool = False) -> Base | None:
+        """The default branch, recorded the first time a specialist that can change things touches the repo.
+
+        It is read from the repository's canonical URL (never from the local `origin` config, which code in
+        the repository could rewrite) before that specialist's first command runs. If the remote can't be
+        reached, local refs are used and the pin is marked local; a push needs a pin from the remote.
+        """
+        key = self.key(repo)
+        with self._lock:
+            base = self.bases.get(key)
+        if base is not None and (base.from_remote or not require_remote):
+            return base
+        try:
+            path = self._repo_path(key)
         except ToolError:
             return None  # not cloned yet
+        remote = self._remote_base(key, path)
+        if remote is not None:
+            with self._lock:
+                current = self.bases.get(key)
+                if current is None or not current.from_remote:
+                    self.bases[key] = remote
+                return self.bases[key]
+        if require_remote:
+            return None
         branch = github.default_branch(path)
-        try:  # ask the remote itself, then refresh the remote-tracking ref (fetch force-updates it)
-            symref = github.run_git(["ls-remote", "--symref", "origin", "HEAD"], cwd=path, timeout=60)
-            found = re.search(r"^ref: refs/heads/(\S+)\s+HEAD", symref, re.MULTILINE)
-            branch = found.group(1) if found else branch
-            github.run_git(["fetch", "--quiet", "origin", f"+refs/heads/{branch}:refs/remotes/origin/{branch}"],
-                           cwd=path, timeout=300)
-        except Exception:  # noqa: BLE001 - offline or no remote: fall back to the local refs as they are now
-            pass
         commit = resolve(path, f"origin/{branch}") or resolve(path, branch)
-        base = Base(branch, commit, tree_fingerprint(path, commit))
+        local = Base(branch, commit, tree_fingerprint(path, commit), from_remote=False)
         with self._lock:
-            return self.bases.setdefault(repo, base)
+            return self.bases.setdefault(key, local)
+
+    @staticmethod
+    def _remote_base(key: str, path: Path) -> Base | None:
+        if not github.is_github(key):
+            return None
+        url = github.clone_url(key)
+        try:
+            symref = github.run_git(["ls-remote", "--symref", url, "HEAD"], cwd=path, timeout=60)
+            found = re.search(r"^ref: refs/heads/(\S+)\s+HEAD", symref, re.MULTILINE)
+            if not found:
+                return None
+            branch = found.group(1)
+            github.run_git(["fetch", "--quiet", "--no-tags", url, f"+refs/heads/{branch}:refs/remotes/origin/{branch}"],
+                           cwd=path, timeout=300)
+            commit = github.run_git(["rev-parse", "--verify", "--quiet", "FETCH_HEAD^{commit}"], cwd=path).strip()
+        except Exception:  # noqa: BLE001 - offline, private without a token, or not on GitHub
+            return None
+        return Base(branch, commit, tree_fingerprint(path, commit), from_remote=True)
 
     def ship_blocked(self, repo: str, tool: str = "push_and_open_pr") -> str | None:
         """None if the code to be shipped is the pinned base's (only docs changed) or exactly what Sentinel verified.
 
         commit_changes ships the working tree; push_and_open_pr ships HEAD, so that is what gets checked.
         """
+        repo = self.key(repo)
         try:
             path = self._repo_path(repo)
         except ToolError:
             return None  # not cloned: the tool itself reports that
         try:
-            base = self.pin(repo)
+            base = self.pin(repo, require_remote=tool == "push_and_open_pr")
+            if base is None and tool == "push_and_open_pr":
+                return ("Quality gate: couldn't read the default branch from GitHub, so the base can't be trusted "
+                        "and pushing is blocked. Check the network and the GitHub token.")
             if tool == "commit_changes":
                 current = fingerprint(path)
             else:
@@ -619,10 +654,12 @@ class Team:
         - Sentinel's commands and the code they ran against are recorded as evidence for its verdict.
         - Parallel specialists clone one repository at a time.
         """
-        repo = str(data.get("repo", "")) if isinstance(data, dict) else ""
-        if repo and name != "pull_repo":
+        raw = str(data.get("repo", "")) if isinstance(data, dict) else ""
+        repo = self.key(raw) if raw else ""
+        changes_things = bool(role.tools & (WRITE | SHIP | {"run_command"}))
+        if repo and changes_things and name != "pull_repo":
             try:
-                self.pin(repo)  # before this specialist can touch any ref
+                self.pin(repo)  # before this specialist can touch any ref or config
             except Exception:  # noqa: BLE001 - ship_blocked fails closed later if the repo is unreadable
                 pass
         if name in SHIP and (blocked := self.ship_blocked(repo, name)):
@@ -639,10 +676,11 @@ class Team:
         if name == "pull_repo":
             with self._pull_lock:
                 result = run()
-            try:
-                self.pin(repo)
-            except Exception:  # noqa: BLE001
-                pass
+            if changes_things:
+                try:
+                    self.pin(repo)
+                except Exception:  # noqa: BLE001
+                    pass
             return result
         if role.key == "sentinel" and repo:
             with self._lock:

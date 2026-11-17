@@ -727,8 +727,9 @@ def test_moving_origin_main_does_not_make_unverified_code_look_like_the_base(tmp
     assert "hasn't been verified" in herald_result(fake, 1)["content"]
 
 
-def test_pushing_a_head_that_differs_from_the_checked_files_is_blocked(tmp_path: Path) -> None:
+def test_pushing_a_head_that_differs_from_the_checked_files_is_blocked(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = with_origin(tmp_path)
+    monkeypatch.setattr(team.github, "clone_url", lambda _r: str(tmp_path / "origin.git"))
     jarvis, fake = crew_in(tmp_path / "repos", {
         "chief": [tool_turn(delegate("c1", "forge", "Change")), tool_turn(delegate("c2", "sentinel", "Verify")),
                   text("ok"), tool_turn(delegate("c3", "herald", "Ship")), text("?")],
@@ -786,3 +787,85 @@ def test_fingerprint_sees_same_size_edits_made_in_the_same_second(tmp_path: Path
         before = fingerprint(repo)
         (repo / "app.py").write_text("VALUE = 2\n")  # same size, same second as the commit
         assert fingerprint(repo) != before, f"missed the edit on attempt {attempt}"
+
+
+
+# ---- Third review: aliases, tampered origin, hooks, test infrastructure --------------------------------
+
+
+def test_repo_aliases_share_one_pin_and_one_verification(tmp_path: Path) -> None:
+    project(tmp_path)
+    jarvis, _ = run_crew(tmp_path, {"chief": [tool_turn(delegate("c1", "forge", "Build")),
+                                              tool_turn(delegate("c2", "sentinel", "Verify")), text("ok")],
+                                    "forge": forge_writes(2), "sentinel": sentinel_says("VERDICT: PASS", CHECK)})
+    crew = jarvis.team
+    assert crew is not None and list(crew.bases) == ["acme/app"]
+    for alias in ("acme/app", "acme/app.git", "https://github.com/acme/app", "github.com/acme/app"):
+        assert crew.ship_blocked(alias, "commit_changes") is None, alias  # the verified code, under any name
+
+
+def test_a_tampered_origin_and_an_alias_cannot_fake_the_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reviewer's confirmed exploit: rewrite origin to a repo whose main holds the evil code, then ship
+    under an alias so a fresh pin reads the evil 'base'."""
+    repo = with_origin(tmp_path)
+    monkeypatch.setattr(team.github, "clone_url", lambda _r: str(tmp_path / "origin.git"))
+    evil = tmp_path / "evil.git"
+    jarvis, fake = crew_in(tmp_path / "repos", {
+        "chief": [tool_turn(delegate("c1", "forge", "Change")), text("ok"),
+                  tool_turn(delegate("c2", "herald", "Ship")), text("?")],
+        "forge": forge_writes(66),
+        "herald": [tool_turn(("h1", "commit_changes", {"repo": "acme/app.git", "message": "x"})), text("?")]})
+    jarvis.ask("change")  # pins acme/app from the canonical URL
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(evil)], check=True)
+    subprocess.run(f"git -c user.name=t -c user.email=t@e commit -qam evil && git push -q {evil} HEAD:main && "
+                   f"git reset -q --soft HEAD~1 && git remote set-url origin {evil}", shell=True, cwd=repo, check=True)
+    jarvis.ask("ship")
+    result = last_results(fake.requests("herald")[1])[0]
+    assert result["is_error"] and "hasn't been verified" in result["content"]
+
+
+def test_push_needs_a_base_read_from_the_remote(tmp_path: Path) -> None:
+    project(tmp_path)  # local only: acme/app isn't reachable on GitHub from the tests
+    jarvis, _ = run_crew(tmp_path, {"chief": [tool_turn(delegate("c1", "forge", "Build")),
+                                              tool_turn(delegate("c2", "sentinel", "Verify")), text("ok")],
+                                    "forge": forge_writes(2), "sentinel": sentinel_says("VERDICT: PASS", CHECK)})
+    crew = jarvis.team
+    assert crew is not None and crew.bases["acme/app"].from_remote is False
+    assert crew.ship_blocked("acme/app", "commit_changes") is None  # local commits are fine
+    assert "couldn't read the default branch from GitHub" in (crew.ship_blocked("acme/app", "push_and_open_pr") or "")
+
+
+@pytest.mark.parametrize(("path", "test"), [
+    ("tests/test_app.py", True), ("app_test.go", True), ("src/app.test.ts", True), ("spec/app_spec.rb", True),
+    ("tests/conftest.py", False), ("conftest.py", False), ("tests/helpers.py", False), ("tests/check.sh", False),
+    ("tests/fixtures/data.json", False), ("pytest.ini", False),
+])
+def test_test_infrastructure_is_code(path: str, test: bool) -> None:
+    from jarvis.integrity import is_test
+    assert is_test(path) is test
+
+
+def test_jarvis_git_calls_ignore_repository_hooks(tmp_path: Path) -> None:
+    from jarvis.integrity import fingerprint
+    repo = project(tmp_path)
+    marker = tmp_path / "hook-ran"
+    hook = repo / ".git" / "hooks" / "pre-commit"
+    hook.write_text(f"#!/bin/sh\ntouch {marker}\n")
+    hook.chmod(0o755)
+    subprocess.run(["git", "config", "core.fsmonitor", f"touch {marker}; echo"], cwd=repo, check=True)
+    (repo / "app.py").write_text("VALUE = 5\n")
+    fingerprint(repo)
+    from jarvis import github
+    github.commit_changes(repo, "Change", branch="feature")
+    assert not marker.exists()  # neither the hook nor fsmonitor ran inside Jarvis's own git calls
+
+
+def test_run_command_does_not_see_secrets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    git_repo(tmp_path / "acme" / "app")
+    for name in ("GITHUB_TOKEN", "ANTHROPIC_API_KEY", "AWS_SECRET_ACCESS_KEY", "MY_SERVICE_PASSWORD"):
+        monkeypatch.setenv(name, "s3cret")
+    monkeypatch.setenv("HARMLESS", "visible")
+    from jarvis.tools import execute
+    out, _ = execute(ToolContext(workspace=tmp_path, approve=lambda _q: True), "run_command",
+                     {"repo": "acme/app", "command": "env"})
+    assert "s3cret" not in out and "HARMLESS=visible" in out

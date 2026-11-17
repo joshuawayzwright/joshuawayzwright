@@ -65,6 +65,8 @@ class Sandbox:
             "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
             "--memory", self.memory, "--cpus", self.cpus, "--pids-limit", str(self.pids),
             "-v", f"{root.resolve()}:{CONTAINER_WORKDIR}",
+            # Git metadata is read-only inside: no hooks, config, filters or ref moves from repository code.
+            *(["-v", f"{(root / '.git').resolve()}:{CONTAINER_WORKDIR}/.git:ro"] if (root / ".git").is_dir() else []),
             "-v", f"{self.home_for(repo).resolve()}:{CONTAINER_HOME}",
             "-w", CONTAINER_WORKDIR,
             "-e", f"HOME={CONTAINER_HOME}", "-e", "CI=1",

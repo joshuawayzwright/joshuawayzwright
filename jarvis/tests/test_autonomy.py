@@ -91,6 +91,11 @@ def test_commit_creates_feature_branch_and_push_opens_draft_pr(
         return {"number": 7, "url": "https://github.com/acme/rocket/pull/7"}
 
     monkeypatch.setattr(github, "create_pull_request", fake_pr)
+    monkeypatch.setattr(github, "clone_url", lambda repo: str(origin))  # the canonical URL, here a local bare repo
+    # Repository code rewrote where `origin` pushes to. Jarvis pushes to the canonical URL regardless.
+    decoy = workspace.parent / "decoy.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(decoy)], check=True)
+    subprocess.run(["git", "remote", "set-url", "--push", "origin", str(decoy)], cwd=workspace / "acme/rocket", check=True)
     out, err = execute(c, "push_and_open_pr", {"repo": "acme/rocket", "title": "Add wave", "body": "Adds wave()."})
     assert not err, out
     assert "draft PR #7" in out
@@ -99,6 +104,7 @@ def test_commit_creates_feature_branch_and_push_opens_draft_pr(
     assert "jarvis/add-wave-greeting" in branches
     main_log = subprocess.run(["git", "log", "--oneline", "main"], cwd=origin, capture_output=True, text=True).stdout
     assert "wave" not in main_log  # the default branch on the remote is untouched
+    assert subprocess.run(["git", "branch", "--list"], cwd=decoy, capture_output=True, text=True).stdout == ""
 
 
 def test_refuses_to_commit_or_push_the_default_branch(cloned: tuple[Path, Path]) -> None:

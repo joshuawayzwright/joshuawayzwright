@@ -111,7 +111,7 @@ jarvis --issues acme/api --sandbox --sandbox-network none
 
 With `--sandbox`, every `run_command`, Jarvis's own and every specialist's, runs in a fresh Docker container that is removed afterwards:
 
-- **It sees only the repository**, mounted at `/work`. It never sees your home directory, SSH keys or environment variables, so `GITHUB_TOKEN` and `ANTHROPIC_API_KEY` stay out.
+- **It sees only the repository**, mounted at `/work`, with **`.git` read-only**, so code can't add hooks, change git config or move refs. It never sees your home directory, SSH keys or environment variables, so `GITHUB_TOKEN` and `ANTHROPIC_API_KEY` stay out.
 - **It's locked down:** it runs as your user ID, so files it creates are yours. Every Linux capability is dropped, `no-new-privileges` is set, and memory, CPU and process count are limited (4 GB, 2 CPUs, 512 processes).
 - **Installs are cached per repository** in `~/.jarvis/sandbox-home/<repo>`, the container's home folder, so `pip install --user` or npm caches survive between commands.
 - **Network:** `bridge` by default, so dependencies install; `--sandbox-network none` cuts it off completely.
@@ -152,7 +152,8 @@ How the crew works:
   - `commit_changes` checks the files about to be committed; `push_and_open_pr` checks the commit actually being pushed (HEAD), not the files on disk.
   - Either goes through only when the fingerprint matches the default branch (only docs changed) or code that Sentinel passed.
   - If code changes after verification by *any* route, it no longer matches and shipping is refused until Sentinel verifies again. Routes include a `sed` in `run_command`, an MCP tool, a run that crashed halfway, or edits left over after `/reset`.
-  - **The base is pinned.** Jarvis records the default branch as the remote reports it, after a fetch, before any specialist command touches the repository. Moving a local ref later (for example `git fetch . X:refs/remotes/origin/main` or `git branch -f main`) can't make new code look like the base.
+  - **The base is pinned.** Before a specialist that can change things first touches a repository, Jarvis records its default branch from the repository's *canonical* GitHub URL. It never uses the local `origin` setting, which code in the repository could rewrite. Moving a local ref or rewriting `origin` afterwards can't make new code look like the base. If GitHub can't be reached at that moment, the pin comes from local refs and is marked local: commits are fine, but a push first needs a pin read from GitHub.
+  - **Herald pushes to the canonical URL**, never to wherever `origin` points. All gate state is keyed by the canonical repository name, so `acme/api`, `acme/api.git` and `https://github.com/acme/api` are one repository.
   - On `FAIL`, Jarvis sends the issues back to Forge and verifies again, up to three rounds.
 - **A PASS needs proof.** Sentinel's report must end with `VERDICT: PASS`, and the verdict counts only if, in that same assignment:
   - a command that *invokes* a real test, lint or type-check runner exited 0. Examples: `pytest`, `python -m unittest`, `npm test`, `go test`, `cargo test`, `make check`, `ruff check`, `tsc`, or a project script such as `./scripts/test.sh`. It must be the last command, joined only by `&&`, as in `pip install -e . && pytest`. These don't count:
@@ -162,12 +163,19 @@ How the crew works:
   - Sentinel left the application code alone. Its edits are limited to tests, and a PASS from a Sentinel that changed non-test code is rejected;
   - the check ran on *exactly* the code present when Sentinel finished;
   - Sentinel ended normally. A PASS from a run cut short by the step limit or the budget is ignored.
-- **Scoped writes.** Sentinel can write only test files (`tests/`, `test_*`, `*.test.*` and similar), and Herald only documentation (README, CHANGELOG, `*.md`, text under `docs/`). Paths are normalised first, so `tests/../src/app.py` is refused. `.mdx` files and `docs/requirements.txt` count as code. Specialists can't run git commands that commit, push or move refs (`commit`, `push`, `reset`, `stash`, `fetch`, `pull`, `branch`, `checkout`, `switch`, `symbolic-ref` and similar) through `run_command`; `status`, `diff`, `log` and `show` are fine. That rule is a speed bump; the pinned base and the HEAD check are what actually stop a disguised command. Only Forge changes application code.
+- **Scoped writes.** Sentinel can write only test files, recognised by name (`test_*.py`, `*_test.go`, `*.test.ts`, `*.spec.js`, `*_spec.rb` and similar). Herald can write only documentation (README, CHANGELOG, `*.md`, `*.rst`, Markdown and images under `docs/`). Test *infrastructure* can change what a test run reports, so it counts as code: Sentinel can't edit it and the gate fingerprints it. That covers `conftest.py`, helpers, fixtures, scripts in `tests/` and runner config. Paths are normalised first, so `tests/../src/app.py` is refused. `.mdx` files and `docs/requirements.txt` count as code. Specialists can't run git commands that commit, push or move refs (`commit`, `push`, `reset`, `stash`, `fetch`, `pull`, `branch`, `checkout`, `switch`, `symbolic-ref` and similar) through `run_command`; `status`, `diff`, `log` and `show` are fine. That rule is a speed bump; the pinned base and the HEAD check are what actually stop a disguised command. Only Forge changes application code.
 - **MCP tools.** The chief and the specialists get only the MCP tools their servers mark read-only. `--sentinel-mcp playwright` (or `JARVIS_SENTINEL_MCP`) also gives Sentinel the write tools of the servers you name, for example a browser to click through a UI. The fingerprint gate still covers anything those tools change in the repository.
+- **Jarvis's own git calls ignore repository hooks and `core.fsmonitor`.** Code in a repository can't run inside Jarvis's commit or push. `run_command` doesn't see environment variables that look like secrets (`GITHUB_TOKEN`, `*_API_KEY`, `*SECRET*`, `*PASSWORD*` and similar).
 - **Known limit: gitignored files.** The fingerprint follows `.gitignore`, so a file it ignores (`.env`, `local_settings.py`, a patched `node_modules`) can make Sentinel's tests pass locally without being shipped. The PR then fails CI instead of being wrong silently, but review a PR that depends on local configuration with that in mind.
 - **Separation of duties.** Jarvis can't edit, run commands or ship in team mode, and every specialist is limited to its own tools: a call outside them is refused.
 - **Approvals.** Without `--yes` or `--auto`, each write, command and push still asks you, labelled with the specialist that wants it (`[Forge] Run in acme/api: pytest`). Approval prompts never overlap.
 - **Visibility.** Specialists' tool calls appear in the terminal, web page and run log, prefixed with their name (`Scout ▸ search_github_code ...`).
+
+### What the gate does and doesn't protect against
+
+- **It guarantees** that what Herald ships is the code Sentinel checked, and that Sentinel's PASS came from a real check that ran on that code and exited 0. Mistakes and confusion can't bypass it, and neither can a specialist cutting corners or later edits made by any route.
+- **It trusts Sentinel's judgement.** A Sentinel that runs only a trivial test still "verifies" the code. That's why every result is a draft PR for you to review, why the autopilot works only maintainers' issues by default, and why the PR's own CI runs the real suite.
+- **Without `--sandbox`, repository code runs as you.** A hostile repository's install script or tests can do anything your user account can, including bypassing Jarvis entirely: reading your git credentials, or pushing with them. Use `--sandbox` for repositories or issues you don't fully trust. Inside the sandbox, code sees only the repository, gets no secrets, and `.git` is read-only, so it can't touch hooks, config or refs.
 
 ### Models and cost
 

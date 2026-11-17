@@ -32,8 +32,10 @@ DOC_SUFFIXES = (".md", ".markdown", ".rst", ".adoc")  # not .mdx: MDX is executa
 DOC_NAMES = ("README", "CHANGELOG", "CHANGES", "HISTORY", "CONTRIBUTING", "AUTHORS", "NOTICE", "CODE_OF_CONDUCT")
 DOC_NAME_SUFFIXES = ("", ".txt") + DOC_SUFFIXES  # README, README.txt, CHANGELOG.md ...
 DOC_DIR_SUFFIXES = DOC_SUFFIXES + (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")  # not .txt: docs/requirements.txt
-TEST_PATTERNS = ("test_*", "*_test.*", "*_tests.*", "*.test.*", "*.spec.*", "conftest.py")
-TEST_DIRS = ("test", "tests", "__tests__", "spec", "specs", "testdata")
+# Test files only, by name. Test infrastructure (conftest.py, helpers, fixtures, scripts in tests/) is code:
+# it can change what a test run reports, so Sentinel can't edit it and the gate fingerprints it.
+TEST_PATTERNS = ("test_*.py", "*_test.py", "*_test.go", "*.test.*", "*.spec.*", "*_spec.rb", "*Test.java",
+                 "*Tests.java", "*Test.kt", "*Tests.cs", "*_test.rs")
 
 
 def normalise(path: str) -> str | None:
@@ -73,9 +75,9 @@ def is_test(path: str) -> bool:
     clean = normalise(path)
     if clean is None:
         return False
-    parts = clean.split("/")
-    return (any(fnmatch.fnmatch(parts[-1].lower(), pattern) for pattern in TEST_PATTERNS)
-            or any(part.lower() in TEST_DIRS for part in parts[:-1]))
+    name = clean.split("/")[-1]
+    return any(fnmatch.fnmatchcase(name, pattern) or fnmatch.fnmatchcase(name.lower(), pattern.lower())
+               for pattern in TEST_PATTERNS)
 
 
 # ---- Commands -------------------------------------------------------------------------------
@@ -110,7 +112,8 @@ SUBCOMMANDS = {
     "playwright": {"test"}, "cypress": {"run"}, "rake": {"test", "spec"}, "elixir": set(),
 }
 NOT_A_RUN = frozenset({"--version", "-V", "--help", "-h", "help", "--collect-only", "--co", "--if-present",
-                       "--list", "--list-tests", "--listTests", "--dry-run", "--showconfig", "--show-config"})
+                       "--list", "--list-tests", "--listTests", "--dry-run", "--showconfig", "--show-config",
+                       "--passWithNoTests", "--pass-with-no-tests", "--no-tests=pass"})
 _TARGET = re.compile(r"(test|check|lint|spec|verify|typecheck|ci)", re.IGNORECASE)
 _SEPARATORS = re.compile(r"(&&|\|\||[;&|\n])")
 
@@ -196,8 +199,12 @@ def is_check_command(command: str) -> bool:
 # ---- Fingerprints ---------------------------------------------------------------------------
 
 
+SAFE_GIT = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "protocol.ext.allow=never"]
+
+
 def _git(repo: Path, *args: str, env: dict[str, str] | None = None) -> str:
-    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True, env=env, timeout=120).stdout
+    return subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, capture_output=True, text=True, check=True, env=env,
+                           timeout=120).stdout
 
 
 def _digest(entries: list[tuple[str, str, str]], skip: Callable[[str], bool] = is_doc) -> str:

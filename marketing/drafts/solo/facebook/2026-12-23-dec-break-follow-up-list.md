@@ -11,7 +11,7 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - https://thesoloserviceprovider.com.au/ (section id="projects", AI Download Centre card)
-status: draft
+status: approved
 ---
 
 # One job to get done before the break
@@ -46,3 +46,11 @@ Status: NEEDS CHANGES
 - Everything else passes. The shutdown dates match the calendar Owner decisions (closed Thursday 24 December 2026, back Monday 4 January 2027; I rechecked the weekdays). The privacy check is clear, there's no SOLO AI mention, the length is 184 words, about 1,150 characters including the link (guide 80 to 250), there's one link, there are no banned words, and it's in Australian English. No advice line is needed: the tip is about AI and privacy, not pricing or tax.
 - Verified: https://thesoloserviceprovider.com.au/ (live, 200, 16 Nov 2026), as for the 17 Dec post. marketing/calendar/2026-12-solo.md Owner decisions (16 Nov 2026).
 - Owner escalations (non-blocking once fixed): same homepage items as the 17 Dec post: the "official download sources" card wording, the "in development" vs "LIVE DIRECTORY" mixed status, the calculator A$79 link in the sign-up blurb, and the unverified Facebook profile.
+
+## Review: 2026-11-17 (re-review)
+Status: APPROVED
+- Both 16 Nov fixes applied. The anchor is now #projects in both the link and the front matter, with the UTM before the fragment, and the "official download sources" clause is cut.
+- Passed: the shutdown dates match the calendar Owner decisions (closed Thursday 24 December 2026, back Monday 4 January 2027; I rechecked the weekdays). There's no promise about reply times, and the privacy check is clear. There's no SOLO AI mention. 177 words, about 1,111 characters including the link (guide 80 to 250). One link, with the correct UTM (facebook / social / solo-dec-break-follow-up-list). No banned words, and it's in Australian English. No advice line is needed, because the tip is about admin, AI and privacy, not pricing, tax or financial advice.
+- Note: the calendar row still lists `#apps` as the link target. The orchestrator should update it.
+- Owner escalations (link target, non-blocking for this draft): (1) the homepage AI Download Centre card says "with links to their official download sources", which breaks the AI Download Center rule "never say every link is official". (2) The homepage calls the AI Download Centre part of plans that "are in development and are not available as a public SOLO AI service yet", but its card says "LIVE DIRECTORY". (3) The homepage social links (YouTube, X, Threads, Instagram, Facebook) aren't verified in the brand file. Confirm the account this post goes out on is the owner's. (4) The homepage sign-up blurb links to the calculator, which shows the unconfirmed LAUNCH20 offer. (5) solo-ai.html, linked from the homepage, still says "Android early access" and invites testers. That conflicts with the "in development" only decision.
+- Verified: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-break-follow-up-list#projects (200, 17 Nov 2026); calendar Owner decisions (16 Nov).

@@ -13,7 +13,7 @@ sources:
   - https://thesoloserviceprovider.com.au/shop/
   - https://thesoloserviceprovider.com.au/shop/products.json
   - https://support.google.com/business/answer/6103862
-status: draft
+status: approved
 ---
 
 # Quotes that go quiet: a simple follow-up routine
@@ -62,3 +62,12 @@ Status: NEEDS CHANGES
 - Passes otherwise. The length is about 1,110 characters for the published text including the link (hard limit 1,500). The UTM is correct (gbp / organic / solo-dec-quote-follow-up). It speaks as the business with a Gold Coast angle, the advice line is present, and there's no phone number in the text (Google says posts with phone numbers "might get rejected"). The asset path is approved and exists (business-emblem.png, 285×282 confirmed), with a no-upscale note. Alt text is present, there are no banned words, and it's in Australian English.
 - Verified: https://thesoloserviceprovider.com.au/shop/ (live, 200, 16 Nov 2026): sign-up wording, unsubscribe any time, "not on sale yet". Google help pages above. /home/user/ai-download-center/powerhouse-website/assets/approved-stage/business-emblem.png.
 - Owner escalation (non-blocking for this post): the shop page links to the calculator, which still shows the unapproved "All ten SOLO toolkits for A$79" offer.
+
+## Review: 2026-11-17 (re-review)
+Status: APPROVED
+- All 16 Nov fixes applied. The image-size placeholder is replaced with Google's general photo guidance, as the 17 Nov calendar default allows. The unsourced 1200x900 line is gone, and "most trades" and "often helps more than another discount" are removed.
+- I re-verified the image guidance on Google's help page: "JPG or PNG", "Between 10 KB and 5 MB", recommended "720 px tall, 720 px wide", minimum 250 × 250 px, with no separate post size. The brief's 1080×1080 meets it.
+- Passed: about 1,069 characters for the published text including the link (hard limit 1,500). The UTM is correct (gbp / organic / solo-dec-quote-follow-up). It speaks as the business with a Gold Coast angle, has no phone number and has the advice line. The sign-up wording matches the shop. No products, prices or LAUNCH20, no banned words, and it's in Australian English. The asset is the approved business-emblem.png (285×282) with no upscaling, and alt text is present.
+- Note (non-blocking): the "Image brief" line has no heading. When posting, copy only the text from the H1 to the advice line, and don't paste the brief.
+- Owner escalations (link target, non-blocking for this draft, which doesn't mention them): (1) the shop page shows "Launch offer: 20% off everything with code LAUNCH20 at checkout. Ends 31 December 2026." The brand file hasn't confirmed this offer. If it isn't genuine and planned, the end date is a time-limited discount claim under the ACL, so confirm it in the brand file or remove it. The calculator page, linked from the shop, repeats it ("Launch offer: 20% off with code LAUNCH20 until 31 December 2026"). (2) shop.js sorts the A$79 bundle first and tags it "BEST VALUE · ALL TEN" (code comment: "it is the best value and the clearest offer"). That conflicts with the brand rule that the bundle is a convenience option, not the flagship, so the owner should decide on the order and the tag. Everything else on the page checks out: all 16 products and prices match the approved table, the meta description says "From A$9", and "A$199 if bought separately" is correct.
+- Verified: https://thesoloserviceprovider.com.au/shop/?utm_source=gbp&utm_medium=organic&utm_campaign=solo-dec-quote-follow-up (200); https://thesoloserviceprovider.com.au/shop/ (200, 17 Nov 2026, with the sign-up and consent wording) plus shop.js and https://thesoloserviceprovider.com.au/shop/products.json (salesOpen true; 16 priceLabels match the approved table; the ten toolkits sum to A$199, saving A$120 against A$79); https://support.google.com/business/answer/6103862 (loaded 17 Nov 2026).

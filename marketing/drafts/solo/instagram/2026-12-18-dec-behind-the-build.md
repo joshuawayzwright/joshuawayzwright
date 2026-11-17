@@ -10,14 +10,14 @@ sources:
   - https://thesoloserviceprovider.com.au/shop/
   - marketing/brands/solo.md
   - marketing/calendar/2026-12-solo.md
-status: draft
+status: approved
 ---
 
 # Behind the build: what went into shipping the shop
 
 Behind the build: what went into opening the shop.
 
-On 16 November we opened sales on 16 digital products for Australian sole traders. Depending on the product, each one is an app, a spreadsheet, a written guide and templates.
+On 16 November we opened sales on 16 digital products for Australian sole traders. Depending on the product, each one includes a mix of apps, spreadsheets, guides and templates.
 
 A few things had to be decided before it opened: one-off prices from A$9 to A$79, no GST charged because we're not registered, payment through Stripe with an instant download, and a 30-day money-back guarantee.
 
@@ -25,7 +25,7 @@ It's new, so there's no track record to quote yet.
 
 What isn't finished: SOLO AI, a practical assistant for ideas, answers and everyday work. It's in development. Generative conversations aren't publicly enabled yet, and no launch date has been announced.
 
-Also live: the AI Download Centre, a free, searchable directory of AI tools and models with links to their official download sources, and free pricing tips by email.
+Also live: the AI Download Centre, a free, searchable directory of AI tools and models, and free pricing tips by email.
 
 What's decided: we'd rather show honest progress than hype. What isn't: SOLO AI dates.
 
@@ -59,3 +59,15 @@ Status: NEEDS CHANGES
 - Passed: SOLO AI wording matches the homepage ("practical assistant for ideas, answers and everyday work"; "Generative conversations are not publicly enabled yet"; "No launch date has been announced"). There's no tester or early-access mention, per the 16 Nov decision. AI Download Centre and pricing-tips claims match the live homepage. Caption 777 characters (limit 2,200); "Link in bio"; UTM correct; speaks as "we". The image brief uses the approved business emblem only, includes alt text, and has 6 words on the image. No banned words; Australian English.
 - Owner escalations: (1) the shop is on sale at unapproved prices. Blocks this draft. (2) solo-ai.html (linked from the homepage "EXPLORE SOLO AI") says Android early access with testers getting "a free account with daily messages", which conflicts with "Generative conversations aren't publicly enabled yet". Doesn't block on its own, since the homepage says the same as the draft, but the owner should align the pages before any further SOLO AI posts.
 - Verified: https://thesoloserviceprovider.com.au/?utm_source=instagram&utm_medium=social&utm_campaign=solo-dec-behind-the-build (200); https://thesoloserviceprovider.com.au/shop/ plus products.json; https://thesoloserviceprovider.com.au/solo-ai.html; brand file; calendar Owner decisions.
+
+## Review: 2026-11-17 (re-review)
+Status: APPROVED
+- Earlier blocker resolved. The shop is open, and the owner approved its prices on 17 Nov. The post's facts now match the brand file and products.json: opened 16 Nov 2026, 16 products, one-off A$9 to A$79, no GST because the business isn't registered, Stripe, instant download, and a 30-day money-back guarantee. It gives no sales history, no flagship and no LAUNCH20 mention.
+- Small fix made: "each one is an app, a spreadsheet, a written guide and templates" became "each one includes a mix of apps, spreadsheets, guides and templates". Not every product has all four. For example, the AI Workflow Starter Pack is "App + guide" in products.json. The new wording follows the bundle description: "apps, spreadsheets, guides and templates".
+- Small fix made: I cut "with links to their official download sources" from the AI Download Centre line. It breaks the AI Download Center hard rule "never say every link is official", and the same fix was made to the 17 and 23 Dec Facebook posts. The line now reads "…a free, searchable directory of AI tools and models, and free pricing tips by email." (The writer note's "official download links" is now out of date.)
+- Passed: the SOLO AI wording matches the homepage ("practical assistant for ideas, answers and everyday work", "Generative conversations are not publicly enabled yet", "No launch date has been announced"). There's no tester or early-access mention. The caption is about 1,020 characters after the fixes (limit 2,200). It says "Link in bio", and the bio UTM is correct (instagram / social / solo-dec-behind-the-build). It speaks as "we", has no banned words and is in Australian English. The image brief uses the approved business emblem only (285×282, no upscaling), has 8 words on the image and has alt text.
+- Note (non-blocking): the image text "SOLO AI building" means the same as "in development". If the owner wants the exact phrase, use "Shop open. SOLO AI in development." (6 words) and update the alt text to match.
+- Note: re-check products.json for the A$9 to A$79 range on the publish date, as the brand file requires.
+- Owner escalations (link target, non-blocking for this draft): (1) the homepage AI Download Centre card says "with links to their official download sources", which breaks the AI Download Center rule "never say every link is official". (2) The homepage calls the AI Download Centre part of plans that "are in development and are not available as a public SOLO AI service yet", but its card says "LIVE DIRECTORY". (3) The homepage social links (YouTube, X, Threads, Instagram, Facebook) aren't verified in the brand file. Confirm the account this post goes out on is the owner's. (4) The homepage sign-up blurb links to the calculator, which shows the unconfirmed LAUNCH20 offer. (5) solo-ai.html, linked from the homepage, still says "Android early access" and invites testers. That conflicts with the "in development" only decision.
+- Verified: https://thesoloserviceprovider.com.au/?utm_source=instagram&utm_medium=social&utm_campaign=solo-dec-behind-the-build (200; homepage text re-read 17 Nov 2026); https://thesoloserviceprovider.com.au/shop/ (200, 17 Nov 2026, with the sign-up and consent wording) plus shop.js and https://thesoloserviceprovider.com.au/shop/products.json (salesOpen true; 16 priceLabels match the approved table; the ten toolkits sum to A$199, saving A$120 against A$79); https://thesoloserviceprovider.com.au/solo-ai.html; marketing/brands/ai-download-center.md hard rules; the business-emblem.png asset.
+- The shop page itself has the same LAUNCH20 and "BEST VALUE" bundle-first escalations noted on the 11 Dec Instagram post. They don't block this post, which mentions neither.

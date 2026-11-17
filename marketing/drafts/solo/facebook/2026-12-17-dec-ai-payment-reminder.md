@@ -11,7 +11,7 @@ sources:
   - marketing/channels.md
   - marketing/compliance.md
   - https://thesoloserviceprovider.com.au/ (section id="projects", AI Download Centre card)
-status: draft
+status: approved
 ---
 
 # A polite payment reminder, without the awkwardness
@@ -49,3 +49,11 @@ Status: NEEDS CHANGES
 - Everything else passes. The privacy workflow is sound (template with blanks, no real names, amounts or bank details, check before sending), there's no SOLO AI mention, the advice line is present, the length is 173 words, about 1,070 characters including the link (guide 80 to 250), there's one link with the right UTM source and medium, and there are no banned words. Australian English.
 - Verified: https://thesoloserviceprovider.com.au/ (live, 200, 16 Nov 2026): section ids are `apps` (SOLO AI coming soon) and `projects` (Development Lab, with the AI Download Centre card reading "A free, searchable directory of AI tools and models with links to their official download sources"). marketing/brands/ai-download-center.md hard rules.
 - Owner escalations (non-blocking once the fixes above are made): (1) The homepage card says every directory link is an "official download source", which conflicts with the AI Download Center brand rule. Reword the card. (2) The homepage says the AI Download Centre is part of plans that "are in development and are not available as a public SOLO AI service yet", while the card says "LIVE DIRECTORY". The mixed status should be cleared up. (3) The homepage sign-up blurb links to the rate calculator, which still shows the unapproved "All ten SOLO toolkits for A$79" offer. (4) The homepage links Facebook, Instagram, X, Threads and YouTube profiles, but the brand file only verifies LinkedIn and GitHub. Confirm the Facebook Page this post goes out on is the owner's.
+
+## Review: 2026-11-17 (re-review)
+Status: APPROVED
+- Both 16 Nov fixes applied. The anchor is now #projects in both the front matter and the body, with the UTM before the fragment. The "official download sources" clause is cut. On the live homepage, `id="projects"` holds the "LIVE DIRECTORY · AI DOWNLOAD CENTRE" card, "A free, searchable directory of AI tools and models".
+- Passed: the privacy workflow is sound (a template with blanks, no real names, amounts or bank details, and a check before sending). There's no SOLO AI mention, and the advice line is present. 166 words, about 1,034 characters including the link (guide 80 to 250). One link, with the correct UTM (facebook / social / solo-dec-ai-payment-reminder). The "AI Download Centre" spelling matches the SOLO site. No banned words, and it's in Australian English.
+- Note: the calendar row still lists `#apps` as the link target. The orchestrator should update it, since I don't edit the calendar.
+- Owner escalations (link target, non-blocking for this draft): (1) the homepage AI Download Centre card says "with links to their official download sources", which breaks the AI Download Center rule "never say every link is official". (2) The homepage calls the AI Download Centre part of plans that "are in development and are not available as a public SOLO AI service yet", but its card says "LIVE DIRECTORY". (3) The homepage social links (YouTube, X, Threads, Instagram, Facebook) aren't verified in the brand file. Confirm the account this post goes out on is the owner's. (4) The homepage sign-up blurb links to the calculator, which shows the unconfirmed LAUNCH20 offer. (5) solo-ai.html, linked from the homepage, still says "Android early access" and invites testers. That conflicts with the "in development" only decision.
+- Verified: https://thesoloserviceprovider.com.au/?utm_source=facebook&utm_medium=social&utm_campaign=solo-dec-ai-payment-reminder#projects (200; section ids `apps` and `projects` confirmed 17 Nov 2026); marketing/brands/ai-download-center.md hard rules.

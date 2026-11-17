@@ -10,7 +10,7 @@ sources:
   - marketing/brands/solo.md
   - marketing/calendar/2026-12-solo.md
   - https://support.google.com/business/answer/6103862
-status: draft
+status: needs-changes
 ---
 
 # Is your website turning visitors into paid jobs?
@@ -59,3 +59,14 @@ Status: NEEDS CHANGES
 - Passes otherwise. The facts match the page: "FIXED-SCOPE SUPPORT", "Human-reviewed work" / "reviewed, edited and checked by a person", "delivered remotely across Australia", "REQUEST A 15-MINUTE FIT CALL", and no revenue guarantee. The shutdown dates match Owner decisions. The length is about 1,180 characters including the link (hard limit 1,500). The UTM is correct (gbp / organic / solo-dec-revenue-rescue), there's no phone number in the text, alt text is present, the asset path is approved (285×282 confirmed), there are no banned words and it's in Australian English.
 - Verified: https://thesoloserviceprovider.com.au/revenue-rescue.html (live, 200, 16 Nov 2026); https://thesoloserviceprovider.com.au/shop/solo-revenue-rescue-kit.html (live, 200); https://thesoloserviceprovider.com.au/shop/ (live, 200); Google help pages above.
 - Further owner escalations: the Revenue Rescue page lists phone 0452 272 820, which isn't in the brand file (don't use it in posts until it's added). The 18 Dec LinkedIn post (solo-2026-12-17) links to the same page and has the same problem.
+
+## Review: 2026-11-17 (re-review)
+Status: NEEDS CHANGES
+- Blocking placeholder: `[NEEDS OWNER APPROVAL: Revenue Rescue service prices]` stays, and it's correct. The link target still shows unapproved service prices with Stripe buttons: "Conversion Leak Audit A$395" with "BUY SECURELY — A$395", "SOLO Revenue Rescue A$1,250" with "BUY SECURELY — A$1,250", and "Implemented Rescue From A$2,500". The brand file (17 Nov) says these aren't approved and that drafts linking to this page can't be approved. → The owner approves the three service prices and adds them to marketing/brands/solo.md, then the writer deletes the placeholder line from Writer notes. Or the owner removes the prices and buy buttons from the page. No copy change is needed, since the post quotes no price.
+- All the other 16 Nov fixes are applied. "A lot of Gold Coast service businesses… usually" now reads "A website can get real visitors and still lose the job. Three leaks to check:". The asset line is tidied, and the size line cites Google's guidance (re-verified: JPG or PNG, 10 KB to 5 MB, recommended 720×720, with no post size; 1200×627 is fine).
+- I re-checked the facts against the page: "FIXED-SCOPE SUPPORT", "Human-reviewed work" / "reviewed, edited and checked by a person", "delivered remotely across Australia", "REQUEST A 15-MINUTE FIT CALL" and the FAQ "Results depend on traffic quality, demand, pricing, reputation, competition and implementation". The DIY Kit (A$39) the page links to is now an approved, on-sale price, so it's no longer an issue.
+- Optional wording: "looks at the path from website visitor to enquiry". The page says "the path from website visitor to paying customer". Either is accurate, but using the page's phrase is safer.
+- Tidy-up: Writer notes have two "Facts used" bullets, one from 16 Nov and one from 17 Nov. Delete the older one. The opening line repeats the H1, which is fine if the H1 isn't published.
+- Passed otherwise: about 1,136 characters including the link (hard limit 1,500). The UTM is correct (gbp / organic / solo-dec-revenue-rescue). It makes no promise of results, has no phone number, and the shutdown dates match Owner decisions. The approved emblem is used without upscaling, and alt text is present. No banned words, and it's in Australian English.
+- Owner escalations: (1) the Revenue Rescue service prices are unapproved, which blocks this draft. (2) The page lists phone 0452 272 820, which isn't in the brand file. It's not used in the post. (3) The page nav adds a "SERVICES" link and says "Clear fixed pricing". Both depend on the price decision.
+- Verified: https://thesoloserviceprovider.com.au/revenue-rescue.html?utm_source=gbp&utm_medium=organic&utm_campaign=solo-dec-revenue-rescue (200, page text re-read 17 Nov 2026); https://thesoloserviceprovider.com.au/shop/products.json (DIY Kit A$39); https://support.google.com/business/answer/6103862.

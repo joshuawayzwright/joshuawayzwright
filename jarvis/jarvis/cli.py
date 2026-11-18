@@ -441,6 +441,13 @@ def briefing_prompt(owner: str) -> str:
     )
 
 
+def codespaces_url(port: int) -> str | None:
+    """In a GitHub Codespace, the HTTPS address GitHub forwards to this port (it works on a phone, mic included)."""
+    name = os.environ.get("CODESPACE_NAME")
+    domain = os.environ.get("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
+    return f"https://{name}-{port}.{domain}" if name and domain else None
+
+
 def _lan_address() -> str:
     import socket
 
@@ -487,9 +494,10 @@ def run_web(args: argparse.Namespace, jarvis: Jarvis) -> int:
         server.socket = context.wrap_socket(server.socket, server_side=True)
         scheme = "https"
     host = _lan_address() if args.web_host in ("0.0.0.0", "::") else args.web_host
+    base = codespaces_url(args.web_port) or f"{scheme}://{host}:{args.web_port}"
     print(f"{CYAN}Jarvis web is running.{RESET} Open this link (it contains your secret token, keep it private):")
-    print(f"  {scheme}://{host}:{args.web_port}/?token={token}")
-    print(f"{DIM}Dashboard: {scheme}://{host}:{args.web_port}/dashboard?token={token}"
+    print(f"  {base}/?token={token}")
+    print(f"{DIM}Dashboard: {base}/dashboard?token={token}"
           f"{'' if watcher else ' (add --watch to monitor CI)'}{RESET}")
     if args.web_host not in ("127.0.0.1", "localhost", "::1"):
         print(f"{DIM}Reachable from other devices on your network."

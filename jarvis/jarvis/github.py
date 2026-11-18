@@ -222,6 +222,8 @@ def api_get_text(path: str) -> str:
             raise GitHubError(f"GitHub API {err.code} for GET {path}: {detail}") from err
     except urllib.error.URLError as err:
         raise GitHubError(f"Could not reach GitHub: {err.reason}") from err
+    if urllib.parse.urlparse(location).scheme not in ("https", "http"):
+        raise GitHubError(f"Refusing to follow non-web redirect for GET {path}")
     try:
         with urllib.request.urlopen(urllib.request.Request(location, headers={"User-Agent": "jarvis-agent"}), timeout=60) as response:
             return response.read().decode("utf-8", "replace")

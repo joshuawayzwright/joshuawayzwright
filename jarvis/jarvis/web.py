@@ -445,12 +445,19 @@ DASHBOARD_PAGE = r"""<!doctype html>
   .act .kind.error, .act .kind.declined { color:var(--bad); } .act .kind.approval { color:var(--warn); }
   .act .kind.done, .act .kind.allowed { color:var(--ok); }
   .act .when { grid-column:2; }
+  #notify.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .run-head { display:flex; gap:8px; align-items:baseline; }
+  .run-head .goal { flex:1; overflow-wrap:anywhere; }
+  .status { font-size:12px; border-radius:999px; padding:0 8px; border:1px solid var(--line); white-space:nowrap; }
+  .status.done { color:var(--ok); border-color:var(--ok); } .status.failed { color:var(--bad); border-color:var(--bad); }
+  .status.running { color:var(--warn); border-color:var(--warn); }
 </style>
 </head>
 <body>
 <header>
   <h1>Jarvis<span class="wide"> · Dashboard</span></h1>
   <a id="state" class="pill">…</a>
+  <button id="notify" type="button" title="Notify me when a build breaks" hidden>🔔</button>
   <button id="refresh" type="button">Check now</button>
   <a id="chat" href="#">Chat</a>
 </header>
@@ -464,6 +471,7 @@ DASHBOARD_PAGE = r"""<!doctype html>
       <ul id="errors" class="list errors"></ul>
     </section>
     <section><h2>Open pull requests <span class="meta" id="prcount"></span></h2><ul id="pulls" class="list"></ul></section>
+    <section><h2>Autonomous runs <span class="meta">latest 10</span></h2><ul id="runs" class="list"></ul></section>
     </div>
     <div class="stack">
       <section><h2>Activity</h2><ul id="activity" class="list"></ul></section>
@@ -483,6 +491,7 @@ function link(url, text) {   // only GitHub-style https links become clickable
   if (typeof url === "string" && url.startsWith("https://")) { const a = el("a", "", text); a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer"; return a; }
   return el("span", "muted", text);
 }
+const money = v => v == null ? "–" : v < 0.01 && v > 0 ? "<$0.01" : "$" + v.toFixed(2);
 const plural = (n, word) => n + " " + word + (n === 1 ? "" : "s");
 const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? Math.round(n / 1e3) + "k" : n.toLocaleString();
 function ago(t, now) {
@@ -516,7 +525,7 @@ function render(d) {
   } else {
     k.append(kpi("CI watch", "Off", "start with --web --watch"));
   }
-  k.append(kpi("Tokens this session", fmt(tokens), plural(u.requests || 0, "request") + " · " + plural(s.turns, "turn")));
+  k.append(kpi("Cost this session", money(s.cost_usd), fmt(tokens) + " tokens · " + plural(u.requests || 0, "request")));
 
   const repos = $("repos"); repos.textContent = "";
   $("refresh").disabled = !ci.enabled || ci.checking;
@@ -561,6 +570,26 @@ function render(d) {
     pulls.append(li);
   }
 
+  const runs = $("runs"); runs.textContent = "";
+  if (!d.runs.length) runs.append(el("li", "empty", "No autonomous runs yet. Runs started with --auto or --watch --fix appear here."));
+  for (const r of d.runs) {
+    const li = el("li"), head = el("div", "run-head");
+    // A run that stopped writing for 30 minutes most likely died with its process (Ctrl+C, crash, reboot).
+    const stalled = r.status === "running" && d.now - (r.updated || r.started || d.now) > 1800;
+    const status = stalled ? "stalled" : r.status;
+    head.append(el("span", "goal", r.goal || "(no goal)"), el("span", "status " + (stalled ? "failed" : r.status), status));
+    const meta = [ago(r.started, d.now), plural(r.steps || 0, "step")];
+    if (r.errors) meta.push(plural(r.errors, "tool error"));
+    if (r.cost_usd != null) meta.push(money(r.cost_usd));
+    meta.push(r.log);
+    li.append(head, el("span", "when", meta.join(" · ")));
+    for (const url of r.pull_requests) { li.append(link(url, url.replace("https://github.com/", "")), document.createTextNode(" ")); }
+    runs.append(li);
+  }
+
+  document.title = (ci.enabled && ci.totals.failing ? "(" + ci.totals.failing + " failing) " : "") + "Jarvis Dashboard";
+  notifyNew(ci.alerts || []);
+
   const act = $("activity"); act.textContent = "";
   if (!s.activity.length) act.append(el("li", "empty", "Nothing yet. Requests, tool calls and approvals from the chat show up here."));
   for (const a of s.activity.slice(0, 12)) {
@@ -579,13 +608,36 @@ function render(d) {
   const sess = $("session"); sess.textContent = "";
   const rows = [["Model", s.model], ["Effort", s.effort], ["Mode", s.autonomous ? "Autonomous" : s.auto_approve ? "Auto-approve" : "Asks before changes"],
                 ["Tools", s.tools + (s.mcp ? " (MCP: " + s.mcp + ")" : "")], ["Up since", ago(s.started_at, d.now)],
-                ["Tokens", fmt(u.input_tokens || 0) + " in · " + fmt(u.output_tokens || 0) + " out · " + fmt(u.cache_read_input_tokens || 0) + " cached"]];
+                ["Tokens", fmt(u.input_tokens || 0) + " in · " + fmt(u.output_tokens || 0) + " out · " + fmt(u.cache_read_input_tokens || 0) + " cached"],
+                ["Est. cost", s.cost_usd == null ? "no price for this model" : money(s.cost_usd) + " at list price"]];
   for (const [a, b] of rows) sess.append(el("dt", "", a), el("dd", "", String(b)));
 
   const mem = $("memory"); mem.textContent = "";
   $("memcount").textContent = s.memory.enabled ? plural(s.memory.count, "note") : "off";
   if (!s.memory.recent.length) mem.append(el("li", "empty", s.memory.enabled ? "Nothing remembered yet." : "Memory is off (--no-memory)."));
   for (const n of s.memory.recent) mem.append(el("li", "", n));
+}
+
+// Browser notifications for builds that break or recover while this page is open (needs HTTPS or localhost).
+const notifyBtn = $("notify"); let lastAlert = null;
+function wantNotify() { try { return localStorage.getItem("jarvis-notify") === "1"; } catch (e) { return false; } }
+function setNotify(on) { try { localStorage.setItem("jarvis-notify", on ? "1" : "0"); } catch (e) {} notifyBtn.classList.toggle("on", on); }
+if ("Notification" in window && window.isSecureContext) {
+  notifyBtn.hidden = false; setNotify(wantNotify() && Notification.permission === "granted");
+  notifyBtn.onclick = async () => {
+    if (notifyBtn.classList.contains("on")) { setNotify(false); return; }
+    setNotify((await Notification.requestPermission()) === "granted");
+  };
+}
+function notifyNew(alerts) {
+  const newest = alerts.length ? alerts[0].time : 0;
+  if (lastAlert !== null && notifyBtn.classList.contains("on") && Notification.permission === "granted") {
+    for (const a of alerts.filter(a => a.time > lastAlert).reverse()) {
+      new Notification(a.kind === "failing" ? "Build broke: " + a.workflow : "Build recovered: " + a.workflow,
+                       {body: a.repo + " · " + a.commit, tag: a.repo + "/" + a.workflow});
+    }
+  }
+  lastAlert = Math.max(lastAlert || 0, newest);   // the first load only sets the baseline
 }
 
 let timer = null;

@@ -6,28 +6,33 @@ browser reads a JSON snapshot; nothing here talks to Claude, so viewing the dash
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 from collections import deque
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
-from . import watch
+from . import pricing, watch
 from .agent import Jarvis
 
 MAX_ALERTS = 50
 MAX_MEMORY_NOTES = 5
 MAX_PULLS_PER_REPO = 20
+MAX_RUNS = 10
 
 
 class Dashboard:
     def __init__(self, jarvis: Jarvis, watcher: watch.Watcher | None = None, interval_s: float = 300,
-                 clock: Callable[[], float] = time.time, auto_approve: bool = False) -> None:
+                 clock: Callable[[], float] = time.time, auto_approve: bool = False,
+                 runs_dir: Path | None = None) -> None:
         self.jarvis = jarvis
         self.watcher = watcher
         self.interval_s = interval_s
         self.clock = clock
         self.auto_approve = auto_approve
+        self.runs_dir = runs_dir
         self.started_at = clock()
         self.lock = threading.Lock()
         self.alerts: deque[dict[str, Any]] = deque(maxlen=MAX_ALERTS)
@@ -130,6 +135,31 @@ class Dashboard:
         repos.sort(key=lambda r: (-r["failing"], r["repo"].lower()))
         return repos
 
+    def recent_runs(self) -> list[dict[str, Any]]:
+        """Summaries of the latest autonomous runs (RunLog's <stamp>.json files), newest first."""
+        if self.runs_dir is None or not self.runs_dir.is_dir():
+            return []
+        runs = []
+        for path in sorted(self.runs_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+            if len(runs) == MAX_RUNS:
+                break
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue  # half-written or hand-edited: skip it rather than break the page
+            if not isinstance(data, dict):
+                continue
+            prs = data.get("pull_requests")
+            runs.append({
+                "goal": str(data.get("goal") or "")[:300],
+                "status": str(data.get("status") or "unknown"),
+                "started": data.get("started"), "updated": data.get("updated"),
+                "steps": data.get("steps"), "errors": data.get("errors"),
+                "pull_requests": [u for u in prs if isinstance(u, str)][:5] if isinstance(prs, list) else [],
+                "cost_usd": data.get("cost_usd"), "model": data.get("model"), "log": path.with_suffix(".md").name,
+            })
+        return runs
+
     def snapshot(self, busy: bool = False, activity: list[dict[str, Any]] | None = None, waiting: int = 0) -> dict[str, Any]:
         jarvis = self.jarvis
         memory = jarvis.ctx.memory
@@ -159,6 +189,7 @@ class Dashboard:
             return {
                 "now": self.clock(),
                 "ci": ci,
+                "runs": self.recent_runs(),
                 "session": {
                     "model": jarvis.model,
                     "effort": jarvis.effort,
@@ -170,6 +201,7 @@ class Dashboard:
                     "started_at": self.started_at,
                     "turns": sum(1 for m in jarvis.messages if m.get("role") == "user" and isinstance(m.get("content"), str)),
                     "usage": dict(jarvis.usage),
+                    "cost_usd": pricing.estimate_cost(jarvis.model, jarvis.usage),
                     "tools": len(jarvis._tools),
                     "mcp": mcp.summary() if mcp is not None else None,
                     "memory": {"enabled": memory is not None, "count": len(notes), "recent": notes[-MAX_MEMORY_NOTES:][::-1]},

@@ -23,6 +23,7 @@ from urllib.parse import parse_qs, urlparse
 import anthropic
 
 from .agent import Jarvis
+from . import icons
 from .dashboard import Dashboard
 
 APPROVAL_TIMEOUT_S = 300
@@ -47,6 +48,7 @@ class WebSession:
         jarvis.on_delta = lambda text: self._emit({"type": "delta", "text": text})
         jarvis.on_text = lambda text: self._emit({"type": "block_end"})
         jarvis.on_tool = self._on_tool
+        jarvis.on_notice = self._on_notice
 
     def _record(self, kind: str, text: str) -> None:
         text = " ".join(text.split())
@@ -55,6 +57,10 @@ class WebSession:
 
     def recent_activity(self) -> list[dict[str, Any]]:
         return list(self.activity)
+
+    def _on_notice(self, text: str) -> None:
+        self._record("notice", text)
+        self._emit({"type": "notice", "text": text})
 
     def _on_tool(self, line: str) -> None:
         self._record("tool", line)
@@ -150,10 +156,23 @@ def make_handler(session: WebSession, token: str, dashboard: Dashboard) -> type[
                 raise ValueError("expected a JSON object")
             return data
 
+        def _bytes(self, body: bytes, content_type: str, cache: str = "no-store") -> None:
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", cache)
+            self.end_headers()
+            self.wfile.write(body)
+
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
+            # Home-screen icons hold no secrets, and phones fetch them without the token.
+            if path in ICON_ROUTES:
+                kind, payload = ICON_ROUTES[path]
+                self._bytes(payload() if callable(payload) else payload, kind, cache="public, max-age=86400")
+                return
             pages = {"/": PAGE, "/dashboard": DASHBOARD_PAGE}
-            if path not in pages and path != "/api/dashboard":
+            if path not in pages and path not in ("/api/dashboard", "/manifest.webmanifest") and not path.startswith("/api/runs/"):
                 self._json(404, {"error": "not found"})
                 return
             if not self._authorised():
@@ -162,6 +181,17 @@ def make_handler(session: WebSession, token: str, dashboard: Dashboard) -> type[
             if path == "/api/dashboard":
                 self._json(200, dashboard.snapshot(busy=session.lock.locked(), activity=session.recent_activity(),
                                                    waiting=len(session.pending)))
+                return
+            if path.startswith("/api/runs/"):
+                log = dashboard.read_run_log(path.removeprefix("/api/runs/"))
+                if log is None:
+                    self._json(404, {"error": "no such run log"})
+                else:
+                    self._json(200, log)
+                return
+            if path == "/manifest.webmanifest":
+                # The installed app opens the dashboard with the token, like a bookmark of the printed link.
+                self._bytes(json.dumps(manifest(token)).encode(), "application/manifest+json")
                 return
             body = pages[path].encode()
             self.send_response(200)
@@ -228,6 +258,25 @@ def make_handler(session: WebSession, token: str, dashboard: Dashboard) -> type[
     return Handler
 
 
+ICON_ROUTES: dict[str, tuple[str, Any]] = {
+    "/icon.svg": ("image/svg+xml", icons.SVG.encode()),
+    "/icon-192.png": ("image/png", lambda: icons.png(192)),
+    "/icon-512.png": ("image/png", lambda: icons.png(512)),
+    "/apple-touch-icon.png": ("image/png", lambda: icons.png(180, rounded=False)),
+}
+
+
+def manifest(token: str) -> dict[str, Any]:
+    return {
+        "name": "Jarvis", "short_name": "Jarvis", "display": "standalone",
+        "start_url": f"/dashboard?token={token}", "scope": "/",
+        "background_color": "#0f1216", "theme_color": "#0b6bcb",
+        "icons": [{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+                  {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+                  {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml"}],
+    }
+
+
 def serve(session: WebSession, host: str = "127.0.0.1", port: int = 8765, token: str | None = None,
           dashboard: Dashboard | None = None) -> tuple[ThreadingHTTPServer, str]:
     token = token or secrets.token_urlsafe(24)
@@ -242,6 +291,11 @@ PAGE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b6bcb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>Jarvis</title>
 <style>
   :root { --bg:#f6f7f9; --panel:#ffffff; --text:#14171c; --muted:#5d6673; --accent:#0b6bcb; --line:#dde1e7;
@@ -264,6 +318,7 @@ PAGE = r"""<!doctype html>
   .you { align-self:flex-end; background:var(--you); }
   .tool { font-size:13px; color:var(--muted); padding:0 4px; }
   .error { color:var(--warn); }
+  .notice { border-color:var(--warn); color:var(--muted); font-size:14px; }
   pre { background:var(--code); padding:10px; border-radius:8px; overflow-x:auto; white-space:pre; margin:6px 0; font-size:14px; }
   .approval { border-color:var(--warn); }
   .approval div { margin-top:8px; display:flex; gap:8px; }
@@ -288,6 +343,7 @@ PAGE = r"""<!doctype html>
 </form>
 <script>
 const token = new URLSearchParams(location.search).get("token") || "";
+{ const m = document.createElement("link"); m.rel = "manifest"; m.href = "/manifest.webmanifest?token=" + encodeURIComponent(token); document.head.append(m); }
 const log = document.getElementById("log"), input = document.getElementById("input");
 const send = document.getElementById("send"), mic = document.getElementById("mic"), speakBox = document.getElementById("speak");
 document.getElementById("dash").href = "/dashboard?token=" + encodeURIComponent(token);
@@ -343,6 +399,7 @@ async function chat(text) {
         else if (event.type === "tool") add("tool", "⚙ " + event.line);
         else if (event.type === "approval") askApproval(event);
         else if (event.type === "error") add("msg error", event.message);
+        else if (event.type === "notice") add("msg notice", event.text);
       }
     }
   } catch (err) { add("msg error", "Connection lost: " + err); }
@@ -383,6 +440,11 @@ DASHBOARD_PAGE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b6bcb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>Jarvis Dashboard</title>
 <style>
   :root { --bg:#f6f7f9; --panel:#ffffff; --text:#14171c; --muted:#5d6673; --accent:#0b6bcb; --line:#dde1e7;
@@ -449,8 +511,15 @@ DASHBOARD_PAGE = r"""<!doctype html>
   .run-head { display:flex; gap:8px; align-items:baseline; }
   .run-head .goal { flex:1; overflow-wrap:anywhere; }
   .status { font-size:12px; border-radius:999px; padding:0 8px; border:1px solid var(--line); white-space:nowrap; }
-  .status.done { color:var(--ok); border-color:var(--ok); } .status.failed { color:var(--bad); border-color:var(--bad); }
+  .status.done { color:var(--ok); border-color:var(--ok); }
+  .status.failed, .status.over { color:var(--bad); border-color:var(--bad); }
   .status.running { color:var(--warn); border-color:var(--warn); }
+  .logbtn { font-size:12px; padding:2px 8px; margin-top:4px; }
+  pre.runlog { background:var(--chip); border-radius:8px; padding:10px; margin:6px 0 0; max-height:420px; overflow:auto;
+               font-size:12px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .meter { height:6px; border-radius:999px; background:var(--chip); margin-top:6px; overflow:hidden; }
+  .meter i { display:block; height:100%; background:var(--ok); }
+  .meter i.warn { background:var(--warn); } .meter i.over { background:var(--bad); }
 </style>
 </head>
 <body>
@@ -483,6 +552,7 @@ DASHBOARD_PAGE = r"""<!doctype html>
 </main>
 <script>
 const token = new URLSearchParams(location.search).get("token") || "";
+{ const m = document.createElement("link"); m.rel = "manifest"; m.href = "/manifest.webmanifest?token=" + encodeURIComponent(token); document.head.append(m); }
 const headers = {"X-Jarvis-Token": token};
 document.getElementById("chat").href = "/?token=" + encodeURIComponent(token);
 const $ = id => document.getElementById(id);
@@ -525,7 +595,13 @@ function render(d) {
   } else {
     k.append(kpi("CI watch", "Off", "start with --web --watch"));
   }
-  k.append(kpi("Cost this session", money(s.cost_usd), fmt(tokens) + " tokens · " + plural(u.requests || 0, "request")));
+  const costTile = kpi("Cost this session", money(s.cost_usd),
+    s.budget_usd ? "of " + money(s.budget_usd) + " limit · " + fmt(tokens) + " tokens" : fmt(tokens) + " tokens · " + plural(u.requests || 0, "request"));
+  if (s.budget_usd && s.cost_usd != null) {
+    const share = s.cost_usd / s.budget_usd, bar = el("div", "meter"), fill = el("i", share >= 1 ? "over" : share >= 0.8 ? "warn" : "");
+    fill.style.width = Math.min(100, Math.round(share * 100)) + "%"; bar.append(fill); costTile.append(bar);
+  }
+  k.append(costTile);
 
   const repos = $("repos"); repos.textContent = "";
   $("refresh").disabled = !ci.enabled || ci.checking;
@@ -584,6 +660,13 @@ function render(d) {
     meta.push(r.log);
     li.append(head, el("span", "when", meta.join(" · ")));
     for (const url of r.pull_requests) { li.append(link(url, url.replace("https://github.com/", "")), document.createTextNode(" ")); }
+    const btn = el("button", "logbtn", openLogs.has(r.log) ? "Hide log" : "Show log");
+    btn.onclick = () => { if (openLogs.has(r.log)) openLogs.delete(r.log); else openLogs.add(r.log); load(); };
+    const actions = el("div"); actions.append(btn); li.append(actions);
+    if (openLogs.has(r.log)) {
+      const pre = el("pre", "runlog", logCache[r.log] || "Loading…"); li.append(pre);
+      if (!logCache[r.log] || r.status === "running") fetchLog(r.log, pre, r.status === "running");   // a running log keeps growing
+    }
     runs.append(li);
   }
 
@@ -609,7 +692,8 @@ function render(d) {
   const rows = [["Model", s.model], ["Effort", s.effort], ["Mode", s.autonomous ? "Autonomous" : s.auto_approve ? "Auto-approve" : "Asks before changes"],
                 ["Tools", s.tools + (s.mcp ? " (MCP: " + s.mcp + ")" : "")], ["Up since", ago(s.started_at, d.now)],
                 ["Tokens", fmt(u.input_tokens || 0) + " in · " + fmt(u.output_tokens || 0) + " out · " + fmt(u.cache_read_input_tokens || 0) + " cached"],
-                ["Est. cost", s.cost_usd == null ? "no price for this model" : money(s.cost_usd) + " at list price"]];
+                ["Est. cost", s.cost_usd == null ? "no price for this model" : money(s.cost_usd) + " at list price"],
+                ["Spending limit", s.budget_usd ? money(s.budget_usd) + " (--budget)" : "none"]];
   for (const [a, b] of rows) sess.append(el("dt", "", a), el("dd", "", String(b)));
 
   const mem = $("memory"); mem.textContent = "";
@@ -638,6 +722,20 @@ function notifyNew(alerts) {
     }
   }
   lastAlert = Math.max(lastAlert || 0, newest);   // the first load only sets the baseline
+}
+
+// Run logs open in place. Which ones are open survives the 15-second refresh; texts are cached.
+const openLogs = new Set(), logCache = {};
+async function fetchLog(name, pre, follow) {
+  try {
+    const res = await fetch("/api/runs/" + encodeURIComponent(name), {headers});
+    const data = await res.json();
+    logCache[name] = res.ok ? (data.truncated ? "… (start of the log cut; showing the end)\n\n" : "") + data.text : (data.error || "Couldn't load the log.");
+  } catch (err) { logCache[name] = "Couldn't load the log: " + err; }
+  if (pre.isConnected) {   // a running log follows its end unless you scrolled up; a finished one opens at the top
+    const atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+    pre.textContent = logCache[name]; if (follow && atEnd) pre.scrollTop = pre.scrollHeight;
+  }
 }
 
 let timer = null;

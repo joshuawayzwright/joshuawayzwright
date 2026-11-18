@@ -99,6 +99,7 @@ Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call
 - Always blocked: `sudo`, deleting `/` or `~`, disk and power commands, piping downloads into a shell, `git push` outside `push_and_open_pr`, `git reset --hard origin`, `gh pr merge` and `gh repo delete`.
 - **Licenses:** Jarvis checks licenses and credits sources. It won't copy GPL code into a project with a different license, or code with no license at all.
 - `--max-steps` caps the run (default 250 in auto mode, 60 otherwise). Ctrl+C stops it at any time.
+- `--budget 5` caps spending: Jarvis estimates the cost of each request from its token usage at list price, warns at 80% of the limit and stops before the next request once the limit is reached. The unfinished request is rolled back from the conversation (files it already changed stay changed), and the run is marked **over budget**. It works for Claude Fable 5.2, Opus 5.5, Sonnet 5.5 and Haiku 5.5; it's an estimate, so set it with some margin and keep your Console spend limits as the real cap.
 
 > **Run it somewhere disposable.** Autonomous mode runs commands from repositories it pulls, including their install scripts and tests, without asking. Use a container, VM or cloud dev box rather than your main machine, and a GitHub token limited to the repositories you want it to change.
 
@@ -204,10 +205,14 @@ jarvis --web --watch my-org acme/api --interval 10
 - **Alerts:** builds that broke or recovered since the dashboard started.
 - **Autonomous runs:** the latest 10 runs started with `--auto` or `--watch --fix`, from any session: goal, status (running, done, failed, or stalled when a run stopped updating for 30 minutes), steps, tool errors, estimated cost, pull requests opened, and the log file name in `~/.jarvis/runs/`.
 - **Session:** model, effort, approval mode, tools (including MCP), whether Jarvis is working, tokens used this session (input, output and cached) and their **estimated cost**.
+- **Run logs:** **Show log** on any run opens its full log in place (the last 200 KB of a very long one). A running run's log updates as it goes.
+- **Spending limit:** with `--budget`, the cost tile shows how much of the limit is used.
 - **Notifications:** tap 🔔 to get a browser notification when a build breaks or recovers while the dashboard is open. Browsers allow this only over HTTPS or on `localhost`, as with the microphone. The tab title also shows how many workflows are failing.
 - **Memory:** the most recent long-term notes.
 
 Cost estimates use Anthropic's list prices for Claude Fable 5.2, Opus 5.5, Sonnet 5.5 and Haiku 5.5, with cache writes at the 5-minute rate ([`jarvis/pricing.py`](jarvis/pricing.py)). They don't include discounts, Bedrock or Vertex AI pricing, or Haiku 5.5's higher rate above 100K-token prompts; other models show no estimate. Check your bill in the Claude Console for actual charges.
+
+**Add it to your phone's home screen** to open the dashboard like an app: in Safari, Share → *Add to Home Screen*; in Chrome, ⋮ → *Add to Home screen* (or *Install app*). It opens full screen with the Jarvis icon. The home-screen shortcut contains your secret token, like the printed link, and stops working when Jarvis restarts with a new token.
 
 The dashboard reads GitHub through your `GITHUB_TOKEN` (two requests per repository per check) and never calls Claude, so viewing it costs no tokens. It refreshes every 15 seconds while open. Without `--watch`, it shows the session and memory panels only. `--fix` is terminal-only; on the web, use the Fix with Jarvis button.
 
@@ -246,6 +251,7 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--brief [OWNER]` | | Morning briefing across your repositories |
 | `--watch [TARGET ...]`, `--interval`, `--fix` | 5 min | Watch default-branch builds; optionally auto-fix. With `--web`, feeds the dashboard |
 | `--web`, `--web-host`, `--web-port`, `--web-cert`, `--web-key` | localhost:8765 | Browser and phone interface |
+| `--budget USD` | none | Spending limit for the session, from the estimated cost at list price. Warns at 80% and stops before going over |
 | `--max-steps` | 60, or 250 with `--auto` | Agent steps per request |
 
 When stdin is not a terminal (in scripts or CI, for example), writes and commands are **denied** unless you pass `--yes`.

@@ -9,6 +9,7 @@ from typing import Any
 
 import anthropic
 
+from . import pricing
 from .tools import TOOL_SCHEMAS, ToolContext, execute
 
 DEFAULT_MODEL = "claude-opus-5-5"
@@ -16,6 +17,7 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 COMPACTION_BETA = "compact-2026-01-12"
 DEFAULT_MAX_STEPS = 60
 AUTO_MAX_STEPS = 250
+BUDGET_WARNING = 0.8  # warn once when a session reaches this share of its spending limit
 USAGE_FIELDS = ("requests", "input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
 
 SYSTEM_PROMPT = """You are Jarvis, a sharp, calm engineering agent. You work with code on GitHub, and you can research, change, test and ship it.
@@ -71,17 +73,47 @@ class Jarvis:
     on_delta: Printer = lambda chunk: None  # text as it streams
     on_tool: Printer = print
     on_result: Callable[[str, str, bool], None] = lambda name, content, is_error: None
+    # Jarvis's own messages (step limit, spending limit). Defaults to on_text; the web page shows them separately.
+    on_notice: Printer | None = None
+    # Spending limit for the session in USD, from the estimated cost of its token usage. None means no limit.
+    budget_usd: float | None = None
     mcp: Any = None  # an MCPManager, when MCP servers are configured
     messages: list[dict[str, Any]] = field(default_factory=list)
     # Token use across the session, shown on the web dashboard.
     usage: dict[str, int] = field(default_factory=lambda: dict.fromkeys(USAGE_FIELDS, 0))
 
     def __post_init__(self) -> None:
+        if self.budget_usd is not None and pricing.PRICES.get(self.model) is None:
+            raise ValueError(f"No price is known for {self.model}, so a spending limit can't be enforced.")
+        self._budget_warned = False
         if self.client is None:
             self.client = anthropic.Anthropic()
         # Fixed for the session, so the cached prompt prefix stays valid; new notes appear next session.
         self._memory_section = self.ctx.memory.prompt_section() if self.ctx.memory else ""
         self._tools = TOOL_SCHEMAS + (self.mcp.schemas() if self.mcp else [])
+
+    def _notice(self, text: str) -> None:
+        (self.on_notice or self.on_text)(text)
+
+    def cost_usd(self) -> float | None:
+        """Estimated cost of this session's token usage so far, at list price."""
+        return pricing.estimate_cost(self.model, self.usage)
+
+    def over_budget(self) -> bool:
+        cost = self.cost_usd()
+        return self.budget_usd is not None and cost is not None and cost >= self.budget_usd
+
+    def _check_budget(self) -> bool:
+        """True when the next request may go ahead. Warns once on the way to the limit."""
+        if self.budget_usd is None:
+            return True
+        if self.over_budget():
+            return False
+        cost = self.cost_usd() or 0.0
+        if not self._budget_warned and cost >= BUDGET_WARNING * self.budget_usd:
+            self._budget_warned = True
+            self._notice(f"[Heads up: this session has used about ${cost:.2f} of its ${self.budget_usd:.2f} spending limit.]")
+        return True
 
     def reset(self) -> None:
         self.messages.clear()
@@ -124,10 +156,19 @@ class Jarvis:
 
     def ask(self, prompt: str) -> str:
         """Send one user turn and run tools until Claude finishes. Returns the final text."""
+        checkpoint = len(self.messages)
         self.messages.append({"role": "user", "content": prompt})
         final_text = ""
 
         for _ in range(self.max_steps):
+            if not self._check_budget():
+                # Stopping here would leave the turn half-finished (a tool result with no reply), which the API
+                # rejects on the next request, so the unfinished turn is rolled back. Files it changed stay changed.
+                del self.messages[checkpoint:]
+                self._notice(f"[Stopped: this session reached its ${self.budget_usd:.2f} spending limit "
+                             f"(about ${self.cost_usd() or 0:.2f} used). This request was not finished. "
+                             "Restart Jarvis with a higher --budget to continue.]")
+                return final_text
             response = self._request()
             # Append the full content (thinking, compaction, fallback and tool_use blocks), unchanged.
             self.messages.append({"role": "assistant", "content": response.content})
@@ -139,12 +180,12 @@ class Jarvis:
                 final_text = texts[-1]
 
             if response.stop_reason == "refusal":
-                self.on_text("[Jarvis declined this request.]")
+                self._notice("[Jarvis declined this request.]")
                 return final_text
             if response.stop_reason == "pause_turn":
                 continue
             if response.stop_reason == "max_tokens":
-                self.on_text("[Response hit the token limit; ask me to continue.]")
+                self._notice("[Response hit the token limit; ask me to continue.]")
                 return final_text
             if response.stop_reason != "tool_use":
                 return final_text
@@ -162,7 +203,7 @@ class Jarvis:
             # All results for one assistant turn go back in a single user message.
             self.messages.append({"role": "user", "content": results})
 
-        self.on_text(f"[Stopped after {self.max_steps} steps. Ask me to continue if needed.]")
+        self._notice(f"[Stopped after {self.max_steps} steps. Ask me to continue if needed.]")
         return final_text
 
 

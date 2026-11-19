@@ -109,6 +109,8 @@ class RunLog:
     def finish(self, ok: bool, reply: str | None = None) -> None:
         """Record how the run ended, with the tokens it used and their estimated cost."""
         self.summary["status"] = "done" if ok else "failed"
+        if self.jarvis is not None and self.jarvis.over_budget():
+            self.summary["status"] = "over budget"
         if reply:
             self.summary["reply"] = reply[:500]
             self._note_pull_requests(reply)
@@ -368,6 +370,7 @@ def main(argv: list[str] | None = None) -> int:
     group_web.add_argument("--web-port", type=int, default=8765)
     group_web.add_argument("--web-cert", type=Path, help="TLS certificate (PEM) to serve HTTPS. Phones only allow the microphone over HTTPS.")
     group_web.add_argument("--web-key", type=Path, help="TLS private key (PEM) for --web-cert.")
+    parser.add_argument("--budget", type=float, default=None, metavar="USD", help="Spending limit for this session in US dollars, from the estimated cost of its tokens at list price. Jarvis warns at 80%% and stops before going over. Works with models that have a known price.")
     parser.add_argument("--max-steps", type=int, default=None, help=f"Max agent steps per request (default {DEFAULT_MAX_STEPS}, or {AUTO_MAX_STEPS} with --auto).")
     group = parser.add_argument_group("voice")
     group.add_argument("--voice", action="store_true", help="Talk to Jarvis: push-to-talk input and spoken replies.")
@@ -378,6 +381,8 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--whisper-model", default=os.environ.get("JARVIS_WHISPER_MODEL", "base.en"), help="Whisper model: tiny.en, base.en, small.en, medium.en, or a multilingual size such as small.")
     group.add_argument("--language", default=None, help="Spoken language code (e.g. en). Default: auto-detect.")
     args = parser.parse_args(argv)
+    if args.budget is not None and args.budget <= 0:
+        parser.error("--budget must be more than 0")
     if args.fix:
         if args.watch is None:
             parser.error("--fix works with --watch")
@@ -573,24 +578,29 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         if log:
             log.tool(line)
 
-    jarvis = Jarvis(
-        ctx=ToolContext(
-            workspace=args.workspace.resolve(),
-            approve=make_approver(args.yes or args.auto),
-            memory=None if args.no_memory else Memory(args.workspace.parent / "memory.md"),
-            confirm_private=make_approver(False),  # screenshots always ask; refused when nobody can answer
-        ),
-        mcp=mcp,
-        model=args.model,
-        effort=args.effort,
-        voice_mode=io is not None,
-        autonomous=args.auto,
-        max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
-        on_text=show_text,
-        on_delta=show_delta,
-        on_tool=show_tool,
-        on_result=log.result if log else (lambda name, content, is_error: None),
-    )
+    try:
+        jarvis = Jarvis(
+            ctx=ToolContext(
+                workspace=args.workspace.resolve(),
+                approve=make_approver(args.yes or args.auto),
+                memory=None if args.no_memory else Memory(args.workspace.parent / "memory.md"),
+                confirm_private=make_approver(False),  # screenshots always ask; refused when nobody can answer
+            ),
+            mcp=mcp,
+            model=args.model,
+            effort=args.effort,
+            voice_mode=io is not None,
+            autonomous=args.auto,
+            max_steps=args.max_steps or (AUTO_MAX_STEPS if args.auto else DEFAULT_MAX_STEPS),
+            on_text=show_text,
+            on_delta=show_delta,
+            on_tool=show_tool,
+            on_result=log.result if log else (lambda name, content, is_error: None),
+            budget_usd=args.budget,
+        )
+    except ValueError as err:  # a spending limit on a model without a known price
+        print(str(err), file=sys.stderr)
+        return 2
     if log:
         log.jarvis = jarvis
     if args.auto:

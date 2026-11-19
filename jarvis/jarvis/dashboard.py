@@ -7,6 +7,7 @@ browser reads a JSON snapshot; nothing here talks to Claude, so viewing the dash
 from __future__ import annotations
 
 import json
+import re
 import threading
 import time
 from collections import deque
@@ -21,6 +22,8 @@ MAX_ALERTS = 50
 MAX_MEMORY_NOTES = 5
 MAX_PULLS_PER_REPO = 20
 MAX_RUNS = 10
+MAX_LOG_BYTES = 200_000  # the end of a long run log is the useful part
+LOG_NAME = re.compile(r"[\w-]+\.md")
 
 
 class Dashboard:
@@ -135,6 +138,21 @@ class Dashboard:
         repos.sort(key=lambda r: (-r["failing"], r["repo"].lower()))
         return repos
 
+    def read_run_log(self, name: str) -> dict[str, Any] | None:
+        """One run's Markdown log, by the file name recent_runs() lists. None when there is no such run log."""
+        if self.runs_dir is None or not LOG_NAME.fullmatch(name):
+            return None  # only plain file names inside the runs folder: no paths, no other file types
+        path = self.runs_dir / name
+        try:
+            size = path.stat().st_size
+            with path.open("rb") as handle:
+                if size > MAX_LOG_BYTES:
+                    handle.seek(size - MAX_LOG_BYTES)
+                data = handle.read(MAX_LOG_BYTES)
+        except OSError:
+            return None
+        return {"name": name, "text": data.decode("utf-8", "replace"), "truncated": size > MAX_LOG_BYTES}
+
     def recent_runs(self) -> list[dict[str, Any]]:
         """Summaries of the latest autonomous runs (RunLog's <stamp>.json files), newest first."""
         if self.runs_dir is None or not self.runs_dir.is_dir():
@@ -202,6 +220,7 @@ class Dashboard:
                     "turns": sum(1 for m in jarvis.messages if m.get("role") == "user" and isinstance(m.get("content"), str)),
                     "usage": dict(jarvis.usage),
                     "cost_usd": pricing.estimate_cost(jarvis.model, jarvis.usage),
+                    "budget_usd": jarvis.budget_usd,
                     "tools": len(jarvis._tools),
                     "mcp": mcp.summary() if mcp is not None else None,
                     "memory": {"enabled": memory is not None, "count": len(notes), "recent": notes[-MAX_MEMORY_NOTES:][::-1]},

@@ -9,7 +9,7 @@ sources:
   - marketing/calendar/2026-12-solo.md
   - marketing/brands/solo.md
   - https://thesoloserviceprovider.com.au/revenue-rescue.html
-status: needs-changes
+status: approved
 ---
 
 # Three places visitors leave a service-business website
@@ -26,20 +26,23 @@ Quick check you can do today: open your site on your phone and ask a friend to f
 
 This is what I built Revenue Rescue around. It's a fixed-scope service for Australian service businesses: a diagnosis of where the customer path breaks, replacement website copy, follow-up message sequences and a 30-day action plan. The work is reviewed by a person, and the scope is agreed before anything on a live site changes.
 
+The starting point is the Conversion Leak Audit, a diagnostic at A$395 one-off.
+
 There's no guarantee of more enquiries or revenue. Results depend on things like traffic, demand, pricing and competition.
 
 Not sure if it fits? Request a 15-minute fit check here: https://thesoloserviceprovider.com.au/revenue-rescue.html?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-site-leaks
 
-I'm closed from Thursday 24 December and back Monday 4 January 2027, so enquiries sent in that window will be answered after I return.
+I'm closed from Thursday 24 December and back Monday 4 January 2027.
 
 #SmallBusiness #WebsiteTips
 
 ## Writer notes
 - Facts used: fixed-scope service; conversion diagnosis, replacement website copy, follow-up sequences, 30-day action plan; human-reviewed; scope approved before live-site changes; "No revenue or ranking guarantee"; 15-minute fit call; "Australian service businesses" → live Revenue Rescue page (re-fetched 17 Nov 2026; all still match). Three leaks adapted from the page's leak list (offer hard to understand, weak calls to action, enquiries go quiet). Shutdown 24 Dec to Mon 4 Jan 2027 → calendar Owner decisions (16 Nov 2026). The phone test is the author's suggestion, not a statistic.
 - Text unchanged from the reviewed version (reviewer: no text changes needed). No service prices are quoted and no purchase is offered; the CTA is the fit check only. Revenue Rescue is described as a service, per brand file. The A$39 DIY Kit isn't mentioned (it is approved in the brand file now, but not needed here).
-- Conflicts: the Revenue Rescue page shows service package prices (A$395, A$1,250, from A$2,500) with Stripe "BUY SECURELY" buttons. Those service prices are not approved (brand file, calendar 17 Nov defaults), so they are not repeated. The page's A$39 DIY Kit price is now approved and matches the brand file.
-- Placeholders: [NEEDS OWNER APPROVAL: Revenue Rescue service prices]. This blocks approval until the owner approves the prices or removes them from the linked page.
-- Length: about 1,430 characters including the link, over the 1,300 ideal but well under the 3,000 limit. Trim the phone test or shutdown line if wanted. 2 hashtags. Link checked 17 Nov 2026 (200).
+- Revision 19 Nov 2026: Revenue Rescue service prices are now approved (brand file, owner, 19 Nov 2026), so the owner-approval placeholder for those prices is removed. Added one line: the A$395 Conversion Leak Audit as the starting point (price and "diagnostic" label → brand file price table; live page re-read with curl 19 Nov 2026 shows A$395, A$1,250 and From A$2,500, matching). The A$1,250 and A$2,500 prices are not quoted. The fit check remains the single CTA. LAUNCH20 is not mentioned (shop products only).
+- Conflicts: none. The live Revenue Rescue page prices match the approved brand file prices.
+- Placeholders: none.
+- Length: about 1,510 characters including the link (over the 1,300 ideal, under the 3,000 limit). Trim the phone test or shutdown line if wanted. 2 hashtags. Link checked 17 Nov 2026 (200).
 - Check before posting: confirm the 0452 number and email on the page still match; neither is used in the post.
 
 ## Review: 2026-11-16
@@ -58,3 +61,13 @@ Status: NEEDS CHANGES
 - Owner escalation (blocks this post): Revenue Rescue service prices and Stripe buy buttons are unapproved (see above).
 - Owner escalation (doesn't block once prices are resolved): the page's hero badge says "Clear fixed pricing". That's fine once the prices are approved. If the prices are removed, remove the badge too.
 - Verified: https://thesoloserviceprovider.com.au/revenue-rescue.html?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-site-leaks (200), https://thesoloserviceprovider.com.au/shop/products.json (DIY Kit A$39), marketing/brands/solo.md (17 Nov), calendar Owner decisions.
+
+## Review: 2026-11-19 (re-review)
+Status: APPROVED
+- Previous blocker cleared: solo.md (19 Nov) approves the Revenue Rescue service prices, and the placeholder has been removed. The live page shows "Conversion Leak Audit A$395 one-off payment" (labelled "DIAGNOSTIC"), "SOLO Revenue Rescue A$1,250 one-off · agreed scope" and "Implemented Rescue From A$2,500 quoted after audit and access review". All three match the approved table. The draft quotes only "a diagnostic at A$395 one-off", which is correct.
+- Small fix made: deleted ", so enquiries sent in that window will be answered after I return". That clause is a response commitment the owner hasn't made. The calendar's 17 Nov default removed the same promise from the year-end email. The line now matches the 16 Nov Owner decision exactly: "I'm closed from Thursday 24 December and back Monday 4 January 2027." (I rechecked the weekdays.)
+- Re-checked and OK: fixed-scope, Australian service businesses, conversion diagnosis, replacement website copy, follow-up sequences, 30-day action plan, "reviewed, edited and checked by a person", "Implementation is scoped and approved before any live-site change", "No. Results depend on traffic quality, demand, pricing, reputation, competition and implementation", and the 15-minute fit check ("Fit check: A 15-minute call"). The fit check is still the single CTA, as solo.md requires. LAUNCH20 isn't mentioned, which is correct: it covers shop products only, and the Revenue Rescue page doesn't offer it.
+- Optional wording (not a fail): "The starting point is the Conversion Leak Audit" could suggest the audit is required. The page sells the A$1,250 package directly. "Packages start with the Conversion Leak Audit, a diagnostic at A$395 one-off." is more precise.
+- Passed: 1,443 published characters including the link and hashtags (over the 1,300 ideal, note only; limit 3,000). One link at the end of the body, 2 hashtags, UTM linkedin/social/solo-dec-site-leaks. First person, no result promise, no banned words, Australian English, no placeholders.
+- Owner escalations (post can still go out): (1) the page lists phone 0452 272 820, which isn't in solo.md. It isn't used in the post. (2) The page's "Not ready for an audit?" panel promotes the A$39 DIY Kit. That price is approved, so no action is needed.
+- Verified (curl, 19 Nov 2026): https://thesoloserviceprovider.com.au/revenue-rescue.html?utm_source=linkedin&utm_medium=social&utm_campaign=solo-dec-site-leaks (200, full text read); marketing/brands/solo.md (19 Nov); calendar Owner decisions (16 and 17 Nov).

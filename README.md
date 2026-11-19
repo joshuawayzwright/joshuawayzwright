@@ -21,7 +21,8 @@ Right now I'm:
 
 - 🛠️ **Running [The Solo Service Provider](https://thesoloserviceprovider.com.au/)**: an online shop of digital toolkits, calculators and services for Australian sole traders and small service businesses.
 - 🤖 **Building SOLO AI**: a practical AI assistant for small businesses, with a web app and a native Android app written in Kotlin and Jetpack Compose. Accounts, sources-backed answers and account deletion are built; the Google Play release is being prepared.
-- 🧠 **Building Jarvis**: my own AI engineering agent for the terminal. It searches code across GitHub, pulls repositories, makes changes, runs tests and opens draft pull requests, and you can talk to it by voice. It lives in [this repository](jarvis/).
+- 🧠 **Building Jarvis**: my own AI engineering agent for the terminal. It searches code across GitHub, pulls repositories, makes changes, runs tests and opens draft pull requests, and you can talk to it by voice. It has [its own repository](https://github.com/joshuawayzwright/jarvis).
+- 🧰 **Publishing free tools for sole traders**: a [quote builder](https://joshuawayzwright.github.io/ai-quote-builder/), a [pricing planner](https://joshuawayzwright.github.io/ai-service-pricing/) and a [follow-up planner](https://joshuawayzwright.github.io/ai-follow-up-planner/).
 - 🗂️ **Maintaining [AI Download Centre](https://joshuawayzwright.github.io/ai-download-center/)**: a public directory of 980+ AI models, assistants and tools with links to official sources.
 - 🔥 **Developing [WrightWayz](https://www.wrightwayz.com/)**: a Gold Coast community initiative focused on lived experience, recovery, connection and responsible technology.
 - 🎓 **Studying Computer Science** at Griffith University, and learning in public as I go.
@@ -64,11 +65,22 @@ Personal: [LinkedIn](https://www.linkedin.com/in/joshuawright-solo) · [TikTok @
 
 ## Projects
 
-### [Jarvis](jarvis/)
+### Free tools for sole traders
 
-An AI engineering agent for the terminal, built on the Claude API. It searches code across all public GitHub repositories, pulls projects from GitHub, GitLab, Codeberg and Bitbucket, and answers questions about them. It can also build features: research how other projects solve a problem, make the change, run the tests, commit to a feature branch and open a draft pull request. Extras include voice mode with a "Hey Jarvis" wake word, MCP server support, long-term memory, a CI doctor that reads failed GitHub Actions logs, and a web and phone interface.
+Free browser tools for Australian sole traders. Everything runs in the browser and nothing you type is sent anywhere. Each one also writes a ready-to-paste prompt for your own AI assistant, which keeps your numbers unchanged.
 
-**[Read the Jarvis guide](jarvis/README.md)**
+| Tool | What it does | Links |
+|---|---|---|
+| **AI Quote Builder** | Line items, 10% GST, deposit, valid-until date, and what's included and excluded. Copy, download or print. | [Open](https://joshuawayzwright.github.io/ai-quote-builder/) · [Source](https://github.com/joshuawayzwright/ai-quote-builder) |
+| **AI Service Pricing Planner** | Your real hourly and day rate after super, costs, time off and admin time, then a price for a job. Warns at the $75,000 GST threshold. | [Open](https://joshuawayzwright.github.io/ai-service-pricing/) · [Source](https://github.com/joshuawayzwright/ai-service-pricing) |
+| **AI Follow-Up Planner** | Follow-up plans for enquiries, quotes and past clients, with ready-to-send messages and an "Add to calendar" file | [Open](https://joshuawayzwright.github.io/ai-follow-up-planner/) · [Source](https://github.com/joshuawayzwright/ai-follow-up-planner) |
+| **GitHub Profile Kit** | Fill in a form and get a profile README like this one, with social badges | [Open](https://joshuawayzwright.github.io/github-profile-kit/) · [Source](https://github.com/joshuawayzwright/github-profile-kit) |
+
+### [Jarvis](https://github.com/joshuawayzwright/jarvis)
+
+An AI engineering agent for the terminal, built on the Claude API. It searches code across all public GitHub repositories, pulls projects from GitHub, GitLab, Codeberg and Bitbucket, and answers questions about them. It can also build features: research how other projects solve a problem, make the change, run the tests, commit to a feature branch and open a draft pull request. Extras include voice mode with a "Hey Jarvis" wake word, MCP server support, long-term memory, a CI doctor that reads failed GitHub Actions logs, a web dashboard with cost estimates and a spending limit, and a phone interface that runs in GitHub Codespaces.
+
+**[Jarvis on GitHub](https://github.com/joshuawayzwright/jarvis) · [Run it from your phone](https://github.com/joshuawayzwright/jarvis#use-it-from-your-phone-no-computer-needed)**
 
 ### [AI Download Centre](https://joshuawayzwright.github.io/ai-download-center/)
 
@@ -132,6 +144,6 @@ When you get in touch, please name **The Solo Service Provider**, **SOLO AI**, *
 
 **REAL TOOLS. REAL RESULTS.**
 
-Profile updated **17 November 2026** · [Profile audit and earlier status notes](PROFILE-AUDIT.md) · [Original artwork sources](assets/README.md)
+Profile updated **19 November 2026** · [Profile audit and earlier status notes](PROFILE-AUDIT.md) · [Original artwork sources](assets/README.md)
 
 </div>

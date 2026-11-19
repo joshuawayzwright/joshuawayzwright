@@ -52,6 +52,23 @@ you › pull octocat/Hello-World and summarise it
 | `commit_changes` | Commits on a feature branch. On the default branch it creates `jarvis/<summary>`; it never commits to `main` or `master` | **Yes** |
 | `push_and_open_pr` | Pushes the feature branch and opens a **draft** pull request. Never pushes the default branch, never force-pushes, never merges | **Yes** |
 
+## Use it from your phone (no computer needed)
+
+Jarvis can run in **GitHub Codespaces**, a Linux machine in the cloud that you open in your phone's browser. You then chat with Jarvis, by voice too, on its web page.
+
+1. **Save your key as a Codespaces secret** (one time). On GitHub, open **Settings > Codespaces > Secrets > New secret**:
+   - Name: `ANTHROPIC_API_KEY`. Value: your key from platform.claude.com. Repository access: `joshuawayzwright/joshuawayzwright`.
+   - Optional: `JARVIS_GITHUB_TOKEN`, a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with **Contents** and **Pull requests** set to read and write, for the repositories you want Jarvis to work on. Without it, Jarvis can only reach this repository.
+2. **Start a codespace.** Open **https://codespaces.new/joshuawayzwright/joshuawayzwright** and tap **Create codespace**. Jarvis installs itself automatically (about two minutes the first time).
+3. **Start Jarvis.** In the terminal at the bottom, type:
+   ```bash
+   jarvis --web
+   ```
+4. **Tap the link it prints**, which looks like `https://<name>-8765.app.github.dev/?token=...`. It's HTTPS, so the 🎙 microphone works. Tick **Speak replies** to hear the answers.
+5. **When you're done**, stop the codespace (github.com/codespaces > ⋯ > **Stop codespace**). Personal accounts get a free monthly allowance of Codespaces hours, and a stopped codespace doesn't use any.
+
+The forwarded address is private: only your signed-in GitHub account can open it, and Jarvis's own token protects it as well.
+
 ## Setup
 
 Requires Python 3.10 or later and `git`.
@@ -91,7 +108,7 @@ What it does:
 5. **Ships** by committing to a feature branch and opening a draft pull request that lists what changed, how it was tested, its assumptions, and credits for adapted code.
 6. **Reports** the PR link and anything left undone.
 
-Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call and result, and Jarvis's messages. Long runs keep going past the context limit because the API summarises earlier context automatically (compaction).
+Every run is logged to `~/.jarvis/runs/<timestamp>.md`: the goal, each tool call and result, Jarvis's messages and the outcome. A `<timestamp>.json` summary beside it records the status, steps, pull requests opened, tokens and estimated cost; the web dashboard lists these. Long runs keep going past the context limit because the API summarises earlier context automatically (compaction).
 
 **Guardrails stay on in autonomous mode:**
 
@@ -188,6 +205,29 @@ Jarvis prints a link that contains a secret token. Open it in any browser:
 - Phones allow the microphone only over HTTPS. Over plain `http://` on your network, typing works but the mic button won't. For HTTPS, use a certificate with `--web-cert` and `--web-key` (`mkcert` makes locally trusted ones), or put Jarvis behind a tunnel that provides HTTPS, such as Tailscale Serve.
 - Treat the link like a password. Anyone with it can ask Jarvis to act on your machine, subject to the same approvals.
 
+### Dashboard
+
+Add `--watch` to get a live dashboard next to the chat. Jarvis prints its link (`/dashboard?token=…`), and the chat page links to it.
+
+```bash
+jarvis --web --watch                              # your account's repositories active in the last 30 days
+jarvis --web --watch my-org acme/api --interval 10
+```
+
+- **CI on default branches:** every watched repository with the latest result of each workflow, failing ones first, and links to the run logs. Each workflow shows its last 10 results and pass rate, so you can see a flaky workflow from one that is newly broken. Jarvis checks every `--interval` minutes; **Check now** checks at once.
+- **Open pull requests:** across the watched repositories, most recently updated first, with drafts marked.
+- **Fix with Jarvis:** on a failing workflow, opens the chat with a fix request filled in. You read it and press Send, so nothing runs until you do.
+- **Activity:** what Jarvis is doing right now: your requests, each tool call, approvals and how each turn ended. When Jarvis is waiting for an approval, the status at the top reads **Needs your approval** and opens the chat.
+- **Alerts:** builds that broke or recovered since the dashboard started.
+- **Autonomous runs:** the latest 10 runs started with `--auto` or `--watch --fix`, from any session: goal, status (running, done, failed, or stalled when a run stopped updating for 30 minutes), steps, tool errors, estimated cost, pull requests opened, and the log file name in `~/.jarvis/runs/`.
+- **Session:** model, effort, approval mode, tools (including MCP), whether Jarvis is working, tokens used this session (input, output and cached) and their **estimated cost**.
+- **Notifications:** tap 🔔 to get a browser notification when a build breaks or recovers while the dashboard is open. Browsers allow this only over HTTPS or on `localhost`, as with the microphone. The tab title also shows how many workflows are failing.
+- **Memory:** the most recent long-term notes.
+
+Cost estimates use Anthropic's list prices for Claude Fable 5.2, Opus 5.5, Sonnet 5.5 and Haiku 5.5, with cache writes at the 5-minute rate ([`jarvis/pricing.py`](jarvis/pricing.py)). They don't include discounts, Bedrock or Vertex AI pricing, or Haiku 5.5's higher rate above 100K-token prompts; other models show no estimate. Check your bill in the Claude Console for actual charges.
+
+The dashboard reads GitHub through your `GITHUB_TOKEN` (two requests per repository per check) and never calls Claude, so viewing it costs no tokens. It refreshes every 15 seconds while open. Without `--watch`, it shows the session and memory panels only. `--fix` is terminal-only; on the web, use the Fix with Jarvis button.
+
 ## Screen vision
 
 Ask about what's on your screen: "what's this error?", "why does this page look broken?", "match this design".
@@ -221,7 +261,7 @@ jarvis --effort medium --model claude-sonnet-5-5 "..."     # cheaper and faster
 | `--mcp-config` | `~/.jarvis/mcp.json` | MCP servers to start |
 | `--no-mcp`, `--no-memory` | off | Turn off MCP servers or long-term memory |
 | `--brief [OWNER]` | | Morning briefing across your repositories |
-| `--watch [TARGET ...]`, `--interval`, `--fix` | 5 min | Watch default-branch builds; optionally auto-fix |
+| `--watch [TARGET ...]`, `--interval`, `--fix` | 5 min | Watch default-branch builds; optionally auto-fix. With `--web`, feeds the dashboard |
 | `--web`, `--web-host`, `--web-port`, `--web-cert`, `--web-key` | localhost:8765 | Browser and phone interface |
 | `--max-steps` | 60, or 250 with `--auto` | Agent steps per request |
 

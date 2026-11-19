@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
 import sys
 import time
 from collections.abc import Callable
@@ -12,8 +14,9 @@ from pathlib import Path
 
 import anthropic
 
-from . import github, mcp_bridge, voice, wake, watch, web
+from . import github, mcp_bridge, pricing, voice, wake, watch, web
 from .agent import AUTO_MAX_STEPS, DEFAULT_MAX_STEPS, DEFAULT_MODEL, Jarvis
+from .dashboard import Dashboard
 from .memory import Memory
 from .tools import ToolContext
 
@@ -34,30 +37,96 @@ def make_approver(auto_yes: bool):
     return approve
 
 
-class RunLog:
-    """Markdown record of an autonomous run: the goal, every tool call and result, and the outcome."""
+PR_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+")
 
-    def __init__(self, directory: Path) -> None:
+
+class RunLog:
+    """Markdown record of an autonomous run: the goal, every tool call and result, and the outcome.
+
+    Next to each `<stamp>.md` is a `<stamp>.json` summary (goal, status, steps, pull requests, tokens and
+    estimated cost) that the web dashboard lists. A second goal in the same session starts a new pair of files.
+    """
+
+    def __init__(self, directory: Path, jarvis: Jarvis | None = None) -> None:
         directory.mkdir(parents=True, exist_ok=True)
-        self.path = directory / time.strftime("%Y%m%d-%H%M%S.md")
+        self.directory = directory
+        self.jarvis = jarvis  # set after the agent exists; supplies the model and token usage
+        self.summary: dict[str, object] = {}
+        self._usage_start: dict[str, int] = {}
+        self._open()
+
+    def _open(self) -> None:
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        path, n = self.directory / f"{stamp}.md", 1
+        while path.exists():
+            n += 1
+            path = self.directory / f"{stamp}-{n}.md"
+        self.path = path
+        self.summary_path = path.with_suffix(".json")
+        self.summary = {"goal": None, "status": "running", "started": time.time(), "updated": time.time(),
+                        "steps": 0, "errors": 0, "pull_requests": [], "log": path.name}
         self._write(f"# Jarvis run {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
 
     def _write(self, text: str) -> None:
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(text + "\n")
 
+    def _save(self) -> None:
+        self.summary["updated"] = time.time()
+        if self.summary.get("goal") is None:
+            return  # an interactive session that never set a goal isn't listed as a run
+        tmp = self.summary_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(self.summary, indent=2), encoding="utf-8")
+        tmp.replace(self.summary_path)
+
+    def _note_pull_requests(self, text: str) -> None:
+        found = self.summary["pull_requests"]
+        assert isinstance(found, list)
+        for url in PR_URL.findall(text):
+            if url not in found:
+                found.append(url)
+
     def goal(self, text: str) -> None:
+        if self.summary.get("goal") is not None:
+            self._open()  # e.g. watch --fix: one run per fix
+        self.summary["goal"] = text
+        if self.jarvis is not None:
+            self.summary["model"] = self.jarvis.model
+            self._usage_start = dict(self.jarvis.usage)
         self._write(f"## Goal\n\n{text}\n\n## Steps\n")
+        self._save()
 
     def text(self, text: str) -> None:
         self._write(f"\n**Jarvis:** {text}\n")
+        self._note_pull_requests(text)
+        self._save()
 
     def tool(self, line: str) -> None:
         self._write(f"- `{line}`")
+        self.summary["steps"] = int(self.summary["steps"]) + 1  # type: ignore[call-overload]
+        self._save()
+
+    def finish(self, ok: bool, reply: str | None = None) -> None:
+        """Record how the run ended, with the tokens it used and their estimated cost."""
+        self.summary["status"] = "done" if ok else "failed"
+        if reply:
+            self.summary["reply"] = reply[:500]
+            self._note_pull_requests(reply)
+        if self.jarvis is not None:
+            usage = {k: v - self._usage_start.get(k, 0) for k, v in self.jarvis.usage.items()}
+            self.summary["usage"] = usage
+            self.summary["cost_usd"] = pricing.estimate_cost(self.jarvis.model, usage)
+        self._write(f"\n## Outcome\n\n{'Finished' if ok else 'Stopped with an error'}.\n")
+        self._save()
 
     def result(self, name: str, content: object, is_error: bool) -> None:
+        if is_error:
+            self.summary["errors"] = int(self.summary["errors"]) + 1  # type: ignore[call-overload]
         if not isinstance(content, str):
             content = "[image and text content]"
+        else:
+            self._note_pull_requests(content)
+        self._save()
         head = content.strip().splitlines()[:6]
         marker = "ERROR " if is_error else ""
         self._write("  ```\n  " + marker + "\n  ".join(line[:200] for line in head) + "\n  ```")
@@ -290,7 +359,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-y", "--yes", action="store_true", help="Auto-approve file writes and shell commands.")
     parser.add_argument("--auto", action="store_true", help="Autonomous agent: works through the goal end to end (research, build, test, commit, open a draft PR) without asking. Implies --yes. Logs to ~/.jarvis/runs/.")
     parser.add_argument("--brief", nargs="?", const="", metavar="OWNER", help="Morning briefing: what needs your attention across your GitHub repositories (open PRs, new issues, failing CI). Optionally name a user or organisation; defaults to the token's account. Combine with --voice to hear it.")
-    parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account.")
+    parser.add_argument("--watch", nargs="*", metavar="TARGET", help="Watch mode: announce when a default-branch build breaks or recovers. Targets are owner/name repositories or owners (their repositories active in the last 30 days); none means the token's account. With --web, shows them on the web dashboard instead.")
     parser.add_argument("--interval", type=float, default=5, help="Watch mode: minutes between checks (default 5).")
     parser.add_argument("--fix", action="store_true", help="Watch mode: when a build breaks, run an autonomous fix that opens a draft PR. Implies --auto.")
     group_web = parser.add_argument_group("web and phone")
@@ -312,6 +381,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.fix:
         if args.watch is None:
             parser.error("--fix works with --watch")
+        if args.web:
+            parser.error("--fix works in the terminal; on the web dashboard, use the Fix with Jarvis button")
         args.auto = True
 
     io: VoiceIO | None = None
@@ -370,6 +441,13 @@ def briefing_prompt(owner: str) -> str:
     )
 
 
+def codespaces_url(port: int) -> str | None:
+    """In a GitHub Codespace, the HTTPS address GitHub forwards to this port (it works on a phone, mic included)."""
+    name = os.environ.get("CODESPACE_NAME")
+    domain = os.environ.get("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
+    return f"https://{name}-{port}.{domain}" if name and domain else None
+
+
 def _lan_address() -> str:
     import socket
 
@@ -381,15 +459,31 @@ def _lan_address() -> str:
         return "your-computer-ip"
 
 
+def make_watcher(targets: list[str]) -> watch.Watcher:
+    """Repositories (owner/name) and owners to watch; none means the GitHub token's own account."""
+    repos = [t for t in targets if "/" in t]
+    owners = [t for t in targets if "/" not in t] if targets else [github.authenticated_login()]
+    return watch.Watcher(repos, owners)
+
+
 def run_web(args: argparse.Namespace, jarvis: Jarvis) -> int:
     import ssl
 
     if bool(args.web_cert) != bool(args.web_key):
         print("--web-cert and --web-key go together.", file=sys.stderr)
         return 2
-    session = web.WebSession(jarvis, auto_approve=args.yes or args.auto)
+    auto_approve = args.yes or args.auto
+    session = web.WebSession(jarvis, auto_approve=auto_approve)
+    watcher = None
+    if args.watch is not None:
+        try:
+            watcher = make_watcher(args.watch)
+        except github.GitHubError as err:
+            print(f"Dashboard CI watch is off: it needs targets or a GitHub token. ({err})", file=sys.stderr)
+    dashboard = Dashboard(jarvis, watcher, interval_s=args.interval * 60, auto_approve=auto_approve,
+                          runs_dir=args.workspace.parent / "runs")
     try:
-        server, token = web.serve(session, args.web_host, args.web_port)
+        server, token = web.serve(session, args.web_host, args.web_port, dashboard=dashboard)
     except OSError as err:
         print(f"Can't listen on {args.web_host}:{args.web_port}: {err}", file=sys.stderr)
         return 1
@@ -400,33 +494,30 @@ def run_web(args: argparse.Namespace, jarvis: Jarvis) -> int:
         server.socket = context.wrap_socket(server.socket, server_side=True)
         scheme = "https"
     host = _lan_address() if args.web_host in ("0.0.0.0", "::") else args.web_host
+    base = codespaces_url(args.web_port) or f"{scheme}://{host}:{args.web_port}"
     print(f"{CYAN}Jarvis web is running.{RESET} Open this link (it contains your secret token, keep it private):")
-    print(f"  {scheme}://{host}:{args.web_port}/?token={token}")
+    print(f"  {base}/?token={token}")
+    print(f"{DIM}Dashboard: {base}/dashboard?token={token}"
+          f"{'' if watcher else ' (add --watch to monitor CI)'}{RESET}")
     if args.web_host not in ("127.0.0.1", "localhost", "::1"):
         print(f"{DIM}Reachable from other devices on your network."
               f"{'' if scheme == 'https' else ' Without --web-cert the connection is unencrypted and phones block the microphone.'}{RESET}")
+    dashboard.start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print()
     finally:
+        dashboard.stop()
         server.server_close()
     return 0
 
 
-def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> int:
-    repos = [t for t in args.watch if "/" in t]
-    owners = [t for t in args.watch if "/" not in t]
-    if not args.watch:
-        try:
-            owners = [github.authenticated_login()]
-        except github.GitHubError as err:
-            print(f"Watch mode needs targets or a GitHub token: {err}", file=sys.stderr)
-            return 1
+def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None, log: RunLog | None = None) -> int:
     try:
-        watcher = watch.Watcher(repos, owners)
+        watcher = make_watcher(args.watch)
     except github.GitHubError as err:
-        print(str(err), file=sys.stderr)
+        print(f"Watch mode needs targets or a GitHub token: {err}", file=sys.stderr)
         return 1
 
     def announce(alert: watch.Alert) -> None:
@@ -438,10 +529,16 @@ def run_watch(args: argparse.Namespace, jarvis: Jarvis, io: VoiceIO | None) -> i
     def fix(alert: watch.Alert) -> None:
         print(f"{DIM}Starting an autonomous fix for {alert.repo} ({alert.workflow})...{RESET}")
         jarvis.reset()
-        if run_turn(jarvis, watch.fix_prompt(alert)) is None:
+        prompt = watch.fix_prompt(alert)
+        if log:
+            log.goal(prompt)
+        reply = run_turn(jarvis, prompt)
+        if log:
+            log.finish(reply is not None, reply)
+        if reply is None:
             print(f"{DIM}The fix attempt stopped with an error; watching continues.{RESET}")
 
-    print(f"{CYAN}Jarvis is watching{RESET} {', '.join(repos + owners)} every {args.interval:g} min. Ctrl+C stops.")
+    print(f"{CYAN}Jarvis is watching{RESET} {', '.join(watcher.repos + watcher.owners)} every {args.interval:g} min. Ctrl+C stops.")
     try:
         watch.watch_loop(watcher, announce, report=lambda m: print(f"{DIM}{m}{RESET}"),
                          interval_s=args.interval * 60, on_failure=fix if args.fix else None)
@@ -494,15 +591,17 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         on_tool=show_tool,
         on_result=log.result if log else (lambda name, content, is_error: None),
     )
+    if log:
+        log.jarvis = jarvis
     if args.auto:
         print(f"{RED}Autonomous mode:{RESET} Jarvis will edit, run commands, commit and open draft PRs without asking. "
               f"Destructive commands are blocked, and it never pushes the default branch or merges. Ctrl+C stops it.")
         print(f"{DIM}Run log: {log.path}{RESET}" if log else "")
 
-    if args.watch is not None:
-        return run_watch(args, jarvis, io)
     if args.web:
         return run_web(args, jarvis)
+    if args.watch is not None:
+        return run_watch(args, jarvis, io, log)
 
     if args.brief is not None:
         try:
@@ -516,6 +615,8 @@ def run(args: argparse.Namespace, io: VoiceIO | None, listener: wake.WakeWordLis
         if log:
             log.goal(goal)
         reply = run_turn(jarvis, goal) if io is None else talk_turn(jarvis, io, goal)
+        if log:
+            log.finish(reply is not None, reply)
         return 0 if reply is not None else 1
 
     if io and listener:

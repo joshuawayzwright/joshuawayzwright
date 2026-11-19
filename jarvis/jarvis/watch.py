@@ -12,6 +12,20 @@ from . import github
 from .github import GitHubError
 
 ACTIVE_DAYS = 30  # with an owner, watch repositories pushed in the last month
+HISTORY_RUNS = 10  # recent results kept per workflow for the dashboard
+
+
+def workflow_history(runs: list[dict[str, Any]], limit: int = HISTORY_RUNS) -> dict[object, list[str]]:
+    """Recent completed results of each workflow, oldest first: "passing", "failing" or "other" (cancelled, skipped)."""
+    history: dict[object, list[str]] = {}
+    for run in runs:  # newest first
+        if run.get("status") != "completed":
+            continue
+        results = history.setdefault(run.get("workflow_id"), [])
+        if len(results) < limit:
+            conclusion = run.get("conclusion")
+            results.append("failing" if conclusion in github.FAILED else "passing" if conclusion == "success" else "other")
+    return {workflow: results[::-1] for workflow, results in history.items()}
 
 
 @dataclass(frozen=True)
@@ -39,6 +53,8 @@ class Watcher:
         self.state: dict[tuple[str, object], str] = {}
         self.default_branches: dict[str, str] = {}
         self.errors: list[str] = []
+        # The latest completed run of each workflow, for the web dashboard.
+        self.runs: dict[tuple[str, object], dict[str, Any]] = {}
 
     def targets(self) -> list[str]:
         found = list(self.repos)
@@ -71,12 +87,19 @@ class Watcher:
             except GitHubError as err:
                 self.errors.append(f"{repo}: {err}")
                 continue
+            history = workflow_history(runs.get("workflow_runs", []))
             for run in self.api.latest_per_workflow(runs.get("workflow_runs", [])):
                 key = (repo, run.get("workflow_id"))
                 failing = run.get("conclusion") in github.FAILED
                 status = "failing" if failing else "passing"
                 previous = self.state.get(key)
                 self.state[key] = status
+                self.runs[key] = {
+                    "workflow": str(run.get("name")), "status": status, "conclusion": run.get("conclusion"),
+                    "run_id": run.get("id"), "url": run.get("html_url"), "commit": str(run.get("head_sha"))[:7],
+                    "updated_at": run.get("updated_at") or run.get("created_at"),
+                    "history": history.get(run.get("workflow_id"), []),
+                }
                 if status == previous or (previous is None and not failing):
                     continue
                 alerts.append(Alert(

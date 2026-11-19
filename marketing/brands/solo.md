@@ -2,7 +2,7 @@
 
 Brand key: `solo`. Every content agent reads this file before writing for this brand. If a fact you need isn't here or on a source below, don't invent it. Write `[NEEDS INFO: ...]` instead.
 
-Last checked: 17 November 2026, against the live website and `shop/products.json`. Prices confirmed by the owner on 17 Nov 2026.
+Last checked: 19 November 2026, against the live website and `shop/products.json`. Prices confirmed by the owner on 17 Nov 2026.
 
 ## The business
 
@@ -10,7 +10,16 @@ Last checked: 17 November 2026, against the live website and `shop/products.json
 - **ABN:** 63 638 672 067. Gold Coast, Queensland.
 - **Website:** https://thesoloserviceprovider.com.au/
 - **Contact:** hello@thesoloserviceprovider.com.au
-- **Verified social profiles:** LinkedIn https://www.linkedin.com/in/joshuawright-solo and GitHub https://github.com/joshuawayzwright. Don't add other profile links until the owner confirms them.
+- **Verified social profiles** (owner confirmed 19 Nov 2026):
+  - LinkedIn: https://www.linkedin.com/in/joshuawright-solo
+  - GitHub: https://github.com/joshuawayzwright
+  - Facebook: https://www.facebook.com/share/1ZSV63yiV3/
+  - Instagram: https://www.instagram.com/soloserviceproviderau/ (@soloserviceproviderau)
+  - Threads: https://www.threads.com/@soloserviceproviderau
+  - YouTube: https://www.youtube.com/@TheSoloServiceProvider
+  - X: https://x.com/JoshuaWright6x6 (personal account)
+
+  Don't add other profile links until the owner confirms them.
 - **GST:** not registered for GST. Prices are the total the customer pays, in AUD.
 
 ## Taglines (locked)
@@ -27,7 +36,7 @@ Check the live site before you write about availability. The status changes. The
 | --- | --- | --- |
 | Digital toolkits (shop) | **On sale.** The owner opened sales on 16 Nov 2026 and confirmed the live prices on 17 Nov. 16 products, one-off payment through Stripe, instant download. | "Available now" is fine. Quote only the prices in the table below, and re-check `products.json` before publishing. |
 | Free hourly rate calculator | Live: https://thesoloserviceprovider.com.au/rate-calculator.html | Free tool for sole traders. Safe to promote. Its "All ten SOLO toolkits for A$79" offer is now approved. |
-| Revenue Rescue (done-for-you service) | Listed at https://thesoloserviceprovider.com.au/revenue-rescue.html, with A$395, A$1,250 and "from A$2,500" packages | Describe the service. **The service package prices are not approved yet**: don't quote them, and any draft linking to this page carries `[NEEDS OWNER APPROVAL: Revenue Rescue service prices]`. Don't promise results. |
+| Revenue Rescue (done-for-you service) | Live at https://thesoloserviceprovider.com.au/revenue-rescue.html. Prices approved by the owner on 19 Nov 2026 (see below). | Describe the service and quote only the approved prices. Start with the fit check. Don't promise results; the page itself says results aren't guaranteed. |
 | Pricing-tips email list | Live sign-up on the shop page | Safe to promote. |
 | SOLO AI | In development. "Not available as a public SOLO AI service yet. No launch date has been announced." | **"In development" only** (owner decision, 16 Nov 2026). Never mention testers or early access, even though `solo-ai.html` does. |
 | AI Download Centre | Live, free (see `ai-download-center.md`) | Can be linked as a SOLO project. Link to the homepage `#projects` card, not `#apps`, because the `#apps` section calls it "in development". |
@@ -57,7 +66,20 @@ All prices are in AUD, one-off, with no GST charged (not GST-registered). There 
 
 **Bundle saving claim:** "A$199 if bought separately, you save A$120" is accurate, because the ten toolkit prices above add up to A$199. You may use it only while all ten are on sale at those prices. If any individual price changes, recompute before using it. Never invent "was" prices or time-limited discounts.
 
-**Launch offer (not yet confirmed):** on 17 Nov the shop page shows "Launch offer: 20% off everything with code LAUNCH20 at checkout. Ends 31 December 2026." The owner hasn't confirmed it in this file. Don't mention it until it's added here: `[NEEDS OWNER APPROVAL: LAUNCH20 offer]`.
+**Revenue Rescue service prices (approved by the owner, 19 Nov 2026):**
+
+| Package | Price |
+| --- | --- |
+| Conversion Leak Audit (diagnostic) | A$395 one-off |
+| SOLO Revenue Rescue (repair package, agreed scope) | A$1,250 one-off |
+| Implemented Rescue (done-for-you) | From A$2,500, quoted after the audit and an access review |
+
+**Launch offer (approved by the owner, 19 Nov 2026):** 20% off everything in the shop with code `LAUNCH20` at checkout, ending 31 December 2026.
+- Posts may mention it. Always state the code, the end date, and that it applies at checkout.
+- Re-check that it still shows on the shop page before publishing.
+- Never say or imply it will be extended, and never invent a new "last chance" deadline.
+- After 31 December 2026, don't mention it at all.
+- The offer applies to shop products only, not to Revenue Rescue service packages, unless the page says otherwise.
 
 **Presenting the range:**
 
@@ -99,5 +121,5 @@ Australian sole traders and small service businesses: tradies, cleaners, handyme
 ## Hard rules
 
 - **Australian Consumer Law:** no misleading claims, invented testimonials or fake scarcity. The 30-day money-back guarantee sits alongside the statutory consumer guarantees. Never imply customers waive those rights.
-- **Spam Act 2003:** marketing email only goes to people who consented. It must identify The Solo Service Provider and include a working unsubscribe.
+- **Spam Act 2003:** marketing email only goes to people who consented. It must identify The Solo Service Provider and include a working unsubscribe. The owner confirmed on 19 Nov 2026 that pricing-tips subscribers opted in through the shop sign-up form.
 - **Keep SOLO separate from WrightWayz.** Never present commercial sales as charity work, and never use WrightWayz to sell SOLO products.

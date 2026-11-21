@@ -26,3 +26,17 @@ Existing copyright and brand rights remain with their respective owners. This pr
 ## Profile framing — 4 November 2026
 
 `profile-header.svg` is a text-only personal masthead, not a replacement logo. It uses the shared palette recorded in the SOLO brand lock: charcoal `#0A0A0A`, weathered steel `#8A8F98`, burnished gold `#D4AF37`, electric blue `#0087FF`. The two original banners remain byte-for-byte unchanged in their separate project sections. The masthead has a fixed aspect ratio, accessible text alternatives and no remote fonts, scripts or tracking dependencies. GitHub controls its surrounding interface and link colours.
+
+## Social media kit — 10 November 2026
+
+Approved by the owner for the Facebook and Instagram profiles. Built from approved artwork only; no logo was redrawn.
+
+| File | Size | Use |
+| --- | --- | --- |
+| [solo-badge-logo.png](social/solo-badge-logo.png) | 1254 × 1254 | Master of the SOLO badge logo, the primary business logo since 10 November 2026 |
+| [solo-profile-picture-1080.png](social/solo-profile-picture-1080.png) | 1080 × 1080 | The Solo Service Provider profile picture (Facebook and Instagram) |
+| [solo-facebook-cover-1640x624.png](social/solo-facebook-cover-1640x624.png) | 1640 × 624 | The Solo Service Provider Facebook header |
+| [wrightwayz-profile-picture-1080.png](social/wrightwayz-profile-picture-1080.png) | 1080 × 1080 | WrightWayz profile picture (Facebook and Instagram), from `wrightwayz-emblem.png` |
+| [wrightwayz-facebook-cover-1640x624.png](social/wrightwayz-facebook-cover-1640x624.png) | 1640 × 624 | WrightWayz Facebook header, from `wrightwayz-banner.png` |
+
+Both headers keep all text and logos above the profile-picture overlap and inside the area phones show. Header text uses Inter because the Montra and Rajdhani font files are not in the repositories.

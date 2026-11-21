@@ -28,7 +28,7 @@ The overall style is polished Australian industrial, with a raw Gold Coast chara
 
 ## The Solo Service Provider (commercial business)
 
-- Use the round gold **THE SOLO SERVICE PROVIDER** badge as the primary business logo (approved by the owner on 10 November 2026). It is used on the Facebook and Instagram profiles.
+- Use the round gold **THE SOLO SERVICE PROVIDER** badge as the primary business logo (approved by the owner on 10 November 2026). It is used on the Facebook and Instagram profiles. Master: [`assets/social/solo-badge-logo.png`](assets/social/solo-badge-logo.png) (1254 × 1254). The [SOLO brand lock](https://github.com/joshuawayzwright/ai-download-center/blob/main/docs/SOLO-BRAND-LOCK.md) still lists the angular-S; for the business logo, this rule takes precedence.
 - The angular-S emblem is the previous business mark. Existing website and app uses remain until they are deliberately replaced.
 - Present the full product range fairly. Don't make the AI Marketing Kit appear to be the flagship.
 - SOLO AI must use its own approved symbol, not a Gemini-like icon.
@@ -61,9 +61,10 @@ The overall style is polished Australian industrial, with a raw Gold Coast chara
 | Asset | Source |
 | --- | --- |
 | Commercial brand lock (marks, palette, type, taglines) | [`ai-download-center/docs/SOLO-BRAND-LOCK.md`](https://github.com/joshuawayzwright/ai-download-center/blob/main/docs/SOLO-BRAND-LOCK.md) |
-| Business badge logo (`business-badge-logo.png`, 1254 × 1254), angular-S emblem, SOLO AI emblem, icons, favicons, social glyphs, banner | [`ai-download-center/powerhouse-website/assets/approved-stage/`](https://github.com/joshuawayzwright/ai-download-center/tree/main/powerhouse-website/assets/approved-stage) |
+| Business angular-S emblem, SOLO AI emblem, icons, favicons, social glyphs, banner | [`ai-download-center/powerhouse-website/assets/approved-stage/`](https://github.com/joshuawayzwright/ai-download-center/tree/main/powerhouse-website/assets/approved-stage) |
 | WrightWayz emblem, banner and brand board | [`wrightwayz-website/`](https://github.com/joshuawayzwright/wrightwayz-website) (`wrightwayz-emblem.png`, `wrightwayz-banner.png`, `wrightwayz-brand-board.png`) |
 | Profile artwork and masthead | [`assets/README.md`](assets/README.md) |
+| SOLO badge logo master, Facebook/Instagram profile pictures and Facebook headers for both brands | [`assets/social/`](assets/social/) (see [`assets/README.md`](assets/README.md#social-media-kit--10-november-2026)) |
 
 ## Known gaps (checked 9 November 2026)
 

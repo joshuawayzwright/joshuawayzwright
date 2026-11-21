@@ -2,43 +2,101 @@
 
 <img src="assets/profile-header.svg" width="798" alt="Joshua Wright · Sudo — Practical tools. Community technology." />
 
-**Founder · Practical AI tools · Automation · Community technology**
+**Founder · Full-stack developer · AI tools and agents · Automation · Community technology**
 
-Gold Coast, Queensland, Australia
+Gold Coast, Queensland, Australia · Studying Computer Science at Griffith University
 
-**[Email Joshua](mailto:superadmin2712@gmail.com) · [The Solo Service Provider](https://thesoloserviceprovider.com.au/) · [WrightWayz](https://www.wrightwayz.com/)**
+<a href="https://www.linkedin.com/in/joshuawright-solo"><img src="https://img.shields.io/badge/LinkedIn-joshuawright--solo-0087FF?style=for-the-badge&logo=linkedin&logoColor=white&labelColor=0A0A0A" alt="LinkedIn" /></a>
+<a href="https://github.com/joshuawayzwright"><img src="https://img.shields.io/badge/GitHub-joshuawayzwright-8A8F98?style=for-the-badge&logo=github&logoColor=white&labelColor=0A0A0A" alt="GitHub" /></a>
+<a href="https://www.tiktok.com/@joshwrightwayz"><img src="https://img.shields.io/badge/TikTok-%40joshwrightwayz-0087FF?style=for-the-badge&logo=tiktok&logoColor=white&labelColor=0A0A0A" alt="TikTok" /></a>
+<a href="mailto:superadmin2712@gmail.com"><img src="https://img.shields.io/badge/Email-Get_in_touch-D4AF37?style=for-the-badge&logo=gmail&logoColor=white&labelColor=0A0A0A" alt="Email" /></a>
 
 </div>
 
-I build practical digital tools for people running their own businesses, and develop community resources through **WrightWayz**. My focus is useful software, accessible design and clear information about what each product can do today.
+## About me
+
+G'day, I'm **Joshua Wright** (Sudo). I build practical software for people who work for themselves, and community technology for people who've been let down by the systems meant to help them.
+
+Right now I'm:
+
+- 🛠️ **Running [The Solo Service Provider](https://thesoloserviceprovider.com.au/)**: an online shop of digital toolkits, calculators and services for Australian sole traders and small service businesses.
+- 🤖 **Building SOLO AI**: a practical AI assistant for small businesses, with a web app and a native Android app written in Kotlin and Jetpack Compose. Accounts, sources-backed answers and account deletion are built; the Google Play release is being prepared.
+- 🧠 **Building Jarvis**: my own AI engineering agent for the terminal. It searches code across GitHub, pulls repositories, makes changes, runs tests and opens draft pull requests, and you can talk to it by voice. It has [its own repository](https://github.com/joshuawayzwright/jarvis).
+- 🧰 **Publishing free tools for sole traders**: a [quote builder](https://joshuawayzwright.github.io/ai-quote-builder/), a [pricing planner](https://joshuawayzwright.github.io/ai-service-pricing/) and a [follow-up planner](https://joshuawayzwright.github.io/ai-follow-up-planner/).
+- 🗂️ **Maintaining [AI Download Centre](https://joshuawayzwright.github.io/ai-download-center/)**: a public directory of 980+ AI models, assistants and tools with links to official sources.
+- 🔥 **Developing [WrightWayz](https://www.wrightwayz.com/)**: a Gold Coast community initiative focused on lived experience, recovery, connection and responsible technology.
+- 🎓 **Studying Computer Science** at Griffith University, and learning in public as I go.
+
+I build things end to end, test them properly, and say clearly what each product does today.
+
+## Follow along
+
+| Where | The Solo Service Provider | WrightWayz |
+|---|---|---|
+| **Website** | [thesoloserviceprovider.com.au](https://thesoloserviceprovider.com.au/) | [wrightwayz.com](https://www.wrightwayz.com/) |
+| **YouTube** | [@TheSoloServiceProvider](https://www.youtube.com/@TheSoloServiceProvider) | |
+| **X** | [@TheSoloService](https://x.com/TheSoloService) | |
+| **Instagram** | [@soloservicepro](https://www.instagram.com/soloservicepro/) | [@wrightwayzcharity](https://www.instagram.com/wrightwayzcharity/) |
+| **Threads** | [@soloservicepro](https://www.threads.com/@soloservicepro) | |
+| **Facebook** | [The Solo Service Provider](https://www.facebook.com/share/1ZSV63yiV3/) | [WrightWayz](https://www.facebook.com/people/Wrightwayz/61592187395142/) |
+
+Personal: [LinkedIn](https://www.linkedin.com/in/joshuawright-solo) · [TikTok @joshwrightwayz](https://www.tiktok.com/@joshwrightwayz) · [GitHub](https://github.com/joshuawayzwright)
 
 ## The Solo Service Provider
 
 <a href="https://thesoloserviceprovider.com.au/"><img src="assets/solo-banner.png" width="798" alt="SOLO Service Provider — Work smarter. Go further. Original gold and steel emblem with the hooded SOLO AI guardian." /></a>
 
-**WORK SMARTER. GO FURTHER.**
+**WORK SMARTER. GO FURTHER.** Practical digital tools for Australian sole traders and small service businesses.
 
-My commercial work brings together AI tools, business workflows and digital resources for solo operators. **SOLO AI** is the assistant product within that work.
+- **[SOLO online shop](https://thesoloserviceprovider.com.au/shop/)**: 16 ready-to-use digital toolkits for quoting and invoicing, cashflow, bookings, customer support, operations and AI workflows, including four **Trade Editions** for cleaners, handymen, lawn and garden businesses and mobile dog groomers. One-off purchases with a 30-day money-back guarantee.
+- **[Free hourly rate calculator](https://thesoloserviceprovider.com.au/rate-calculator.html)**: works out what a sole trader needs to charge after super, business costs, time off and unbillable hours.
+- **[Revenue Rescue](https://thesoloserviceprovider.com.au/revenue-rescue.html)**: a service that helps local businesses turn more website visitors into paid jobs.
+- **SOLO AI**: in testing on web and Android; not yet on Google Play.
 
-**Public availability checked — 4 November 2026:** SOLO AI is in private testing and public chat is not yet available. Digital products are listed as coming soon. See the website for current availability and release updates.
+**What I built behind it (private repository):**
 
-**[Website and service notice](https://thesoloserviceprovider.com.au/) · [SOLO development checklist](https://github.com/joshuawayzwright/ai-download-center/issues/31)**
+- A static site and shop on **Vercel**, with **Node.js serverless functions** for checkout, webhooks, downloads and the SOLO AI API.
+- **Stripe** checkout and webhooks, with idempotent event handling and refund processing.
+- **Supabase (PostgreSQL)** for orders, accounts and access grants, with row-level security and service-role-only access.
+- Secure, expiring download links, emailed access-link recovery and **Klaviyo** email automation.
+- The **SOLO AI Android app** in Kotlin and Jetpack Compose: streaming replies, answers with web sources, emailed-code sign-up and password reset, Keystore-encrypted sessions and in-app account deletion.
+- Privacy-aware analytics with **GA4**, **Google Ads** and **Meta Pixel** that respect Global Privacy Control and Do Not Track, behind a strict Content Security Policy.
+- **300+ automated tests** run on every deploy.
 
-## Explore the public projects
+## Projects
+
+### Free tools for sole traders
+
+Free browser tools for Australian sole traders. Everything runs in the browser and nothing you type is sent anywhere. Each one also writes a ready-to-paste prompt for your own AI assistant, which keeps your numbers unchanged.
+
+| Tool | What it does | Links |
+|---|---|---|
+| **AI Quote Builder** | Line items, 10% GST, deposit, valid-until date, and what's included and excluded. Copy, download or print. | [Open](https://joshuawayzwright.github.io/ai-quote-builder/) · [Source](https://github.com/joshuawayzwright/ai-quote-builder) |
+| **AI Service Pricing Planner** | Your real hourly and day rate after super, costs, time off and admin time, then a price for a job. Warns at the $75,000 GST threshold. | [Open](https://joshuawayzwright.github.io/ai-service-pricing/) · [Source](https://github.com/joshuawayzwright/ai-service-pricing) |
+| **AI Follow-Up Planner** | Follow-up plans for enquiries, quotes and past clients, with ready-to-send messages and an "Add to calendar" file | [Open](https://joshuawayzwright.github.io/ai-follow-up-planner/) · [Source](https://github.com/joshuawayzwright/ai-follow-up-planner) |
+| **GitHub Profile Kit** | Fill in a form and get a profile README like this one, with social badges | [Open](https://joshuawayzwright.github.io/github-profile-kit/) · [Source](https://github.com/joshuawayzwright/github-profile-kit) |
+
+### [Jarvis](https://github.com/joshuawayzwright/jarvis)
+
+An AI engineering agent for the terminal, built on the Claude API. It searches code across all public GitHub repositories, pulls projects from GitHub, GitLab, Codeberg and Bitbucket, and answers questions about them. It can also build features: research how other projects solve a problem, make the change, run the tests, commit to a feature branch and open a draft pull request. Extras include voice mode with a "Hey Jarvis" wake word, MCP server support, long-term memory, a CI doctor that reads failed GitHub Actions logs, a web dashboard with cost estimates and a spending limit, and a phone interface that runs in GitHub Codespaces.
+
+**[Jarvis on GitHub](https://github.com/joshuawayzwright/jarvis) · [Run it from your phone](https://github.com/joshuawayzwright/jarvis#use-it-from-your-phone-no-computer-needed)**
 
 ### [AI Download Centre](https://joshuawayzwright.github.io/ai-download-center/)
 
-A live public directory of AI models, assistants and tools, with links to official providers and download sources. Browse the catalogue, search by category or submit a tool for review.
+A live public directory of AI models, assistants and tools: 112 hand-picked listings plus 870+ community model cards from Hugging Face, with live Hugging Face search. It also includes Creator Studio, a browser planner for the upcoming AI Field Notes video channel.
 
-**[Open the directory](https://joshuawayzwright.github.io/ai-download-center/) · [Source and documentation](https://github.com/joshuawayzwright/ai-download-center) · [Submit a tool](https://github.com/joshuawayzwright/ai-download-center/issues/new?template=submit-tool.yml)**
+**[Open the directory](https://joshuawayzwright.github.io/ai-download-center/) · [Source](https://github.com/joshuawayzwright/ai-download-center) · [Submit a tool](https://github.com/joshuawayzwright/ai-download-center/issues/new?template=submit-tool.yml)**
 
 ### [ProjectForge AI](https://joshuawayzwright.github.io/projectforge-ai/)
 
-A live project planning and learning workspace with **eight browser tools**: Prompt Vault, Idea Canvas, Priority Coach, Study Cards, Content Planner, Research Tracker, GitHub Live Hub and Workflow Lab.
+A project planning and learning workspace with eight browser tools: Prompt Vault, Idea Canvas, Priority Coach, Study Cards, Content Planner, Research Tracker, GitHub Live Hub and Workflow Lab. It runs in the browser with local storage; there's no model inference or cloud sync.
 
-ProjectForge uses local browser storage and templates. The GitHub hub reads public GitHub data. Model inference, cloud sync and external workflow execution are not included.
+**[Open ProjectForge](https://joshuawayzwright.github.io/projectforge-ai/) · [Source](https://github.com/joshuawayzwright/projectforge-ai)**
 
-**[Open ProjectForge](https://joshuawayzwright.github.io/projectforge-ai/) · [Source and documentation](https://github.com/joshuawayzwright/projectforge-ai)**
+### [WrightWayz website](https://www.wrightwayz.com/)
+
+Information about peer and community support, a support enquiry form, an accessibility statement and free browser tools. A static site on Vercel with a Content Security Policy and automated Python and browser tests.
 
 ## WrightWayz
 
@@ -46,27 +104,39 @@ ProjectForge uses local browser storage and templates. The GitHub hub reads publ
 
 **Broken Systems. Unbreakable Bonds. · #WeWalkAsOne**
 
-WrightWayz is my separate Gold Coast community initiative, focused on lived experience, recovery, connection and responsible technology. Its website provides information about peer and community support and a support enquiry form. The AI Bridge and a physical community hub remain in development or planning.
+WrightWayz is my separate Gold Coast community initiative, focused on lived experience, recovery, connection and responsible technology. The AI Bridge and a physical community hub are in development or planning.
 
-Commercial products and WrightWayz retain distinct identities, governance, funds and data. WrightWayz is not an emergency or clinical service.
+Commercial products and WrightWayz keep separate identities, governance, funds and data. WrightWayz is not an emergency or clinical service.
 
-**[Explore WrightWayz](https://www.wrightwayz.com/)**
+**[Explore WrightWayz](https://www.wrightwayz.com/) · [Instagram](https://www.instagram.com/wrightwayzcharity/) · [Facebook](https://www.facebook.com/people/Wrightwayz/61592187395142/)**
+
+## Skills and technologies
+
+| Area | Tools and skills |
+|---|---|
+| **Languages** | JavaScript (Node.js), HTML5, CSS3, SQL (PostgreSQL), Python, Kotlin and Java (Android), Bash, PowerShell |
+| **Platforms** | Vercel (serverless functions), Supabase, Stripe, GitHub Actions, GitHub Pages, Android (Jetpack Compose) |
+| **AI** | Claude API and agents, Gemini API, Model Context Protocol (MCP), Hugging Face, voice interfaces |
+| **Integrations** | Stripe Checkout and webhooks, Klaviyo, Google Analytics 4, Google Ads, Meta Pixel and Ads |
+| **Practices** | Automated testing, secure payment and delivery flows, row-level security, Content Security Policy, privacy by design, SEO, accessibility, responsive design |
+| **Business** | Product design and pricing, e-commerce, email marketing, digital advertising, small-business operations |
 
 ## How I build
 
-- **Useful tools:** AI-assisted business workflows, local browser apps and practical automation.
-- **Clear delivery:** distinguish public tools, private previews and planned features.
-- **Responsible systems:** protect credentials, respect privacy and keep community and commercial operations separate.
-- **Current stack:** JavaScript, HTML/CSS, Node.js, GitHub Actions and Vercel; Gemini and Supabase in the commercial SOLO development work.
+- **Useful tools:** solve a real problem for a real person, then make it simple.
+- **Tested before it ships:** automated tests and a real end-to-end check before launch.
+- **Honest about status:** I clearly separate what's live, what's in testing and what's planned.
+- **Responsible systems:** protect credentials, respect privacy, and keep community and commercial work separate.
 
 ## Contact
 
 **Joshua Wright**<br />
-**Email:** [superadmin2712@gmail.com](mailto:superadmin2712@gmail.com)<br />
+**Email:** [superadmin2712@gmail.com](mailto:superadmin2712@gmail.com) · Business: [hello@thesoloserviceprovider.com.au](mailto:hello@thesoloserviceprovider.com.au)<br />
 **Phone:** [0452 272 820](tel:+61452272820) · International: +61 452 272 820<br />
+**LinkedIn:** [linkedin.com/in/joshuawright-solo](https://www.linkedin.com/in/joshuawright-solo)<br />
 **Location:** Gold Coast, Queensland, Australia
 
-For enquiries, please identify **The Solo Service Provider**, **SOLO AI**, **AI Download Centre**, **ProjectForge** or **WrightWayz** so the request reaches the right project.
+When you get in touch, please name **The Solo Service Provider**, **SOLO AI**, **Jarvis**, **AI Download Centre**, **ProjectForge** or **WrightWayz** so your message reaches the right project.
 
 ---
 
@@ -74,6 +144,6 @@ For enquiries, please identify **The Solo Service Provider**, **SOLO AI**, **AI 
 
 **REAL TOOLS. REAL RESULTS.**
 
-Brand styling and service wording updated **4 November 2026** · Previous full profile review **27 October 2026 (Brisbane)** · [Profile audit and current status](PROFILE-AUDIT.md) · [Original artwork sources](assets/README.md)
+Profile updated **19 November 2026** · [Profile audit and earlier status notes](PROFILE-AUDIT.md) · [Original artwork sources](assets/README.md)
 
 </div>

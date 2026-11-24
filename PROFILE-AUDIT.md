@@ -3,7 +3,7 @@
 ## Current public information
 
 - **Owner:** Joshua Wright (Sudo), Gold Coast, Queensland, Australia.
-- **Public contact:** [superadmin2712@gmail.com](mailto:superadmin2712@gmail.com), **0452 272 820** / **+61 452 272 820**.
+- **Public contact:** [hello@thesoloserviceprovider.com.au](mailto:hello@thesoloserviceprovider.com.au), **0452 272 820** / **+61 452 272 820**.
 - **Branding:** existing SOLO business/guardian artwork and WrightWayz artwork, preserved without redesign. See [asset provenance](assets/README.md).
 - **Commercial website:** [The Solo Service Provider](https://thesoloserviceprovider.com.au/) serves a maintenance notice; new orders are paused.
 - **SOLO AI:** owner-only private Gemini conversation evidence exists. Customer access work is in [draft PR #34](https://github.com/joshuawayzwright/ai-download-center/pull/34), not a public launch. Follow the current section of [issue #31](https://github.com/joshuawayzwright/ai-download-center/issues/31).
@@ -48,7 +48,7 @@ This refresh covers GitHub presentation, documentation and contact information. 
 - **Company:** The Solo Service Provider | WrightWayz
 - **Location:** Gold Coast, Queensland, Australia
 - **Website:** https://thesoloserviceprovider.com.au/
-- **Public email:** superadmin2712@gmail.com, if already available as a verified profile option. Account sign-in and recovery emails are outside this change.
+- **Public email:** hello@thesoloserviceprovider.com.au, if already available as a verified profile option. Account sign-in and recovery emails are outside this change.
 - **Featured public repositories:** AI Download Center and ProjectForge AI, with this profile repository available as a third selection.
 
 The GitHub connector can update repository content but does not expose account-profile settings. The browser was signed out at audit time; these sidebar changes remain pending authentication.

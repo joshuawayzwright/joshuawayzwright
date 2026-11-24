@@ -9,7 +9,7 @@ Gold Coast, Queensland, Australia · Studying Computer Science at Griffith Unive
 <a href="https://www.linkedin.com/in/joshuawright-solo"><img src="https://img.shields.io/badge/LinkedIn-joshuawright--solo-0087FF?style=for-the-badge&logo=linkedin&logoColor=white&labelColor=0A0A0A" alt="LinkedIn" /></a>
 <a href="https://github.com/joshuawayzwright"><img src="https://img.shields.io/badge/GitHub-joshuawayzwright-8A8F98?style=for-the-badge&logo=github&logoColor=white&labelColor=0A0A0A" alt="GitHub" /></a>
 <a href="https://www.tiktok.com/@joshwrightwayz"><img src="https://img.shields.io/badge/TikTok-%40joshwrightwayz-0087FF?style=for-the-badge&logo=tiktok&logoColor=white&labelColor=0A0A0A" alt="TikTok" /></a>
-<a href="mailto:superadmin2712@gmail.com"><img src="https://img.shields.io/badge/Email-Get_in_touch-D4AF37?style=for-the-badge&logo=gmail&logoColor=white&labelColor=0A0A0A" alt="Email" /></a>
+<a href="mailto:hello@thesoloserviceprovider.com.au"><img src="https://img.shields.io/badge/Email-Get_in_touch-D4AF37?style=for-the-badge&logo=gmail&logoColor=white&labelColor=0A0A0A" alt="Email" /></a>
 
 </div>
 
@@ -96,7 +96,7 @@ A project planning and learning workspace with eight browser tools: Prompt Vault
 
 ### [WrightWayz website](https://www.wrightwayz.com/)
 
-Information about peer and community support, a support enquiry form, an accessibility statement and free browser tools. A static site on Vercel with a Content Security Policy and automated Python and browser tests.
+The website for the WrightWayz not-for-profit initiative, with information resources, an enquiry form and an accessibility statement. A static site on Vercel with a Content Security Policy and automated Python and browser tests.
 
 ## WrightWayz
 
@@ -131,7 +131,7 @@ Commercial products and WrightWayz keep separate identities, governance, funds a
 ## Contact
 
 **Joshua Wright**<br />
-**Email:** [superadmin2712@gmail.com](mailto:superadmin2712@gmail.com) · Business: [hello@thesoloserviceprovider.com.au](mailto:hello@thesoloserviceprovider.com.au)<br />
+**Email:** [hello@thesoloserviceprovider.com.au](mailto:hello@thesoloserviceprovider.com.au)<br />
 **Phone:** [0452 272 820](tel:+61452272820) · International: +61 452 272 820<br />
 **LinkedIn:** [linkedin.com/in/joshuawright-solo](https://www.linkedin.com/in/joshuawright-solo)<br />
 **Location:** Gold Coast, Queensland, Australia

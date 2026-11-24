@@ -62,7 +62,7 @@ The overall style is polished Australian industrial, with a raw Gold Coast chara
 | --- | --- |
 | Commercial brand lock (marks, palette, type, taglines) | [`ai-download-center/docs/SOLO-BRAND-LOCK.md`](https://github.com/joshuawayzwright/ai-download-center/blob/main/docs/SOLO-BRAND-LOCK.md) |
 | Business angular-S emblem, SOLO AI emblem, icons, favicons, social glyphs, banner | [`ai-download-center/powerhouse-website/assets/approved-stage/`](https://github.com/joshuawayzwright/ai-download-center/tree/main/powerhouse-website/assets/approved-stage) |
-| WrightWayz emblem, banner and brand board | [`wrightwayz-website/`](https://github.com/joshuawayzwright/wrightwayz-website) (`wrightwayz-emblem.png`, `wrightwayz-banner.png`, `wrightwayz-brand-board.png`) |
+| WrightWayz emblem, banner and brand board | In the private `wrightwayz-website` repository (`wrightwayz-emblem.png`, `wrightwayz-banner.png`, `wrightwayz-brand-board.png`) |
 | Profile artwork and masthead | [`assets/README.md`](assets/README.md) |
 | SOLO badge logo master, Facebook/Instagram profile pictures and Facebook headers for both brands | [`assets/social/`](assets/social/) (see [`assets/README.md`](assets/README.md#social-media-kit--10-november-2026)) |
 

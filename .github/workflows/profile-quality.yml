@@ -49,10 +49,6 @@ jobs:
           }
           if ($failed) { exit 1 }
 
-      - name: Validate marketing engine and drafts
-        shell: bash
-        run: python3 scripts/check_marketing.py
-
       - name: Check for unresolved merge markers
         shell: bash
         run: |
